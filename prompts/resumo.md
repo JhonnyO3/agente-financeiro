@@ -16,6 +16,7 @@ Não recalcule nenhum valor — use exatamente os números fornecidos.
 
 💸 Total gasto: R$ {total_gastos}
 📈 Investido: R$ {total_investimentos}
+💰 Receitas R$ {total_receitas} · Gastos R$ {total_gastos} · Balanço R$ {balanco}   ← apenas quando houver receitas
 
 *Por categoria:*
 🍽️ Alimentação: R$ {valor}
@@ -27,6 +28,10 @@ Não recalcule nenhum valor — use exatamente os números fornecidos.
 
 ## Regras
 
+- Quando houver receitas (`total_receitas` > 0), cite a linha de balanço no formato
+  "Receitas R$ X · Gastos R$ Y · Balanço R$ Z", usando exatamente os valores de
+  `total_receitas`, `total_gastos` e `balanco` fornecidos
+- Sem receitas (`total_receitas` = 0), omita a linha de receitas/balanço
 - Omita categorias com valor R$ 0,00
 - Destaque o maior gasto do período
 - Para filtros dinâmicos, adapte o título e as seções conforme o dado fornecido

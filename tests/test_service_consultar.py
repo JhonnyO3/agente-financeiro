@@ -64,8 +64,153 @@ async def test_consulta_mensal_totais_em_decimal():
     assert resultado.periodo_label == "06/2026"
     assert isinstance(resultado.total_gastos, Decimal)
     assert isinstance(resultado.total_investimentos, Decimal)
+    assert isinstance(resultado.total_receitas, Decimal)
+    assert isinstance(resultado.balanco, Decimal)
     assert resultado.total_gastos == Decimal("150.00")
     assert resultado.total_investimentos == Decimal("500.00")
+    assert resultado.total_receitas == Decimal("0")
+    assert resultado.balanco == Decimal("-150.00")
+
+
+@pytest.mark.asyncio
+async def test_consulta_mensal_com_os_tres_totais_e_balanco():
+    repository = AsyncMock()
+    filtro_chain = AsyncMock()
+    embedder = AsyncMock()
+
+    filtro_chain.extrair.return_value = FiltroConsultaResult(
+        tipo_consulta="mensal",
+        mes=6,
+        ano=2026,
+    )
+
+    lista = [
+        AgregadoCategoria(categoria=CategoriaEnum.ALIMENTACAO, total=Decimal("350.00"), quantidade=2),
+        AgregadoCategoria(categoria=CategoriaEnum.RECEITA, total=Decimal("5000.00"), quantidade=1),
+        AgregadoCategoria(categoria=CategoriaEnum.INVESTIMENTO, total=Decimal("500.00"), quantidade=1),
+    ]
+    repository.agregar_por_categoria.return_value = lista
+
+    service = make_service(repository, filtro_chain, embedder)
+    resultado = await service.executar("resumo de junho")
+
+    assert resultado.total_gastos == Decimal("350.00")
+    assert resultado.total_receitas == Decimal("5000.00")
+    assert resultado.total_investimentos == Decimal("500.00")
+    assert resultado.balanco == Decimal("4650.00")
+
+
+@pytest.mark.asyncio
+async def test_consulta_mensal_receita_nao_entra_em_gastos():
+    repository = AsyncMock()
+    filtro_chain = AsyncMock()
+    embedder = AsyncMock()
+
+    filtro_chain.extrair.return_value = FiltroConsultaResult(
+        tipo_consulta="mensal",
+        mes=6,
+        ano=2026,
+    )
+
+    lista = [
+        AgregadoCategoria(categoria=CategoriaEnum.RECEITA, total=Decimal("1000.00"), quantidade=1),
+    ]
+    repository.agregar_por_categoria.return_value = lista
+
+    service = make_service(repository, filtro_chain, embedder)
+    resultado = await service.executar("resumo de junho")
+
+    assert resultado.total_gastos == Decimal("0")
+    assert resultado.total_receitas == Decimal("1000.00")
+    assert resultado.balanco == Decimal("1000.00")
+
+
+@pytest.mark.asyncio
+async def test_consulta_mensal_sem_receitas_balanco_negativo():
+    repository = AsyncMock()
+    filtro_chain = AsyncMock()
+    embedder = AsyncMock()
+
+    filtro_chain.extrair.return_value = FiltroConsultaResult(
+        tipo_consulta="mensal",
+        mes=6,
+        ano=2026,
+    )
+
+    lista = [
+        AgregadoCategoria(categoria=CategoriaEnum.COMPRAS, total=Decimal("200.00"), quantidade=1),
+    ]
+    repository.agregar_por_categoria.return_value = lista
+
+    service = make_service(repository, filtro_chain, embedder)
+    resultado = await service.executar("resumo de junho")
+
+    assert resultado.total_gastos == Decimal("200.00")
+    assert resultado.total_receitas == Decimal("0")
+    assert resultado.balanco == Decimal("-200.00")
+
+
+@pytest.mark.asyncio
+async def test_consulta_semanal_com_receitas_e_balanco():
+    repository = AsyncMock()
+    filtro_chain = AsyncMock()
+    embedder = AsyncMock()
+
+    filtro_chain.extrair.return_value = FiltroConsultaResult(
+        tipo_consulta="semanal",
+    )
+
+    lista = [
+        AgregadoCategoria(categoria=CategoriaEnum.LAZER, total=Decimal("80.00"), quantidade=1),
+        AgregadoCategoria(categoria=CategoriaEnum.RECEITA, total=Decimal("300.00"), quantidade=1),
+    ]
+    repository.agregar_por_categoria.return_value = lista
+
+    service = make_service(repository, filtro_chain, embedder)
+    resultado = await service.executar("resumo da semana")
+
+    assert resultado.total_gastos == Decimal("80.00")
+    assert resultado.total_receitas == Decimal("300.00")
+    assert resultado.balanco == Decimal("220.00")
+
+
+@pytest.mark.asyncio
+async def test_consulta_geral_com_receitas_e_balanco():
+    repository = AsyncMock()
+    filtro_chain = AsyncMock()
+    embedder = AsyncMock()
+
+    filtro_chain.extrair.return_value = FiltroConsultaResult(
+        tipo_consulta="geral",
+    )
+
+    lista = [
+        AgregadoCategoria(categoria=CategoriaEnum.TRANSPORTE, total=Decimal("120.00"), quantidade=2),
+        AgregadoCategoria(categoria=CategoriaEnum.RECEITA, total=Decimal("2000.00"), quantidade=1),
+        AgregadoCategoria(categoria=CategoriaEnum.INVESTIMENTO, total=Decimal("400.00"), quantidade=1),
+    ]
+    repository.agregar_por_categoria.return_value = lista
+
+    service = make_service(repository, filtro_chain, embedder)
+    resultado = await service.executar("resumo geral")
+
+    assert resultado.tipo == "geral"
+    assert resultado.total_gastos == Decimal("120.00")
+    assert resultado.total_receitas == Decimal("2000.00")
+    assert resultado.total_investimentos == Decimal("400.00")
+    assert resultado.balanco == Decimal("1880.00")
+
+
+def test_resultado_consulta_defaults_de_receitas_e_balanco():
+    resultado = ResultadoConsulta(
+        tipo="mensal",
+        periodo_label="06/2026",
+        total_gastos=Decimal("10.00"),
+        total_investimentos=Decimal("0"),
+        por_categoria=[],
+    )
+    assert resultado.total_receitas == Decimal("0")
+    assert resultado.balanco == Decimal("0")
 
 
 @pytest.mark.asyncio
@@ -131,6 +276,8 @@ async def test_consulta_grupo_parcela_lista_com_status_correto():
     resultado = await service.executar("parcelas do celular")
 
     assert resultado.tipo == "grupo_parcela"
+    assert resultado.total_receitas == Decimal("0")
+    assert resultado.balanco == Decimal("0")
     assert resultado.parcelas is not None
     assert len(resultado.parcelas) == 3
 
