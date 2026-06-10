@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- 1. Seletor de período (RF-01) -->
+<div class="row mb-4">
+  <div class="col-12 col-md-4">
+    <form method="GET">
+      <label for="seletor-periodo" class="form-label">Período</label>
+      <select id="seletor-periodo" name="periodo" class="form-select" onchange="this.form.submit()">
+        {% for valor, label in periodos.items() %}
+        <option value="{{ valor }}"{% if valor == periodo %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+<!-- 2. Cards de resumo (RF-02) -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Gastos</h6>
+        <p id="card-gastos" class="card-text fs-3 fw-bold mb-0">—</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Investimentos</h6>
+        <p id="card-investimentos" class="card-text fs-3 fw-bold mb-0">—</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Saldo</h6>
+        <p id="card-saldo" class="card-text fs-3 fw-bold mb-0">—</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Gráficos — pizza e barras (RF-03, RF-04) -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Gastos por categoria</h6>
+        <canvas id="chart-pizza"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Gastos mensais</h6>
+        <canvas id="chart-barras"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Gráfico de evolução (RF-05) -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title">Evolução</h6>
+        <canvas id="chart-linha"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Parcelas em andamento (RF-06) -->
+<div class="row mb-4">
+  <div class="col-12">
+    <h5>Parcelas em andamento</h5>
+    <div id="parcelas-container" class="row g-3"></div>
+  </div>
+</div>
+
+<!-- 6. Tabela de transações (RF-07) -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Transações</h5>
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-3">
+            <label for="filtro-tipo" class="form-label">Tipo</label>
+            <select id="filtro-tipo" class="form-select">
+              <option value="">Todos</option>
+              {% for tipo in tipos %}
+              <option value="{{ tipo }}">{{ tipo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-3">
+            <label for="filtro-categoria" class="form-label">Categoria</label>
+            <select id="filtro-categoria" class="form-select">
+              <option value="">Todas</option>
+              {% for categoria in categorias %}
+              <option value="{{ categoria }}">{{ categoria }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-6 text-md-end">
+            <button type="button" id="btn-adicionar" class="btn btn-primary">+ Adicionar</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table id="tabela-transacoes" class="table table-striped table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Categoria</th>
+                <th>Valor</th>
+                <th>Parcela</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="paginacao" class="d-flex justify-content-center"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. Investimentos (RF-08) -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Investimentos</h5>
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-6">
+            <div class="card text-center h-100">
+              <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Investido no período</h6>
+                <p id="card-invest-periodo" class="card-text fs-4 fw-bold mb-0">—</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="card text-center h-100">
+              <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Total investido</h6>
+                <p id="card-invest-total" class="card-text fs-4 fw-bold mb-0">—</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table id="tabela-investimentos" class="table table-striped table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Categoria</th>
+                <th>Valor</th>
+                <th>Parcela</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. Modal de edição (T08) -->
+<div class="modal fade" id="modal-editar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar transação</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-editar">
+          <div class="mb-3">
+            <label for="edit-data" class="form-label">Data</label>
+            <input type="date" class="form-control" id="edit-data" name="data" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit-descricao" class="form-label">Descrição</label>
+            <input type="text" class="form-control" id="edit-descricao" name="descricao" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit-categoria" class="form-label">Categoria</label>
+            <select class="form-select" id="edit-categoria" name="categoria" required>
+              {% for categoria in categorias %}
+              <option value="{{ categoria }}">{{ categoria }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="edit-valor" class="form-label">Valor</label>
+            <input type="number" class="form-control" id="edit-valor" name="valor" step="0.01" min="0" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-salvar-editar">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. Modal de inclusão (T08) -->
+<div class="modal fade" id="modal-adicionar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Adicionar transação</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-adicionar">
+          <div class="mb-3">
+            <label for="add-data" class="form-label">Data</label>
+            <input type="date" class="form-control" id="add-data" name="data" required>
+          </div>
+          <div class="mb-3">
+            <label for="add-descricao" class="form-label">Descrição</label>
+            <input type="text" class="form-control" id="add-descricao" name="descricao" required>
+          </div>
+          <div class="mb-3">
+            <label for="add-categoria" class="form-label">Categoria</label>
+            <select class="form-select" id="add-categoria" name="categoria" required>
+              {% for categoria in categorias %}
+              <option value="{{ categoria }}">{{ categoria }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="add-valor" class="form-label">Valor</label>
+            <input type="number" class="form-control" id="add-valor" name="valor" step="0.01" min="0" required>
+          </div>
+          <div class="mb-3">
+            <label for="add-tipo" class="form-label">Tipo</label>
+            <select class="form-select" id="add-tipo" name="tipo" required>
+              {% for tipo in tipos %}
+              <option value="{{ tipo }}">{{ tipo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-salvar-adicionar">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
