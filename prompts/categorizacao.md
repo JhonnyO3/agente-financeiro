@@ -20,6 +20,12 @@ Retorne apenas o JSON — sem explicação adicional.
 
 Se `tipo = INVESTIMENTO`, a categoria é sempre `INVESTIMENTO` — não consulte outras opções.
 
+## Categorias reservadas (NÃO retornar)
+
+As categorias `PARCELAMENTOS` e `RECEITA` são atribuídas automaticamente pelo sistema
+(compras parceladas e receitas, respectivamente) e **nunca** devem ser retornadas por você.
+Escolha sempre uma das categorias da tabela acima.
+
 ## Saída esperada
 
 ```json
