@@ -7,13 +7,17 @@ from app.agents.base import carregar_prompt, criar_llm
 
 
 class ExtracaoResult(BaseModel):
-    tipo: Literal["GASTO", "INVESTIMENTO"]
+    tipo: Literal["GASTO", "INVESTIMENTO", "RECEITA"]
     valor_total: Decimal
     valor_por_parcela: Decimal | None
     parcela_total: int = 1
+    parcela_atual: int = 1
     descricao: str | None
+    detalhes: str | None = None
     data_referencia: date
     menciona_cartao: bool
+    forma_pagamento: Literal["PIX", "CARTAO", "OUTRO"] = "OUTRO"
+    responsavel: str = "Jhonatas"
 
 
 class Extrator:
