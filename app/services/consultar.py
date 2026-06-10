@@ -24,6 +24,30 @@ class ResultadoConsulta:
     total_investimentos: Decimal
     por_categoria: list
     parcelas: list | None = None
+    total_receitas: Decimal = Decimal("0")
+    balanco: Decimal = Decimal("0")
+
+
+def _calcular_totais(lista) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Retorna (total_gastos, total_investimentos, total_receitas, balanco)."""
+    total_gastos = sum(
+        (
+            a.total
+            for a in lista
+            if a.categoria not in (CategoriaEnum.INVESTIMENTO, CategoriaEnum.RECEITA)
+        ),
+        Decimal("0"),
+    )
+    total_investimentos = sum(
+        (a.total for a in lista if a.categoria == CategoriaEnum.INVESTIMENTO),
+        Decimal("0"),
+    )
+    total_receitas = sum(
+        (a.total for a in lista if a.categoria == CategoriaEnum.RECEITA),
+        Decimal("0"),
+    )
+    balanco = total_receitas - total_gastos
+    return total_gastos, total_investimentos, total_receitas, balanco
 
 
 class ConsultarService:
@@ -50,19 +74,14 @@ class ConsultarService:
         inicio = date(A, M, 1)
         fim = date(A, M, calendar.monthrange(A, M)[1])
         lista = await self._repository.agregar_por_categoria(inicio, fim)
-        total_gastos = sum(
-            (a.total for a in lista if a.categoria != CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
-        total_investimentos = sum(
-            (a.total for a in lista if a.categoria == CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
+        total_gastos, total_investimentos, total_receitas, balanco = _calcular_totais(lista)
         return ResultadoConsulta(
             tipo="mensal",
             periodo_label=f"{M:02d}/{A}",
             total_gastos=total_gastos,
             total_investimentos=total_investimentos,
+            total_receitas=total_receitas,
+            balanco=balanco,
             por_categoria=lista,
         )
 
@@ -71,14 +90,7 @@ class ConsultarService:
         inicio = hoje - timedelta(days=hoje.weekday())
         fim = inicio + timedelta(days=6)
         lista = await self._repository.agregar_por_categoria(inicio, fim)
-        total_gastos = sum(
-            (a.total for a in lista if a.categoria != CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
-        total_investimentos = sum(
-            (a.total for a in lista if a.categoria == CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
+        total_gastos, total_investimentos, total_receitas, balanco = _calcular_totais(lista)
         inicio_label = inicio.strftime("%d/%m")
         fim_label = fim.strftime("%d/%m")
         return ResultadoConsulta(
@@ -86,6 +98,8 @@ class ConsultarService:
             periodo_label=f"{inicio_label} – {fim_label}",
             total_gastos=total_gastos,
             total_investimentos=total_investimentos,
+            total_receitas=total_receitas,
+            balanco=balanco,
             por_categoria=lista,
         )
 
@@ -141,18 +155,13 @@ class ConsultarService:
         inicio = date(2000, 1, 1)
         fim = date.today()
         lista = await self._repository.agregar_por_categoria(inicio, fim)
-        total_gastos = sum(
-            (a.total for a in lista if a.categoria != CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
-        total_investimentos = sum(
-            (a.total for a in lista if a.categoria == CategoriaEnum.INVESTIMENTO),
-            Decimal("0"),
-        )
+        total_gastos, total_investimentos, total_receitas, balanco = _calcular_totais(lista)
         return ResultadoConsulta(
             tipo="geral",
             periodo_label="geral",
             total_gastos=total_gastos,
             total_investimentos=total_investimentos,
+            total_receitas=total_receitas,
+            balanco=balanco,
             por_categoria=lista,
         )

@@ -83,6 +83,8 @@ def _serializar(resultado) -> str:
             f"periodo: {resultado.periodo_label}",
             f"total_gastos: {resultado.total_gastos}",
             f"total_investimentos: {resultado.total_investimentos}",
+            f"total_receitas: {resultado.total_receitas}",
+            f"balanco: {resultado.balanco}",
         ]
         for cat in resultado.por_categoria:
             linhas.append(f"  {cat.categoria}: {cat.total}")
