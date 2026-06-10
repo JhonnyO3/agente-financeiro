@@ -1,8 +1,15 @@
-from dataclasses import dataclass, field
-from uuid import UUID
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Literal
+from uuid import UUID
+
 from app.repositories.dtos import TransacaoUpdate
+
+_UTC = timezone.utc
+
+
+def _now() -> datetime:
+    return datetime.now(_UTC)
 
 
 @dataclass
@@ -13,25 +20,27 @@ class EstadoConfirmacao:
     novos_dados: TransacaoUpdate | None = None
     pergunta_grupo: bool = False
     mensagem_original: str = ""
-    criado_em: datetime = field(default_factory=datetime.now)
 
 
 class ConfirmacaoState:
-    def __init__(self, ttl_minutos: int = 5):
+    def __init__(self, ttl_minutos: int = 5) -> None:
         self._ttl = timedelta(minutes=ttl_minutos)
-        self._store: dict[str, EstadoConfirmacao] = {}
+        self._estados: dict[str, EstadoConfirmacao] = {}
+        self._timestamps: dict[str, datetime] = {}
 
     def salvar(self, numero: str, estado: EstadoConfirmacao) -> None:
-        self._store[numero] = estado
+        self._estados[numero] = estado
+        self._timestamps[numero] = _now()
 
     def obter(self, numero: str) -> EstadoConfirmacao | None:
-        estado = self._store.get(numero)
+        estado = self._estados.get(numero)
         if estado is None:
             return None
-        if datetime.now() - estado.criado_em > self._ttl:
-            del self._store[numero]
+        if _now() - self._timestamps[numero] > self._ttl:
+            self.limpar(numero)
             return None
         return estado
 
     def limpar(self, numero: str) -> None:
-        self._store.pop(numero, None)
+        self._estados.pop(numero, None)
+        self._timestamps.pop(numero, None)
