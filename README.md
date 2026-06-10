@@ -8,6 +8,7 @@ Agente de IA pessoal acessível via WhatsApp para registrar, alterar, excluir e 
 - **Parcelamento** — cria N registros vinculados por `grupo_parcela_id`; pergunta automaticamente quando "cartão" é mencionado sem número de parcelas
 - **Alterar e excluir** via busca semântica (pgvector) com confirmação explícita
 - **Consultar** resumos mensais, semanais, gerais e status de parcelas por grupo
+- **Painel web** (Flask) para visualizar gráficos e gerenciar transações — ver [Dashboard web](#dashboard-web-painel)
 - Mensagens de outros números são descartadas silenciosamente
 
 ## Stack
@@ -19,6 +20,7 @@ Agente de IA pessoal acessível via WhatsApp para registrar, alterar, excluir e 
 | IA | LangChain · `gpt-4o-mini` (classificação) · `gpt-4o` (resposta) · `text-embedding-3-small` |
 | Banco | PostgreSQL + pgvector |
 | Migrações | Alembic |
+| Painel web | Flask (async) · Jinja2 · Chart.js · Bootstrap 5 (CDN) |
 
 ## Configuração
 
@@ -50,6 +52,57 @@ uv run uvicorn app.entrypoint.main:app --reload
 ```
 
 Configure o webhook da Evolution API apontando para `POST /webhook/mensagem`.
+
+## Dashboard web (painel)
+
+Painel Flask para **visualizar e gerenciar** os dados registrados pelo agente — gráficos, resumos e CRUD de transações. Roda em processo separado e compartilha o mesmo banco e o mesmo `.env` do agente.
+
+```bash
+# A dependência flask[async] já vem no uv.lock — basta sincronizar
+uv sync
+
+# Iniciar o painel (porta 5000)
+uv run flask --app dashboard.app run --port 5000
+
+# Abra no navegador
+http://localhost:5000
+```
+
+> O agente (FastAPI, porta 8000) e o painel (Flask, porta 5000) são independentes — você pode rodar só o painel para consultar os dados, sem o webhook ativo. Ambos leem a mesma `DATABASE_URL`.
+
+### O que o painel oferece
+
+| Recurso | Descrição |
+|---|---|
+| **Seletor de período** | Mês atual, mês anterior, últimos 3/6 meses, ano atual ou tudo — filtra todos os widgets |
+| **Cards de resumo** | Total de gastos, total de investimentos e saldo (verde/vermelho conforme o sinal) |
+| **Gráfico de pizza** | Gastos por categoria no período; clicar numa fatia filtra a tabela |
+| **Barras mensais** | Gastos dos últimos 6 meses, empilhados por categoria |
+| **Linha de evolução** | Gastos × investimentos ao longo de todos os meses com dados |
+| **Parcelas em andamento** | Cards com barra de progresso; botão para excluir o grupo inteiro |
+| **Tabela de transações** | Paginada (25/página), com filtros de tipo e categoria, edição e inclusão manual via modal e remoção |
+| **Seção de investimentos** | Tabela e totais (período + histórico) apenas de `tipo = INVESTIMENTO` |
+
+Todos os cálculos monetários são feitos em Python com `Decimal` e trafegam como string — o JavaScript apenas formata para exibição, nunca soma valores. Inclusões manuais gravam `embedding = NULL` (sem chamada à OpenAI no painel).
+
+> **Sem autenticação** — o painel foi pensado para uso local/intranet. Não exponha a porta 5000 à internet sem uma camada de proteção própria.
+
+### Endpoints da API do painel
+
+Todos retornam JSON e aceitam `?periodo=`; `/api/transacoes` aceita também `tipo`, `categoria` e `pagina`.
+
+| Método | Rota | Função |
+|---|---|---|
+| GET | `/` | Página principal (HTML) |
+| GET | `/health` | Healthcheck `{"ok": true}` |
+| GET | `/api/resumo` | Totais para os cards |
+| GET | `/api/grafico/categorias` | Dados da pizza |
+| GET | `/api/grafico/mensal` | Barras dos últimos 6 meses |
+| GET | `/api/grafico/evolucao` | Linha de evolução |
+| GET | `/api/parcelas-ativas` | Grupos com parcela futura |
+| GET/POST | `/api/transacoes` | Listar (paginado) / criar manual |
+| PUT/DELETE | `/api/transacoes/<id>` | Editar / excluir transação |
+| DELETE | `/api/grupos/<grupo_parcela_id>` | Excluir um grupo de parcelas inteiro |
 
 ## Testes
 
