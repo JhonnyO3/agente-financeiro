@@ -40,6 +40,60 @@ async def test_categorizador_investimento_sem_llm():
     mock_chain.ainvoke.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_categorizador_curso_vira_educacao():
+    from app.agents.categorizador import Categorizador, CategorizacaoResult
+
+    resultado = CategorizacaoResult(categoria="EDUCACAO")
+
+    with patch("app.agents.categorizador.criar_llm") as mock_criar:
+        mock_chain = MagicMock()
+        mock_chain.with_structured_output.return_value = mock_chain
+        mock_chain.ainvoke = AsyncMock(return_value=resultado)
+        mock_criar.return_value = mock_chain
+
+        categorizador = Categorizador()
+        resp = await categorizador.categorizar("GASTO", "curso de inglês", 1200.0)
+
+    assert resp.categoria == "EDUCACAO"
+    mock_chain.ainvoke.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_categorizador_objeto_vira_compras():
+    from app.agents.categorizador import Categorizador, CategorizacaoResult
+
+    resultado = CategorizacaoResult(categoria="COMPRAS")
+
+    with patch("app.agents.categorizador.criar_llm") as mock_criar:
+        mock_chain = MagicMock()
+        mock_chain.with_structured_output.return_value = mock_chain
+        mock_chain.ainvoke = AsyncMock(return_value=resultado)
+        mock_criar.return_value = mock_chain
+
+        categorizador = Categorizador()
+        resp = await categorizador.categorizar("GASTO", "console", 2400.0)
+
+    assert resp.categoria == "COMPRAS"
+
+
+def test_categorizacao_result_literal_sem_outros():
+    from app.agents.categorizador import CategorizacaoResult
+
+    args = CategorizacaoResult.model_fields["categoria"].annotation.__args__
+    assert set(args) == {
+        "ALIMENTACAO",
+        "TRANSPORTE",
+        "LAZER",
+        "EDUCACAO",
+        "GASTOS_FIXOS",
+        "COMPRAS",
+        "GASTOS_PONTUAIS",
+    }
+    assert "OUTROS" not in args
+    assert "PARCELAMENTOS" not in args
+
+
 def test_extracao_result_retrocompatibilidade_defaults():
     from app.agents.extrator import ExtracaoResult
 

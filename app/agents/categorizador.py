@@ -5,7 +5,7 @@ from app.agents.base import carregar_prompt, criar_llm
 
 
 class CategorizacaoResult(BaseModel):
-    categoria: Literal["ALIMENTACAO", "TRANSPORTE", "LAZER", "INVESTIMENTO", "GASTOS_FIXOS", "COMPRAS", "GASTOS_PONTUAIS", "OUTROS"]
+    categoria: Literal["ALIMENTACAO", "TRANSPORTE", "LAZER", "EDUCACAO", "GASTOS_FIXOS", "COMPRAS", "GASTOS_PONTUAIS"]
 
 
 class Categorizador:
@@ -15,7 +15,7 @@ class Categorizador:
 
     async def categorizar(self, tipo: str, descricao: str | None, valor: float) -> CategorizacaoResult:
         if tipo == "INVESTIMENTO":
-            return CategorizacaoResult(categoria="INVESTIMENTO")
+            return CategorizacaoResult.model_construct(categoria="INVESTIMENTO")
         messages = [
             SystemMessage(content=self._prompt),
             HumanMessage(content=f"tipo: {tipo}, descricao: {descricao}, valor: {valor}"),

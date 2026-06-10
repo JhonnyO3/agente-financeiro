@@ -41,9 +41,14 @@ Ao extrair os dados estruturados de uma mensagem de lançamento, siga estas regr
 
 ### Forma de pagamento
 
+Formas válidas: `CARTAO_CREDITO`, `CARTAO_DEBITO`, `PIX`, `BOLETO`. Nunca use `OUTRO`.
+
 - "paguei no pix", "fiz um pix" → `forma_pagamento=PIX`
-- "no cartão", "no crédito" → `forma_pagamento=CARTAO` e `menciona_cartao=True`
-- Forma não mencionada → `forma_pagamento=OUTRO`
+- "no boleto" → `forma_pagamento=BOLETO`
+- "no débito", "cartão de débito" → `forma_pagamento=CARTAO_DEBITO`
+- "no cartão", "no crédito", "cartão de crédito" → `forma_pagamento=CARTAO_CREDITO` e `menciona_cartao=True`
+- Parcelas (qualquer compra parcelada / "em Nx") ⇒ sempre `forma_pagamento=CARTAO_CREDITO`
+- Forma não mencionada → `forma_pagamento=PIX`
 
 ### Responsável
 
@@ -59,7 +64,7 @@ Ao extrair os dados estruturados de uma mensagem de lançamento, siga estas regr
 
 ## Categorias disponíveis
 
-ALIMENTACAO · TRANSPORTE · LAZER · INVESTIMENTO · GASTOS_FIXOS · COMPRAS
+ALIMENTACAO · TRANSPORTE · LAZER · EDUCACAO · GASTOS_FIXOS · COMPRAS · GASTOS_PONTUAIS
 
 ## Tom
 
