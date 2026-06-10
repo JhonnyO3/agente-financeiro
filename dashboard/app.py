@@ -12,7 +12,13 @@ from app.models.enums import CategoriaEnum, TipoEnum
 # Decisão 11 do plan.md: registro dinâmico — cada módulo expõe a variável
 # `bp`; módulos ausentes (tarefas paralelas ainda não integradas) são
 # ignorados para que a app suba sozinha.
-_BLUEPRINTS = ("api_resumo", "api_graficos", "api_parcelas", "api_transacoes")
+_BLUEPRINTS = (
+    "api_resumo",
+    "api_graficos",
+    "api_parcelas",
+    "api_transacoes",
+    "api_projecao",
+)
 
 PERIODOS = {
     "mes_atual": "Mês atual",

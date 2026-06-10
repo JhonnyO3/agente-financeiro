@@ -1,6 +1,8 @@
 """Testes da T02 — API de resumo e pizza de categorias.
 
 Cenarios: specs/dashboard-flask/scenarios/api-resumo.feature
+Semantica v2 (T06 / contracts/api-json-v2.md): resumo inclui `receitas`
+e `saldo = receitas - gastos`.
 Sem DB real: SessionFactory e TransacaoRepository mockados no namespace
 do blueprint (dashboard.blueprints.api_resumo).
 """
@@ -76,13 +78,14 @@ def _mock_blueprint(monkeypatch, transacoes, chamadas=None):
 
 
 def test_resumo_soma_por_tipo_com_decimal(client, monkeypatch):
-    """Cenario: Resumo soma por tipo com Decimal."""
+    """Cenario: Resumo soma por tipo com Decimal (saldo = receitas - gastos)."""
     _mock_blueprint(
         monkeypatch,
         [
             transacao("GASTO", "100.00"),
             transacao("GASTO", "250.00"),
             transacao("INVESTIMENTO", "500.00"),
+            transacao("RECEITA", "5000.00"),
         ],
     )
 
@@ -91,17 +94,19 @@ def test_resumo_soma_por_tipo_com_decimal(client, monkeypatch):
     assert resp.status_code == 200
     dados = resp.get_json()
     assert dados["gastos"] == "350.00"
+    assert dados["receitas"] == "5000.00"
     assert dados["investimentos"] == "500.00"
-    assert dados["saldo"] == "150.00"
+    assert dados["saldo"] == "4650.00"
     assert dados["periodo"] == "mes_atual"
 
 
 def test_resumo_saldo_negativo(client, monkeypatch):
-    """Cenario: Saldo negativo."""
+    """Cenario: Saldo negativo (gastos maiores que receitas)."""
     _mock_blueprint(
         monkeypatch,
         [
             transacao("GASTO", "600.00"),
+            transacao("RECEITA", "100.00"),
             transacao("INVESTIMENTO", "100.00"),
         ],
     )
@@ -119,6 +124,7 @@ def test_resumo_aceita_tipo_como_enum(client, monkeypatch):
         [
             transacao(TipoEnum.GASTO, "75.50"),
             transacao(TipoEnum.INVESTIMENTO, "200.00"),
+            transacao(TipoEnum.RECEITA, "200.00"),
         ],
     )
 
@@ -126,6 +132,7 @@ def test_resumo_aceita_tipo_como_enum(client, monkeypatch):
 
     dados = resp.get_json()
     assert dados["gastos"] == "75.50"
+    assert dados["receitas"] == "200.00"
     assert dados["investimentos"] == "200.00"
     assert dados["saldo"] == "124.50"
 
@@ -137,6 +144,7 @@ def test_resumo_sem_transacoes_retorna_zeros(client, monkeypatch):
 
     dados = resp.get_json()
     assert dados["gastos"] == "0.00"
+    assert dados["receitas"] == "0.00"
     assert dados["investimentos"] == "0.00"
     assert dados["saldo"] == "0.00"
 
@@ -241,6 +249,23 @@ def test_categorias_sem_transacoes_retorna_lista_vazia(client, monkeypatch):
 
     assert resp.status_code == 200
     assert resp.get_json() == []
+
+
+def test_categorias_inclui_parcelamentos_naturalmente(client, monkeypatch):
+    """Gastos com categoria PARCELAMENTOS entram na pizza como qualquer outra."""
+    _mock_blueprint(
+        monkeypatch,
+        [
+            transacao("GASTO", "300.00", "PARCELAMENTOS"),
+            transacao("GASTO", "100.00", "ALIMENTACAO"),
+        ],
+    )
+
+    resp = client.get("/api/grafico/categorias")
+
+    dados = resp.get_json()
+    assert [item["categoria"] for item in dados] == ["PARCELAMENTOS", "ALIMENTACAO"]
+    assert dados[0]["total"] == "300.00"
 
 
 def test_categorias_aceita_categoria_como_enum(client, monkeypatch):
