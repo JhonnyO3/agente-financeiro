@@ -2,7 +2,7 @@ import datetime
 import decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DATE, DECIMAL, INTEGER, TEXT, TIMESTAMP, String, func
+from sqlalchemy import BOOLEAN, DATE, DECIMAL, INTEGER, TEXT, TIMESTAMP, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -28,7 +28,10 @@ class Transacao(Base):
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
     status: Mapped[StatusEnum] = mapped_column(String, nullable=False, server_default="PENDENTE")
     forma_pagamento: Mapped[FormaPagamentoEnum] = mapped_column(
-        String, nullable=False, server_default="OUTRO"
+        String, nullable=False, server_default="PIX"
+    )
+    recorrente: Mapped[bool] = mapped_column(
+        BOOLEAN, nullable=False, server_default=func.false()
     )
     responsavel: Mapped[str] = mapped_column(String, nullable=False, server_default="Jhonatas")
     detalhes: Mapped[str | None] = mapped_column(TEXT, nullable=True)

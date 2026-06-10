@@ -27,6 +27,7 @@ class TransacaoRepository:
             embedding=transacao.embedding,
             status=transacao.status,
             forma_pagamento=transacao.forma_pagamento,
+            recorrente=transacao.recorrente,
             responsavel=transacao.responsavel,
             detalhes=transacao.detalhes,
         )
@@ -49,6 +50,7 @@ class TransacaoRepository:
                 embedding=t.embedding,
                 status=t.status,
                 forma_pagamento=t.forma_pagamento,
+                recorrente=t.recorrente,
                 responsavel=t.responsavel,
                 detalhes=t.detalhes,
             )

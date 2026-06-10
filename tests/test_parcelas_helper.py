@@ -103,12 +103,22 @@ def test_enums_novos_existem():
 
     assert TipoEnum.RECEITA.value == "RECEITA"
     assert CategoriaEnum.RECEITA.value == "RECEITA"
-    assert CategoriaEnum.PARCELAMENTOS.value == "PARCELAMENTOS"
+    assert CategoriaEnum.EDUCACAO.value == "EDUCACAO"
     assert StatusEnum.PAGO.value == "PAGO"
     assert StatusEnum.PENDENTE.value == "PENDENTE"
     assert FormaPagamentoEnum.PIX.value == "PIX"
-    assert FormaPagamentoEnum.CARTAO.value == "CARTAO"
-    assert FormaPagamentoEnum.OUTRO.value == "OUTRO"
+    assert FormaPagamentoEnum.CARTAO_CREDITO.value == "CARTAO_CREDITO"
+    assert FormaPagamentoEnum.CARTAO_DEBITO.value == "CARTAO_DEBITO"
+    assert FormaPagamentoEnum.BOLETO.value == "BOLETO"
+
+
+def test_enums_removidos_nao_existem():
+    from app.models.enums import CategoriaEnum, FormaPagamentoEnum
+
+    assert not hasattr(CategoriaEnum, "PARCELAMENTOS")
+    assert not hasattr(CategoriaEnum, "OUTROS")
+    assert not hasattr(FormaPagamentoEnum, "OUTRO")
+    assert not hasattr(FormaPagamentoEnum, "CARTAO")
 
 
 def test_transacao_create_defaults_retrocompativeis():
@@ -136,7 +146,8 @@ def test_transacao_create_defaults_retrocompativeis():
     )
 
     assert dto.status == StatusEnum.PENDENTE
-    assert dto.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert dto.forma_pagamento == FormaPagamentoEnum.PIX
+    assert dto.recorrente is False
     assert dto.responsavel == "Jhonatas"
     assert dto.detalhes is None
 
@@ -148,5 +159,6 @@ def test_transacao_update_defaults_none():
 
     assert dto.status is None
     assert dto.forma_pagamento is None
+    assert dto.recorrente is None
     assert dto.responsavel is None
     assert dto.detalhes is None

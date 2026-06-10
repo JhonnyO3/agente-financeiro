@@ -81,7 +81,8 @@ async def test_criar_sem_campos_novos_usa_defaults_do_dto():
 
     obj = session.add.call_args[0][0]
     assert obj.status == StatusEnum.PENDENTE
-    assert obj.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert obj.forma_pagamento == FormaPagamentoEnum.PIX
+    assert obj.recorrente is False
     assert obj.responsavel == "Jhonatas"
     assert obj.detalhes is None
 
@@ -102,7 +103,8 @@ async def test_criar_lote_persiste_campos_novos():
             grupo_parcela_id=grupo_id,
             parcela_numero=i + 1,
             status=StatusEnum.PAGO,
-            forma_pagamento=FormaPagamentoEnum.CARTAO,
+            forma_pagamento=FormaPagamentoEnum.CARTAO_CREDITO,
+            recorrente=True,
             responsavel="Mãe",
             detalhes="notebook parcelado",
         )
@@ -114,7 +116,8 @@ async def test_criar_lote_persiste_campos_novos():
     assert len(lista_passada) == 3
     for obj in lista_passada:
         assert obj.status == StatusEnum.PAGO
-        assert obj.forma_pagamento == FormaPagamentoEnum.CARTAO
+        assert obj.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
+        assert obj.recorrente is True
         assert obj.responsavel == "Mãe"
         assert obj.detalhes == "notebook parcelado"
 

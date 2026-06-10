@@ -11,13 +11,12 @@ class CategoriaEnum(str, enum.Enum):
     ALIMENTACAO = "ALIMENTACAO"
     TRANSPORTE = "TRANSPORTE"
     LAZER = "LAZER"
-    INVESTIMENTO = "INVESTIMENTO"
+    EDUCACAO = "EDUCACAO"
     GASTOS_FIXOS = "GASTOS_FIXOS"
     COMPRAS = "COMPRAS"
     GASTOS_PONTUAIS = "GASTOS_PONTUAIS"
-    OUTROS = "OUTROS"
+    INVESTIMENTO = "INVESTIMENTO"
     RECEITA = "RECEITA"
-    PARCELAMENTOS = "PARCELAMENTOS"
 
 
 class StatusEnum(str, enum.Enum):
@@ -26,6 +25,7 @@ class StatusEnum(str, enum.Enum):
 
 
 class FormaPagamentoEnum(str, enum.Enum):
+    CARTAO_CREDITO = "CARTAO_CREDITO"
+    CARTAO_DEBITO = "CARTAO_DEBITO"
     PIX = "PIX"
-    CARTAO = "CARTAO"
-    OUTRO = "OUTRO"
+    BOLETO = "BOLETO"

@@ -18,7 +18,8 @@ class TransacaoCreate:
     grupo_parcela_id: UUID
     embedding: list[float]
     status: StatusEnum = StatusEnum.PENDENTE
-    forma_pagamento: FormaPagamentoEnum = FormaPagamentoEnum.OUTRO
+    forma_pagamento: FormaPagamentoEnum = FormaPagamentoEnum.PIX
+    recorrente: bool = False
     responsavel: str = "Jhonatas"
     detalhes: str | None = None
 
@@ -32,6 +33,7 @@ class TransacaoUpdate:
     data: date | None = None
     status: StatusEnum | None = None
     forma_pagamento: FormaPagamentoEnum | None = None
+    recorrente: bool | None = None
     responsavel: str | None = None
     detalhes: str | None = None
 
