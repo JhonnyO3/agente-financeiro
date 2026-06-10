@@ -4,6 +4,7 @@ import enum
 class TipoEnum(str, enum.Enum):
     GASTO = "GASTO"
     INVESTIMENTO = "INVESTIMENTO"
+    RECEITA = "RECEITA"
 
 
 class CategoriaEnum(str, enum.Enum):
@@ -15,3 +16,16 @@ class CategoriaEnum(str, enum.Enum):
     COMPRAS = "COMPRAS"
     GASTOS_PONTUAIS = "GASTOS_PONTUAIS"
     OUTROS = "OUTROS"
+    RECEITA = "RECEITA"
+    PARCELAMENTOS = "PARCELAMENTOS"
+
+
+class StatusEnum(str, enum.Enum):
+    PAGO = "PAGO"
+    PENDENTE = "PENDENTE"
+
+
+class FormaPagamentoEnum(str, enum.Enum):
+    PIX = "PIX"
+    CARTAO = "CARTAO"
+    OUTRO = "OUTRO"

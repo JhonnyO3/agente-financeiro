@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.models.enums import CategoriaEnum, TipoEnum
+from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 
 
 @dataclass
@@ -17,6 +17,10 @@ class TransacaoCreate:
     parcela_total: int
     grupo_parcela_id: UUID
     embedding: list[float]
+    status: StatusEnum = StatusEnum.PENDENTE
+    forma_pagamento: FormaPagamentoEnum = FormaPagamentoEnum.OUTRO
+    responsavel: str = "Jhonatas"
+    detalhes: str | None = None
 
 
 @dataclass
@@ -26,6 +30,10 @@ class TransacaoUpdate:
     descricao: str | None = None
     categoria: CategoriaEnum | None = None
     data: date | None = None
+    status: StatusEnum | None = None
+    forma_pagamento: FormaPagamentoEnum | None = None
+    responsavel: str | None = None
+    detalhes: str | None = None
 
 
 @dataclass
