@@ -40,6 +40,113 @@ async def test_categorizador_investimento_sem_llm():
     mock_chain.ainvoke.assert_not_called()
 
 
+def test_extracao_result_retrocompatibilidade_defaults():
+    from app.agents.extrator import ExtracaoResult
+
+    dados_antigos = {
+        "tipo": "GASTO",
+        "valor_total": Decimal("50"),
+        "valor_por_parcela": None,
+        "parcela_total": 1,
+        "descricao": "mercado",
+        "data_referencia": date(2026, 6, 10),
+        "menciona_cartao": False,
+    }
+
+    resultado = ExtracaoResult(**dados_antigos)
+
+    assert resultado.parcela_atual == 1
+    assert resultado.forma_pagamento == "OUTRO"
+    assert resultado.responsavel == "Jhonatas"
+    assert resultado.detalhes is None
+
+
+def test_extracao_result_parcela_atual_e_valor_por_parcela():
+    from app.agents.extrator import ExtracaoResult
+
+    resultado = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("800"),
+        valor_por_parcela=Decimal("200"),
+        parcela_total=4,
+        parcela_atual=2,
+        descricao="notebook",
+        data_referencia=date(2026, 6, 10),
+        menciona_cartao=True,
+        forma_pagamento="CARTAO",
+    )
+
+    assert resultado.valor_por_parcela == Decimal("200")
+    assert resultado.parcela_total == 4
+    assert resultado.parcela_atual == 2
+    assert resultado.valor_total == Decimal("800")
+
+
+def test_extracao_result_aceita_tipo_receita():
+    from app.agents.extrator import ExtracaoResult
+
+    resultado = ExtracaoResult(
+        tipo="RECEITA",
+        valor_total=Decimal("5000"),
+        valor_por_parcela=None,
+        descricao="salário",
+        data_referencia=date(2026, 6, 5),
+        menciona_cartao=False,
+    )
+
+    assert resultado.tipo == "RECEITA"
+
+
+def test_extracao_result_campos_novos_preenchidos():
+    from app.agents.extrator import ExtracaoResult
+
+    resultado = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("120"),
+        valor_por_parcela=None,
+        descricao="farmácia",
+        detalhes="remédio para a mãe, comprado na volta do trabalho",
+        data_referencia=date(2026, 6, 10),
+        menciona_cartao=False,
+        forma_pagamento="PIX",
+        responsavel="Mãe",
+    )
+
+    assert resultado.forma_pagamento == "PIX"
+    assert resultado.responsavel == "Mãe"
+    assert resultado.detalhes == "remédio para a mãe, comprado na volta do trabalho"
+
+
+@pytest.mark.asyncio
+async def test_extrator_extrair_retorna_campos_v2():
+    from app.agents.extrator import Extrator, ExtracaoResult
+
+    resultado = ExtracaoResult(
+        tipo="RECEITA",
+        valor_total=Decimal("5000"),
+        valor_por_parcela=None,
+        descricao="salário",
+        data_referencia=date(2026, 6, 5),
+        menciona_cartao=False,
+        forma_pagamento="PIX",
+    )
+
+    with patch("app.agents.extrator.criar_llm") as mock_criar:
+        mock_chain = MagicMock()
+        mock_chain.with_structured_output.return_value = mock_chain
+        mock_chain.ainvoke = AsyncMock(return_value=resultado)
+        mock_criar.return_value = mock_chain
+
+        extrator = Extrator()
+        resp = await extrator.extrair("recebi salário 5000 no pix", date(2026, 6, 10))
+
+    assert resp.tipo == "RECEITA"
+    assert resp.forma_pagamento == "PIX"
+    assert resp.parcela_atual == 1
+    assert resp.responsavel == "Jhonatas"
+    assert resp.detalhes is None
+
+
 @pytest.mark.asyncio
 async def test_extrator_parcelas_a_vista():
     from app.agents.extrator_parcelas import ExtratorParcelas, ExtratorParcelasResult
