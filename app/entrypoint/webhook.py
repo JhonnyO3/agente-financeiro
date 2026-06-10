@@ -1,9 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from app.config import settings
-from app.entrypoint.debounce import MessageDebouncer
 
 router = APIRouter()
-debouncer = MessageDebouncer()
 
 
 def extrair_numero(payload: dict) -> str:
@@ -16,16 +14,14 @@ def extrair_texto(payload: dict) -> str | None:
 
 
 @router.post("/mensagem")
-async def receber_mensagem(payload: dict) -> dict:
+async def receber_mensagem(payload: dict, request: Request) -> dict:
     numero = extrair_numero(payload)
     texto = extrair_texto(payload)
     if numero != settings.WHATSAPP_ALLOWED_NUMBER:
         return {"status": "ok"}
     if texto is None:
         return {"status": "ok"}
-    await debouncer.receber(numero, texto, _pipeline_placeholder)
+    await request.app.state.debouncer.receber(
+        numero, texto, request.app.state.processar_e_responder
+    )
     return {"status": "ok"}
-
-
-async def _pipeline_placeholder(numero: str, texto: str) -> None:
-    pass
