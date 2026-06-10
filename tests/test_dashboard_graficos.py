@@ -33,10 +33,10 @@ CATEGORIAS_GASTO = (
     "ALIMENTACAO",
     "TRANSPORTE",
     "LAZER",
+    "EDUCACAO",
     "GASTOS_FIXOS",
     "COMPRAS",
     "GASTOS_PONTUAIS",
-    "OUTROS",
 )
 
 
