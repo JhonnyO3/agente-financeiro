@@ -1,6 +1,7 @@
-"""Testes da API CRUD de transações do dashboard (T05).
+"""Testes da API CRUD de transações do dashboard (T05 + T07 v2).
 
-Cenários de specs/dashboard-flask/scenarios/api-transacoes.feature.
+Cenários de specs/dashboard-flask/scenarios/api-transacoes.feature e
+specs/melhorias-dashboard/scenarios/07-api-transacoes.feature.
 Sem DB real: repository e SessionFactory mockados no namespace do blueprint.
 """
 
@@ -17,12 +18,13 @@ for var, valor in {
     os.environ.setdefault(var, valor)
 
 from contextlib import ExitStack
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
+from app.models.enums import FormaPagamentoEnum, StatusEnum
 from app.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from dashboard.app import create_app
 
@@ -78,7 +80,17 @@ def cliente_com(repo):
     return create_app().test_client(), stack
 
 
-def make_transacao(id, dia=1, tipo="GASTO", categoria="OUTROS", valor="10.00"):
+def make_transacao(
+    id,
+    dia=1,
+    tipo="GASTO",
+    categoria="OUTROS",
+    valor="10.00",
+    status="PENDENTE",
+    forma_pagamento="OUTRO",
+    responsavel="Jhonatas",
+    detalhes=None,
+):
     return SimpleNamespace(
         id=id,
         data=date(2026, 6, dia),
@@ -89,6 +101,10 @@ def make_transacao(id, dia=1, tipo="GASTO", categoria="OUTROS", valor="10.00"):
         parcela_total=1,
         tipo=tipo,
         grupo_parcela_id=f"grupo-{id}",
+        status=status,
+        forma_pagamento=forma_pagamento,
+        responsavel=responsavel,
+        detalhes=detalhes,
     )
 
 
@@ -406,6 +422,10 @@ def test_serializacao_do_item():
         "parcela_total": 1,
         "tipo": "GASTO",
         "grupo_parcela_id": "grupo-42",
+        "status": "PENDENTE",
+        "forma_pagamento": "OUTRO",
+        "responsavel": "Jhonatas",
+        "detalhes": "",
     }
 
 
@@ -418,3 +438,345 @@ def test_descricao_none_vira_string_vazia():
         resposta = client.get("/api/transacoes")
 
     assert resposta.get_json()["itens"][0]["descricao"] == ""
+
+
+# --- T07: Serialização com os novos campos -----------------------------------
+
+
+def test_serializacao_normaliza_enums_por_valor():
+    t = make_transacao(
+        7,
+        status=StatusEnum.PAGO,
+        forma_pagamento=FormaPagamentoEnum.PIX,
+        detalhes="Comprado na promoção da Steam",
+    )
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=[t]))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes")
+
+    item = resposta.get_json()["itens"][0]
+    assert item["status"] == "PAGO"
+    assert item["forma_pagamento"] == "PIX"
+    assert item["responsavel"] == "Jhonatas"
+    assert item["detalhes"] == "Comprado na promoção da Steam"
+
+
+def test_detalhes_none_vira_string_vazia():
+    t = make_transacao(1, detalhes=None)
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=[t]))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes")
+
+    assert resposta.get_json()["itens"][0]["detalhes"] == ""
+
+
+# --- T07: Filtro por status combinado -----------------------------------------
+
+
+def test_filtro_status_combinado_com_tipo():
+    transacoes = [
+        make_transacao(1, tipo="GASTO", status="PENDENTE"),
+        make_transacao(2, tipo="GASTO", status="PAGO"),
+        make_transacao(3, tipo="RECEITA", status="PENDENTE"),
+        make_transacao(4, tipo="GASTO", status="PENDENTE"),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?status=PENDENTE&tipo=GASTO")
+
+    corpo = resposta.get_json()
+    assert corpo["total"] == 2
+    assert {item["id"] for item in corpo["itens"]} == {1, 4}
+    for item in corpo["itens"]:
+        assert item["status"] == "PENDENTE"
+        assert item["tipo"] == "GASTO"
+
+
+def test_filtro_status_sozinho():
+    transacoes = [
+        make_transacao(1, status="PAGO"),
+        make_transacao(2, status="PENDENTE"),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?status=PAGO")
+
+    corpo = resposta.get_json()
+    assert corpo["total"] == 1
+    assert corpo["itens"][0]["id"] == 1
+
+
+# --- T07: POST com defaults e validação ---------------------------------------
+
+
+def test_post_sem_campos_novos_usa_defaults():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=10)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2099-06-10",
+                "categoria": "OUTROS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+            },
+        )
+
+    assert resposta.status_code == 201
+    dto = repo.criar.await_args.args[0]
+    assert dto.status == StatusEnum.PENDENTE
+    assert dto.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert dto.responsavel == "Jhonatas"
+    assert dto.detalhes is None
+
+
+def test_post_com_campos_novos_repassa_valores():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=11)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "COMPRAS",
+                "valor": "199.90",
+                "tipo": "GASTO",
+                "status": "PAGO",
+                "forma_pagamento": "CARTAO",
+                "responsavel": "Maria",
+                "detalhes": "Presente de aniversário",
+            },
+        )
+
+    assert resposta.status_code == 201
+    dto = repo.criar.await_args.args[0]
+    assert dto.status == StatusEnum.PAGO
+    assert dto.forma_pagamento == FormaPagamentoEnum.CARTAO
+    assert dto.responsavel == "Maria"
+    assert dto.detalhes == "Presente de aniversário"
+
+
+def test_post_status_invalido_retorna_400():
+    repo = fake_repo()
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "OUTROS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+                "status": "XYZ",
+            },
+        )
+
+    assert resposta.status_code == 400
+    repo.criar.assert_not_awaited()
+
+
+def test_post_forma_pagamento_invalida_retorna_400():
+    repo = fake_repo()
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "OUTROS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+                "forma_pagamento": "BOLETO",
+            },
+        )
+
+    assert resposta.status_code == 400
+    repo.criar.assert_not_awaited()
+
+
+# --- T07: POST via PIX nasce pago ----------------------------------------------
+
+
+def test_post_pix_sem_status_vira_pago():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=12)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2099-06-10",
+                "categoria": "OUTROS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+                "forma_pagamento": "PIX",
+            },
+        )
+
+    assert resposta.status_code == 201
+    dto = repo.criar.await_args.args[0]
+    assert dto.status == StatusEnum.PAGO
+    assert dto.forma_pagamento == FormaPagamentoEnum.PIX
+
+
+def test_post_pix_com_status_explicito_respeita_o_enviado():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=13)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "OUTROS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+                "forma_pagamento": "PIX",
+                "status": "PENDENTE",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].status == StatusEnum.PENDENTE
+
+
+# --- T07: Receita manual sem status — PAGO se data <= hoje ----------------------
+
+
+def test_post_receita_data_passada_sem_status_vira_pago():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=14)))
+    client, stack = cliente_com(repo)
+    ontem = date.today() - timedelta(days=1)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": ontem.isoformat(),
+                "categoria": "RECEITA",
+                "valor": "5000.00",
+                "tipo": "RECEITA",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].status == StatusEnum.PAGO
+
+
+def test_post_receita_data_hoje_sem_status_vira_pago():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=15)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": date.today().isoformat(),
+                "categoria": "RECEITA",
+                "valor": "5000.00",
+                "tipo": "RECEITA",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].status == StatusEnum.PAGO
+
+
+def test_post_receita_data_futura_sem_status_fica_pendente():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=16)))
+    client, stack = cliente_com(repo)
+    amanha = date.today() + timedelta(days=1)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": amanha.isoformat(),
+                "categoria": "RECEITA",
+                "valor": "5000.00",
+                "tipo": "RECEITA",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].status == StatusEnum.PENDENTE
+
+
+def test_post_receita_com_status_explicito_respeita_o_enviado():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=17)))
+    client, stack = cliente_com(repo)
+    ontem = date.today() - timedelta(days=1)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": ontem.isoformat(),
+                "categoria": "RECEITA",
+                "valor": "5000.00",
+                "tipo": "RECEITA",
+                "status": "PENDENTE",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].status == StatusEnum.PENDENTE
+
+
+# --- T07: PUT parcial dos campos novos -------------------------------------------
+
+
+def test_put_parcial_so_status():
+    existente = make_transacao(1)
+    repo = fake_repo(buscar_por_id=AsyncMock(return_value=existente))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.put("/api/transacoes/1", json={"status": "PAGO"})
+
+    assert resposta.status_code == 200
+    _, dados = repo.atualizar.await_args.args
+    assert dados == TransacaoUpdate(status=StatusEnum.PAGO)
+
+
+def test_put_aceita_os_quatro_campos_novos():
+    existente = make_transacao(1)
+    repo = fake_repo(buscar_por_id=AsyncMock(return_value=existente))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.put(
+            "/api/transacoes/1",
+            json={
+                "status": "PAGO",
+                "forma_pagamento": "CARTAO",
+                "responsavel": "Maria",
+                "detalhes": "ajustado",
+            },
+        )
+
+    assert resposta.status_code == 200
+    _, dados = repo.atualizar.await_args.args
+    assert dados.status == StatusEnum.PAGO
+    assert dados.forma_pagamento == FormaPagamentoEnum.CARTAO
+    assert dados.responsavel == "Maria"
+    assert dados.detalhes == "ajustado"
+    assert dados.valor is None
+    assert dados.tipo is None
+
+
+def test_put_status_invalido_retorna_400():
+    repo = fake_repo(buscar_por_id=AsyncMock(return_value=make_transacao(1)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.put("/api/transacoes/1", json={"status": "XYZ"})
+
+    assert resposta.status_code == 400
+    repo.atualizar.assert_not_awaited()
+
+
+def test_put_forma_pagamento_invalida_retorna_400():
+    repo = fake_repo(buscar_por_id=AsyncMock(return_value=make_transacao(1)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.put("/api/transacoes/1", json={"forma_pagamento": "BOLETO"})
+
+    assert resposta.status_code == 400
+    repo.atualizar.assert_not_awaited()

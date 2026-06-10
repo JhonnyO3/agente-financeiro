@@ -1,6 +1,7 @@
-"""Blueprint da API CRUD de transações (T05 — RF-07, RF-08).
+"""Blueprint da API CRUD de transações (T05 — RF-07, RF-08 · T07 — v2).
 
-Contratos: db-session.md, periodo.md, api-json.md, repository-reuse.md.
+Contratos: db-session.md, periodo.md, api-json.md, repository-reuse.md,
+api-json-v2.md, modelo-dados.md.
 """
 
 import math
@@ -10,7 +11,7 @@ from uuid import uuid4
 
 from flask import Blueprint, jsonify, request
 
-from app.models.enums import CategoriaEnum, TipoEnum
+from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 from app.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from app.repositories.transacao_repository import TransacaoRepository
 from dashboard.db import SessionFactory
@@ -23,23 +24,27 @@ POR_PAGINA = 25
 _ERRO_NAO_ENCONTRADA = {"erro": "Transacao nao encontrada"}
 
 
+def _como_str(campo) -> str:
+    """Campos do ORM podem chegar como str ou enum — compara por valor string."""
+    return campo if isinstance(campo, str) else campo.value
+
+
 def serializar(t) -> dict:
     return {
         "id": t.id,
         "data": t.data.isoformat(),
         "descricao": t.descricao or "",
-        "categoria": t.categoria if isinstance(t.categoria, str) else t.categoria.value,
+        "categoria": _como_str(t.categoria),
         "valor": str(t.valor.quantize(Decimal("0.01"))),
         "parcela_numero": t.parcela_numero,
         "parcela_total": t.parcela_total,
-        "tipo": t.tipo if isinstance(t.tipo, str) else t.tipo.value,
+        "tipo": _como_str(t.tipo),
         "grupo_parcela_id": t.grupo_parcela_id,
+        "status": _como_str(t.status),
+        "forma_pagamento": _como_str(t.forma_pagamento),
+        "responsavel": t.responsavel,
+        "detalhes": t.detalhes or "",
     }
-
-
-def _como_str(campo) -> str:
-    """Campos do ORM podem chegar como str ou enum — compara por valor string."""
-    return campo if isinstance(campo, str) else campo.value
 
 
 @bp.get("/transacoes")
@@ -47,6 +52,7 @@ async def listar_transacoes():
     periodo = request.args.get("periodo", "mes_atual")
     tipo = request.args.get("tipo")
     categoria = request.args.get("categoria")
+    status = request.args.get("status")
     pagina = request.args.get("pagina", default=1, type=int) or 1
 
     inicio, fim = resolver_periodo(periodo)
@@ -60,6 +66,7 @@ async def listar_transacoes():
         for t in transacoes
         if (tipo is None or _como_str(t.tipo) == tipo)
         and (categoria is None or _como_str(t.categoria) == categoria)
+        and (status is None or _como_str(t.status) == status)
     ]
     filtrada.sort(key=lambda t: (t.data, t.id), reverse=True)
 
@@ -98,8 +105,32 @@ async def criar_transacao():
         categoria = CategoriaEnum(body["categoria"])
         valor = Decimal(str(body["valor"]))
         data = date.fromisoformat(body["data"])
+        status = StatusEnum(body["status"]) if body.get("status") is not None else None
+        forma_pagamento = (
+            FormaPagamentoEnum(body["forma_pagamento"])
+            if body.get("forma_pagamento") is not None
+            else FormaPagamentoEnum.OUTRO
+        )
     except (ValueError, TypeError, InvalidOperation):
-        return jsonify({"erro": "Campos invalidos: verifique data, valor, tipo e categoria"}), 400
+        return (
+            jsonify(
+                {
+                    "erro": "Campos invalidos: verifique data, valor, tipo, "
+                    "categoria, status e forma_pagamento"
+                }
+            ),
+            400,
+        )
+
+    if status is None:
+        # Regras do contrato (api-json-v2.md / modelo-dados.md) quando o status
+        # nao vem no body: PIX nasce pago; receita com data <= hoje nasce paga.
+        if forma_pagamento == FormaPagamentoEnum.PIX:
+            status = StatusEnum.PAGO
+        elif tipo == TipoEnum.RECEITA and data <= date.today():
+            status = StatusEnum.PAGO
+        else:
+            status = StatusEnum.PENDENTE
 
     transacao = TransacaoCreate(
         tipo=tipo,
@@ -111,6 +142,10 @@ async def criar_transacao():
         parcela_total=1,
         grupo_parcela_id=uuid4(),
         embedding=None,
+        status=status,
+        forma_pagamento=forma_pagamento,
+        responsavel=body.get("responsavel") or "Jhonatas",
+        detalhes=body.get("detalhes"),
     )
 
     async with SessionFactory.begin() as session:
@@ -133,8 +168,24 @@ async def atualizar_transacao(id: int):
             campos["categoria"] = CategoriaEnum(body["categoria"])
         if "valor" in body:
             campos["valor"] = Decimal(str(body["valor"]))
+        if "status" in body:
+            campos["status"] = StatusEnum(body["status"])
+        if "forma_pagamento" in body:
+            campos["forma_pagamento"] = FormaPagamentoEnum(body["forma_pagamento"])
+        if "responsavel" in body:
+            campos["responsavel"] = body["responsavel"]
+        if "detalhes" in body:
+            campos["detalhes"] = body["detalhes"]
     except (ValueError, TypeError, InvalidOperation):
-        return jsonify({"erro": "Campos invalidos: verifique data, valor e categoria"}), 400
+        return (
+            jsonify(
+                {
+                    "erro": "Campos invalidos: verifique data, valor, categoria, "
+                    "status e forma_pagamento"
+                }
+            ),
+            400,
+        )
 
     async with SessionFactory.begin() as session:
         repo = TransacaoRepository(session)
