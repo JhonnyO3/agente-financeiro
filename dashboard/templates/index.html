@@ -17,7 +17,7 @@
 
 <!-- 2. Cards de resumo (RF-02) -->
 <div class="row g-3 mb-4">
-  <div class="col-12 col-md-4">
+  <div class="col-12 col-md-3">
     <div class="card text-center h-100">
       <div class="card-body">
         <h6 class="card-subtitle text-muted mb-2">Gastos</h6>
@@ -25,7 +25,15 @@
       </div>
     </div>
   </div>
-  <div class="col-12 col-md-4">
+  <div class="col-12 col-md-3">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Receitas</h6>
+        <p id="card-receitas" class="card-text fs-3 fw-bold mb-0">—</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
     <div class="card text-center h-100">
       <div class="card-body">
         <h6 class="card-subtitle text-muted mb-2">Investimentos</h6>
@@ -33,7 +41,7 @@
       </div>
     </div>
   </div>
-  <div class="col-12 col-md-4">
+  <div class="col-12 col-md-3">
     <div class="card text-center h-100">
       <div class="card-body">
         <h6 class="card-subtitle text-muted mb-2">Saldo</h6>
@@ -75,6 +83,18 @@
   </div>
 </div>
 
+<!-- 4b. Projeção dos próximos meses (dom-v2, T08) -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title">Projeção — próximos 6 meses</h6>
+        <div id="projecao-container" class="table-responsive"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 5. Parcelas em andamento (RF-06) -->
 <div class="row mb-4">
   <div class="col-12">
@@ -108,7 +128,15 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-12 col-md-6 text-md-end">
+          <div class="col-12 col-md-3">
+            <label for="filtro-status" class="form-label">Status</label>
+            <select id="filtro-status" class="form-select">
+              <option value="">Todos</option>
+              <option value="PAGO">PAGO</option>
+              <option value="PENDENTE">PENDENTE</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-3 text-md-end">
             <button type="button" id="btn-adicionar" class="btn btn-primary">+ Adicionar</button>
           </div>
         </div>
@@ -122,6 +150,8 @@
                 <th>Valor</th>
                 <th>Parcela</th>
                 <th>Tipo</th>
+                <th>Status</th>
+                <th>Responsável</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -168,6 +198,8 @@
                 <th>Valor</th>
                 <th>Parcela</th>
                 <th>Tipo</th>
+                <th>Status</th>
+                <th>Responsável</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -208,6 +240,29 @@
           <div class="mb-3">
             <label for="edit-valor" class="form-label">Valor</label>
             <input type="number" class="form-control" id="edit-valor" name="valor" step="0.01" min="0" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit-status" class="form-label">Status</label>
+            <select class="form-select" id="edit-status" name="status">
+              <option value="PAGO">PAGO</option>
+              <option value="PENDENTE">PENDENTE</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="edit-forma-pagamento" class="form-label">Forma de pagamento</label>
+            <select class="form-select" id="edit-forma-pagamento" name="forma_pagamento">
+              <option value="PIX">PIX</option>
+              <option value="CARTAO">CARTAO</option>
+              <option value="OUTRO">OUTRO</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="edit-responsavel" class="form-label">Responsável</label>
+            <input type="text" class="form-control" id="edit-responsavel" name="responsavel">
+          </div>
+          <div class="mb-3">
+            <label for="edit-detalhes" class="form-label">Detalhes</label>
+            <textarea class="form-control" id="edit-detalhes" name="detalhes" rows="2"></textarea>
           </div>
         </form>
       </div>
@@ -256,6 +311,29 @@
               <option value="{{ tipo }}">{{ tipo }}</option>
               {% endfor %}
             </select>
+          </div>
+          <div class="mb-3">
+            <label for="add-status" class="form-label">Status</label>
+            <select class="form-select" id="add-status" name="status">
+              <option value="PAGO">PAGO</option>
+              <option value="PENDENTE">PENDENTE</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="add-forma-pagamento" class="form-label">Forma de pagamento</label>
+            <select class="form-select" id="add-forma-pagamento" name="forma_pagamento">
+              <option value="PIX">PIX</option>
+              <option value="CARTAO">CARTAO</option>
+              <option value="OUTRO">OUTRO</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="add-responsavel" class="form-label">Responsável</label>
+            <input type="text" class="form-control" id="add-responsavel" name="responsavel">
+          </div>
+          <div class="mb-3">
+            <label for="add-detalhes" class="form-label">Detalhes</label>
+            <textarea class="form-control" id="add-detalhes" name="detalhes" rows="2"></textarea>
           </div>
         </form>
       </div>
