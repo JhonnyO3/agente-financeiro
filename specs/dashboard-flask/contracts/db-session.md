@@ -11,20 +11,18 @@ Como o dashboard Flask obtém e usa sessões AsyncSession do SQLAlchemy.
 
 ## Módulo: `dashboard/db.py`
 
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool
-from app.config import settings
+`SessionFactory` é um objeto que cria **engine descartável por request**
+(`_SessionPorRequest` em `dashboard/db.py`), preservando a interface
+`SessionFactory()` / `SessionFactory.begin()` dos blueprints.
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False, poolclass=NullPool)
-SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
-```
-
-**`NullPool` é obrigatório.** Flask com rotas `async def` executa cada request em
-um event loop novo (via asgiref). Conexões asyncpg ficam presas ao loop em que
-foram criadas — com pool padrão, o segundo request falharia com
-`got Future attached to a different loop`. `NullPool` abre/fecha conexão por
-request; aceitável para dashboard local de usuário único.
+**Por que engine por request (e não engine global + NullPool):** Flask com rotas
+`async def` executa cada request em um event loop novo (via asgiref). Além das
+conexões asyncpg, o próprio engine global guarda primitivas asyncio — o lock de
+first-connect (`_exec_w_sync_on_first_run`) fica preso ao loop do primeiro
+request e o segundo request morre com `is bound to a different event loop`,
+mesmo com `NullPool` (verificado em runtime). Engine criado e `dispose()`ado
+dentro do request elimina qualquer estado compartilhado entre loops; aceitável
+para dashboard local de usuário único.
 
 ## Padrão de uso nos blueprints
 
