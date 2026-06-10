@@ -1,7 +1,8 @@
 """Blueprint da API de resumo (RF-02) e pizza de categorias (RF-03).
 
 Contratos: specs/dashboard-flask/contracts/{db-session,periodo,api-json,
-repository-reuse}.md (congelados).
+repository-reuse}.md (congelados) + specs/melhorias-dashboard/contracts/
+api-json-v2.md (resumo ganha `receitas`; `saldo = receitas - gastos`).
 """
 
 from decimal import Decimal
@@ -44,6 +45,10 @@ async def resumo():
         (t.valor for t in transacoes if _como_str(t.tipo) == TipoEnum.GASTO.value),
         Decimal("0"),
     )
+    receitas = sum(
+        (t.valor for t in transacoes if _como_str(t.tipo) == TipoEnum.RECEITA.value),
+        Decimal("0"),
+    )
     investimentos = sum(
         (
             t.valor
@@ -52,11 +57,12 @@ async def resumo():
         ),
         Decimal("0"),
     )
-    saldo = investimentos - gastos
+    saldo = receitas - gastos
 
     return jsonify(
         {
             "gastos": _valor_json(gastos),
+            "receitas": _valor_json(receitas),
             "investimentos": _valor_json(investimentos),
             "saldo": _valor_json(saldo),
             "periodo": periodo,
