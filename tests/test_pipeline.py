@@ -111,6 +111,51 @@ async def test_estado_aguardar_parcelas_extrai_e_executa_com_parcelas():
 
 
 @pytest.mark.asyncio
+async def test_estado_aguardar_recorrencia_sim_grava_recorrente():
+    estado = EstadoConfirmacao(
+        acao="AGUARDAR_RECORRENCIA",
+        mensagem_original="paguei a academia 99,90",
+    )
+    pipeline, deps = _make_pipeline()
+    deps["confirmacao_state"].obter = MagicMock(return_value=estado)
+    deps["confirmacao_chain"].interpretar = AsyncMock(
+        return_value=ConfirmacaoResposta(tipo="sim")
+    )
+    resultado_cadastro = ResultadoCadastro(transacoes=[MagicMock()], mensagem_resposta="ok")
+    deps["cadastrar"].executar_com_recorrencia_confirmada = AsyncMock(return_value=resultado_cadastro)
+
+    await pipeline.processar("5511999999999", "pode sim")
+
+    deps["confirmacao_chain"].interpretar.assert_called_once_with("pode sim", "sim_nao")
+    deps["cadastrar"].executar_com_recorrencia_confirmada.assert_called_once_with(
+        "paguei a academia 99,90", True, "5511999999999"
+    )
+    deps["formatador"].formatar.assert_called_once_with(resultado_cadastro, "cadastro")
+
+
+@pytest.mark.asyncio
+async def test_estado_aguardar_recorrencia_nao_grava_false():
+    estado = EstadoConfirmacao(
+        acao="AGUARDAR_RECORRENCIA",
+        mensagem_original="paguei a academia 99,90",
+    )
+    pipeline, deps = _make_pipeline()
+    deps["confirmacao_state"].obter = MagicMock(return_value=estado)
+    deps["confirmacao_chain"].interpretar = AsyncMock(
+        return_value=ConfirmacaoResposta(tipo="nao")
+    )
+    deps["cadastrar"].executar_com_recorrencia_confirmada = AsyncMock(
+        return_value=ResultadoCadastro(transacoes=[MagicMock()], mensagem_resposta="ok")
+    )
+
+    await pipeline.processar("5511999999999", "não")
+
+    deps["cadastrar"].executar_com_recorrencia_confirmada.assert_called_once_with(
+        "paguei a academia 99,90", False, "5511999999999"
+    )
+
+
+@pytest.mark.asyncio
 async def test_estado_alterar_sim_confirma_com_true():
     estado = EstadoConfirmacao(acao="ALTERAR", pergunta_grupo=False)
     pipeline, deps = _make_pipeline()

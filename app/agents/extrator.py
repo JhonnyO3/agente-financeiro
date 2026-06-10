@@ -16,7 +16,7 @@ class ExtracaoResult(BaseModel):
     detalhes: str | None = None
     data_referencia: date
     menciona_cartao: bool
-    forma_pagamento: Literal["PIX", "CARTAO", "OUTRO"] = "OUTRO"
+    forma_pagamento: Literal["CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "BOLETO"] = "PIX"
     responsavel: str = "Jhonatas"
 
 

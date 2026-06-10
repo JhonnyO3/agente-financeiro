@@ -6,7 +6,14 @@ from uuid import uuid4
 from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
 from app.repositories.dtos import TransacaoCreate
 from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
-from app.services.parcelas import datas_do_grupo, status_por_data
+from app.services.parcelas import (
+    adicionar_meses,
+    datas_do_grupo,
+    data_status_por_forma,
+    status_por_data,
+)
+
+_FORMAS_A_PRAZO = {FormaPagamentoEnum.CARTAO_CREDITO, FormaPagamentoEnum.BOLETO}
 
 
 @dataclass
@@ -54,7 +61,19 @@ class CadastrarService:
                 pergunta="É à vista ou parcelado? Se parcelado, quantas vezes?",
             )
 
-        return await self._processar(extracao, extracao.parcela_total, numero)
+        categoria = await self._categoria(extracao, extracao.parcela_total)
+
+        if categoria == CategoriaEnum.GASTOS_FIXOS and extracao.parcela_total == 1:
+            self._confirmacao_state.salvar(
+                numero,
+                EstadoConfirmacao(acao="AGUARDAR_RECORRENCIA", mensagem_original=mensagem),
+            )
+            return ResultadoCadastro(
+                aguarda_confirmacao=True,
+                pergunta="Esse é um gasto fixo. Posso considerar que ele se repete todo mês?",
+            )
+
+        return await self._processar(extracao, extracao.parcela_total, categoria=categoria)
 
     async def executar_lote(self, mensagem: str, extrator_lista) -> "ResultadoCadastroLote":
         extracao = await extrator_lista.extrair(mensagem, date.today())
@@ -62,9 +81,7 @@ class CadastrarService:
         lote_total = []
         for item in extracao.itens:
             grupo_parcela_id = uuid4()
-            categoria = (
-                CategoriaEnum.PARCELAMENTOS if item.parcela_total > 1 else CategoriaEnum(item.categoria)
-            )
+            categoria = CategoriaEnum(item.categoria)
             embedding = await self._embedder.gerar_para_transacao(
                 item.tipo, categoria, item.descricao, item.data
             )
@@ -91,32 +108,55 @@ class CadastrarService:
         self, mensagem_original: str, parcela_total: int, numero: str
     ) -> ResultadoCadastro:
         extracao = await self._extrator.extrair(mensagem_original, date.today())
-        resultado = await self._processar(extracao, parcela_total, numero)
+        categoria = await self._categoria(extracao, parcela_total)
+        resultado = await self._processar(extracao, parcela_total, categoria=categoria)
         self._confirmacao_state.limpar(numero)
         return resultado
 
-    async def _processar(self, extracao, parcela_total: int, numero: str) -> ResultadoCadastro:
+    async def executar_com_recorrencia_confirmada(
+        self, mensagem_original: str, recorrente: bool, numero: str
+    ) -> ResultadoCadastro:
+        extracao = await self._extrator.extrair(mensagem_original, date.today())
+        resultado = await self._processar(
+            extracao, 1, categoria=CategoriaEnum.GASTOS_FIXOS, recorrente=recorrente
+        )
+        self._confirmacao_state.limpar(numero)
+        return resultado
+
+    async def _categoria(self, extracao, parcela_total: int) -> CategoriaEnum:
+        if extracao.tipo == "RECEITA":
+            return CategoriaEnum.RECEITA
+        categorizacao = await self._categorizador.categorizar(
+            extracao.tipo, extracao.descricao, float(Decimal(str(extracao.valor_total)))
+        )
+        return CategoriaEnum(categorizacao.categoria)
+
+    async def _processar(
+        self,
+        extracao,
+        parcela_total: int,
+        categoria: CategoriaEnum,
+        recorrente: bool = False,
+    ) -> ResultadoCadastro:
         hoje = date.today()
         valor_total = Decimal(str(extracao.valor_total))
 
         if parcela_total > 1:
-            categoria = CategoriaEnum.PARCELAMENTOS
-        elif extracao.tipo == "RECEITA":
-            categoria = CategoriaEnum.RECEITA
+            forma_pagamento = FormaPagamentoEnum.CARTAO_CREDITO
         else:
-            categorizacao = await self._categorizador.categorizar(
-                extracao.tipo, extracao.descricao, float(valor_total)
-            )
-            categoria = CategoriaEnum(categorizacao.categoria)
+            forma_pagamento = FormaPagamentoEnum(extracao.forma_pagamento)
 
         valores = _valores_das_parcelas(valor_total, extracao.valor_por_parcela, parcela_total)
 
         parcela_atual = extracao.parcela_atual
         if not 1 <= parcela_atual <= parcela_total:
             parcela_atual = 1
-        datas = datas_do_grupo(extracao.data_referencia, parcela_atual, parcela_total)
 
-        forma_pagamento = FormaPagamentoEnum(extracao.forma_pagamento)
+        data_base = extracao.data_referencia
+        if forma_pagamento in _FORMAS_A_PRAZO:
+            data_base = adicionar_meses(data_base, 1)
+        datas = datas_do_grupo(data_base, parcela_atual, parcela_total)
+
         grupo_parcela_id = uuid4()
 
         embedding = await self._embedder.gerar_para_transacao(
@@ -126,11 +166,12 @@ class CadastrarService:
         lote = []
         for i in range(parcela_total):
             data_parcela = datas[i]
-            status = status_por_data(data_parcela, hoje)
-            if parcela_total == 1 and forma_pagamento == FormaPagamentoEnum.PIX:
-                status = StatusEnum.PAGO
-            if extracao.tipo == "RECEITA" and data_parcela <= hoje:
-                status = StatusEnum.PAGO
+            if extracao.tipo == "RECEITA":
+                status = StatusEnum.PAGO if data_parcela <= hoje else StatusEnum.PENDENTE
+            elif parcela_total == 1:
+                _, status = data_status_por_forma(extracao.data_referencia, forma_pagamento)
+            else:
+                status = status_por_data(data_parcela, hoje)
             lote.append(
                 TransacaoCreate(
                     tipo=extracao.tipo,
@@ -144,6 +185,7 @@ class CadastrarService:
                     embedding=embedding,
                     status=status,
                     forma_pagamento=forma_pagamento,
+                    recorrente=recorrente,
                     responsavel=extracao.responsavel,
                     detalhes=extracao.detalhes,
                 )

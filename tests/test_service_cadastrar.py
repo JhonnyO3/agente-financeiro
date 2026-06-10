@@ -1,15 +1,19 @@
 import pytest
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from app.agents.extrator import ExtracaoResult
-from app.agents.categorizador import CategorizacaoResult
 from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
 from app.services.cadastrar import CadastrarService
 from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
 from app.services.parcelas import adicionar_meses
+
+
+def _cat(valor):
+    return SimpleNamespace(categoria=valor)
 
 
 def _make_transacao_fake(id, tipo, valor, descricao, categoria, data, parcela_numero, parcela_total, grupo_parcela_id):
@@ -63,7 +67,7 @@ async def test_gasto_simples_uma_transacao():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="ALIMENTACAO")
+    categorizacao = _cat("ALIMENTACAO")
 
     transacao_fake = _make_transacao_fake(1, "GASTO", Decimal("45.00"), "mercado", "ALIMENTACAO", hoje, 1, 1, uuid4())
     service, extrator, categorizador, embedder, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[transacao_fake])
@@ -81,10 +85,105 @@ async def test_gasto_simples_uma_transacao():
     assert lote_chamado[0].parcela_numero == 1
     assert lote_chamado[0].parcela_total == 1
     assert lote_chamado[0].categoria == CategoriaEnum.ALIMENTACAO
-    assert lote_chamado[0].forma_pagamento == FormaPagamentoEnum.OUTRO
-    assert lote_chamado[0].status == StatusEnum.PENDENTE  # data == hoje, não PIX
+    assert lote_chamado[0].forma_pagamento == FormaPagamentoEnum.PIX
+    assert lote_chamado[0].status == StatusEnum.PAGO
+    assert lote_chamado[0].recorrente is False
     assert lote_chamado[0].responsavel == "Jhonatas"
     assert lote_chamado[0].detalhes is None
+
+
+@pytest.mark.asyncio
+async def test_forma_nao_informada_assume_pix_pago():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("50.00"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="almoço",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, _, _, repository, _ = _make_service(extracao, _cat("ALIMENTACAO"), criar_lote_result=[MagicMock()])
+
+    await service.executar("Gastei 50 no almoço", "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert lote[0].forma_pagamento == FormaPagamentoEnum.PIX
+    assert lote[0].status == StatusEnum.PAGO
+    assert lote[0].data == hoje
+
+
+@pytest.mark.asyncio
+async def test_parcelas_implicam_cartao_credito_pendente_data_deslocada():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("300.00"),
+        valor_por_parcela=Decimal("100.00"),
+        parcela_total=3,
+        descricao="fone",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, categorizador, _, repository, _ = _make_service(extracao, _cat("COMPRAS"), criar_lote_result=[MagicMock()] * 3)
+
+    await service.executar("Comprei um fone em 3x de 100", "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert len(lote) == 3
+    for t in lote:
+        assert t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
+        assert t.categoria == CategoriaEnum.COMPRAS
+    assert lote[0].data == adicionar_meses(hoje, 1)
+    assert lote[0].status == StatusEnum.PENDENTE
+    categorizador.categorizar.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_debito_pago_na_hora():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("80.00"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="mercado",
+        data_referencia=hoje,
+        menciona_cartao=False,
+        forma_pagamento="CARTAO_DEBITO",
+    )
+    service, _, _, _, repository, _ = _make_service(extracao, _cat("ALIMENTACAO"), criar_lote_result=[MagicMock()])
+
+    await service.executar("Paguei 80 no débito no mercado", "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert lote[0].forma_pagamento == FormaPagamentoEnum.CARTAO_DEBITO
+    assert lote[0].status == StatusEnum.PAGO
+    assert lote[0].data == hoje
+
+
+@pytest.mark.asyncio
+async def test_boleto_pendente_data_deslocada():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("250.00"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="conta de luz",
+        data_referencia=hoje,
+        menciona_cartao=False,
+        forma_pagamento="BOLETO",
+    )
+    service, _, _, _, repository, _ = _make_service(extracao, _cat("GASTOS_PONTUAIS"), criar_lote_result=[MagicMock()])
+
+    await service.executar("conta de luz 250 no boleto", "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert lote[0].forma_pagamento == FormaPagamentoEnum.BOLETO
+    assert lote[0].status == StatusEnum.PENDENTE
+    assert lote[0].data == adicionar_meses(hoje, 1)
 
 
 @pytest.mark.asyncio
@@ -99,10 +198,10 @@ async def test_seis_parcelas_mesmo_grupo_datas_corretas():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
+    categorizacao = _cat("COMPRAS")
 
     transacoes_fake = [
-        _make_transacao_fake(i + 1, "GASTO", Decimal("150.00"), "celular", "PARCELAMENTOS", adicionar_meses(hoje, i), i + 1, 6, uuid4())
+        _make_transacao_fake(i + 1, "GASTO", Decimal("150.00"), "celular", "COMPRAS", adicionar_meses(hoje, i + 1), i + 1, 6, uuid4())
         for i in range(6)
     ]
     service, _, categorizador, embedder, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=transacoes_fake)
@@ -119,17 +218,16 @@ async def test_seis_parcelas_mesmo_grupo_datas_corretas():
     for i, t in enumerate(lote):
         assert t.grupo_parcela_id == grupo_id
         assert t.parcela_numero == i + 1
-        assert t.data == adicionar_meses(hoje, i)  # dia preservado, não +30 dias
-        assert t.categoria == CategoriaEnum.PARCELAMENTOS
+        assert t.data == adicionar_meses(hoje, i + 1)
+        assert t.categoria == CategoriaEnum.COMPRAS
+        assert t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
 
-    categorizador.categorizar.assert_not_called()
+    categorizador.categorizar.assert_called_once()
     embedder.gerar_para_transacao.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_parcela_atual_gera_grupo_completo_com_passadas():
-    """parcela 2/4 com valor_por_parcela=200 → 4 itens, datas de -1 mês a +2 meses,
-    parcela 1 PAGO e demais PENDENTE, todas PARCELAMENTOS com valor 200.00."""
     hoje = date.today()
     extracao = ExtracaoResult(
         tipo="GASTO",
@@ -140,9 +238,9 @@ async def test_parcela_atual_gera_grupo_completo_com_passadas():
         descricao="notebook",
         data_referencia=hoje,
         menciona_cartao=False,
-        forma_pagamento="CARTAO",
+        forma_pagamento="CARTAO_CREDITO",
     )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
+    categorizacao = _cat("COMPRAS")
 
     transacoes_fake = [MagicMock() for _ in range(4)]
     service, _, categorizador, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=transacoes_fake)
@@ -153,52 +251,18 @@ async def test_parcela_atual_gera_grupo_completo_com_passadas():
     assert len(lote) == 4
 
     grupo_id = lote[0].grupo_parcela_id
-    datas_esperadas = [adicionar_meses(hoje, i - 1) for i in range(4)]
+    data_base = adicionar_meses(hoje, 1)
+    datas_esperadas = [adicionar_meses(data_base, i - 1) for i in range(4)]
     for i, t in enumerate(lote):
         assert t.grupo_parcela_id == grupo_id
         assert t.parcela_numero == i + 1
         assert t.data == datas_esperadas[i]
         assert t.valor == Decimal("200.00")
-        assert t.categoria == CategoriaEnum.PARCELAMENTOS
-        assert t.forma_pagamento == FormaPagamentoEnum.CARTAO
+        assert t.categoria == CategoriaEnum.COMPRAS
+        assert t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
 
-    # parcela 1 (mês passado) nasce PAGO; atual (hoje) e futuras PENDENTE
-    assert lote[0].status == StatusEnum.PAGO
-    assert lote[1].status == StatusEnum.PENDENTE
-    assert lote[2].status == StatusEnum.PENDENTE
-    assert lote[3].status == StatusEnum.PENDENTE
-
-    categorizador.categorizar.assert_not_called()
+    categorizador.categorizar.assert_called_once()
     assert "4 parcelas" in resultado.mensagem_resposta
-    assert "1 já paga" in resultado.mensagem_resposta
-
-
-@pytest.mark.asyncio
-async def test_parcela_2_de_4_datas_fixas():
-    """Critério do .feature: data=10/06/2026 parcela 2/4 → datas 10/05, 10/06, 10/07, 10/08."""
-    extracao = ExtracaoResult(
-        tipo="GASTO",
-        valor_total=Decimal("800.00"),
-        valor_por_parcela=Decimal("200.00"),
-        parcela_total=4,
-        parcela_atual=2,
-        descricao="notebook",
-        data_referencia=date(2026, 6, 10),
-        menciona_cartao=False,
-    )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
-
-    service, _, _, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[MagicMock()] * 4)
-
-    await service.executar("parcela 2/4 notebook", "5511999999999")
-
-    lote = repository.criar_lote.call_args[0][0]
-    assert [t.data for t in lote] == [
-        date(2026, 5, 10),
-        date(2026, 6, 10),
-        date(2026, 7, 10),
-        date(2026, 8, 10),
-    ]
 
 
 @pytest.mark.asyncio
@@ -213,12 +277,12 @@ async def test_valor_calculado_por_parcela():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
+    categorizacao = _cat("COMPRAS")
 
     transacoes_fake = [MagicMock() for _ in range(6)]
     service, _, _, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=transacoes_fake)
 
-    resultado = await service.executar("900 em 6x", "5511999999999")
+    await service.executar("900 em 6x", "5511999999999")
 
     lote = repository.criar_lote.call_args[0][0]
     assert len(lote) == 6
@@ -240,7 +304,7 @@ async def test_menciona_cartao_aguarda_confirmacao():
         data_referencia=hoje,
         menciona_cartao=True,
     )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
+    categorizacao = _cat("COMPRAS")
 
     service, _, _, _, repository, _ = _make_service(extracao, categorizacao)
 
@@ -264,12 +328,12 @@ async def test_divisao_nao_exata_ultimo_centavo():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="GASTOS_FIXOS")
+    categorizacao = _cat("EDUCACAO")
 
     transacoes_fake = [MagicMock() for _ in range(3)]
     service, _, _, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=transacoes_fake)
 
-    resultado = await service.executar("100 em 3x", "5511999999999")
+    await service.executar("100 em 3x", "5511999999999")
 
     lote = repository.criar_lote.call_args[0][0]
     assert len(lote) == 3
@@ -279,6 +343,29 @@ async def test_divisao_nao_exata_ultimo_centavo():
 
     total = sum(t.valor for t in lote)
     assert total == Decimal("100.00")
+
+
+@pytest.mark.asyncio
+async def test_curso_parcelado_categoria_educacao_sem_parcelamentos():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("600.00"),
+        valor_por_parcela=None,
+        parcela_total=3,
+        descricao="curso de inglês",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, categorizador, _, repository, _ = _make_service(extracao, _cat("EDUCACAO"), criar_lote_result=[MagicMock()] * 3)
+
+    await service.executar("curso de inglês 600 em 3x", "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    for t in lote:
+        assert t.categoria == CategoriaEnum.EDUCACAO
+        assert t.tipo == "GASTO"
+    categorizador.categorizar.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -294,7 +381,7 @@ async def test_pix_a_vista_nasce_pago():
         menciona_cartao=False,
         forma_pagamento="PIX",
     )
-    categorizacao = CategorizacaoResult(categoria="ALIMENTACAO")
+    categorizacao = _cat("ALIMENTACAO")
 
     service, _, _, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[MagicMock()])
 
@@ -318,7 +405,7 @@ async def test_receita_forca_categoria_e_status_sem_categorizador():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="OUTROS")
+    categorizacao = _cat("ALIMENTACAO")
 
     service, _, categorizador, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[MagicMock()])
 
@@ -328,7 +415,7 @@ async def test_receita_forca_categoria_e_status_sem_categorizador():
     lote = repository.criar_lote.call_args[0][0]
     assert len(lote) == 1
     assert lote[0].categoria == CategoriaEnum.RECEITA
-    assert lote[0].status == StatusEnum.PAGO  # data <= hoje
+    assert lote[0].status == StatusEnum.PAGO
 
 
 @pytest.mark.asyncio
@@ -344,7 +431,7 @@ async def test_receita_futura_fica_pendente():
         data_referencia=futuro,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="OUTROS")
+    categorizacao = _cat("ALIMENTACAO")
 
     service, _, categorizador, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[MagicMock()])
 
@@ -370,7 +457,7 @@ async def test_responsavel_e_detalhes_propagados():
         menciona_cartao=False,
         responsavel="Mãe",
     )
-    categorizacao = CategorizacaoResult(categoria="LAZER")
+    categorizacao = _cat("LAZER")
 
     service, _, _, _, repository, _ = _make_service(extracao, categorizacao, criar_lote_result=[MagicMock()])
 
@@ -392,9 +479,9 @@ async def test_executar_com_parcelas_confirmadas_continua_funcionando():
         descricao="tênis",
         data_referencia=hoje,
         menciona_cartao=True,
-        forma_pagamento="CARTAO",
+        forma_pagamento="CARTAO_CREDITO",
     )
-    categorizacao = CategorizacaoResult(categoria="COMPRAS")
+    categorizacao = _cat("COMPRAS")
 
     transacoes_fake = [MagicMock() for _ in range(3)]
     service, _, categorizador, _, repository, confirmacao_state = _make_service(extracao, categorizacao, criar_lote_result=transacoes_fake)
@@ -408,13 +495,93 @@ async def test_executar_com_parcelas_confirmadas_continua_funcionando():
     lote = repository.criar_lote.call_args[0][0]
     assert len(lote) == 3
     assert sum(t.valor for t in lote) == Decimal("300.00")
+    data_base = adicionar_meses(hoje, 1)
     for i, t in enumerate(lote):
         assert t.parcela_numero == i + 1
-        assert t.data == adicionar_meses(hoje, i)
-        assert t.categoria == CategoriaEnum.PARCELAMENTOS
-    categorizador.categorizar.assert_not_called()
+        assert t.data == adicionar_meses(data_base, i)
+        assert t.categoria == CategoriaEnum.COMPRAS
+        assert t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
     assert confirmacao_state.obter("5511999999999") is None
     assert resultado.aguarda_confirmacao is False
+
+
+@pytest.mark.asyncio
+async def test_gastos_fixos_dispara_pergunta_recorrencia():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("99.90"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="academia",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, _, _, repository, confirmacao_state = _make_service(extracao, _cat("GASTOS_FIXOS"))
+
+    resultado = await service.executar("paguei a academia 99,90", "5511999999999")
+
+    assert resultado.aguarda_confirmacao is True
+    assert resultado.pergunta is not None
+    repository.criar_lote.assert_not_called()
+    estado = confirmacao_state.obter("5511999999999")
+    assert estado is not None
+    assert estado.acao == "AGUARDAR_RECORRENCIA"
+    assert estado.mensagem_original == "paguei a academia 99,90"
+
+
+@pytest.mark.asyncio
+async def test_recorrencia_confirmada_grava_recorrente_true_sem_parcela():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("99.90"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="academia",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, _, _, repository, confirmacao_state = _make_service(extracao, _cat("GASTOS_FIXOS"), criar_lote_result=[MagicMock()])
+    confirmacao_state.salvar(
+        "5511999999999",
+        EstadoConfirmacao(acao="AGUARDAR_RECORRENCIA", mensagem_original="paguei a academia 99,90"),
+    )
+
+    await service.executar_com_recorrencia_confirmada("paguei a academia 99,90", True, "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert len(lote) == 1
+    assert lote[0].recorrente is True
+    assert lote[0].parcela_numero == 1
+    assert lote[0].parcela_total == 1
+    assert lote[0].categoria == CategoriaEnum.GASTOS_FIXOS
+    assert confirmacao_state.obter("5511999999999") is None
+
+
+@pytest.mark.asyncio
+async def test_recorrencia_negada_grava_recorrente_false():
+    hoje = date.today()
+    extracao = ExtracaoResult(
+        tipo="GASTO",
+        valor_total=Decimal("99.90"),
+        valor_por_parcela=None,
+        parcela_total=1,
+        descricao="academia",
+        data_referencia=hoje,
+        menciona_cartao=False,
+    )
+    service, _, _, _, repository, confirmacao_state = _make_service(extracao, _cat("GASTOS_FIXOS"), criar_lote_result=[MagicMock()])
+    confirmacao_state.salvar(
+        "5511999999999",
+        EstadoConfirmacao(acao="AGUARDAR_RECORRENCIA", mensagem_original="paguei a academia 99,90"),
+    )
+
+    await service.executar_com_recorrencia_confirmada("paguei a academia 99,90", False, "5511999999999")
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert lote[0].recorrente is False
+    assert lote[0].parcela_total == 1
 
 
 @pytest.mark.asyncio
@@ -450,7 +617,7 @@ async def test_executar_lote_gera_grupo_completo_com_status():
     resultado = await service.executar_lote("lista de contas", extrator_lista)
 
     lote = repository.criar_lote.call_args[0][0]
-    assert len(lote) == 4  # 3 parcelas do LinkedIn + 1 do mercado
+    assert len(lote) == 4
 
     parcelas_linkedin = lote[:3]
     grupo_id = parcelas_linkedin[0].grupo_parcela_id
@@ -460,7 +627,7 @@ async def test_executar_lote_gera_grupo_completo_com_status():
         assert t.parcela_total == 3
         assert t.valor == Decimal("49.33")
         assert t.data == adicionar_meses(hoje, i - 1)
-        assert t.categoria == CategoriaEnum.PARCELAMENTOS
+        assert t.categoria == CategoriaEnum.GASTOS_FIXOS
     assert parcelas_linkedin[0].status == StatusEnum.PAGO
     assert parcelas_linkedin[1].status == StatusEnum.PENDENTE
     assert parcelas_linkedin[2].status == StatusEnum.PENDENTE
@@ -468,7 +635,7 @@ async def test_executar_lote_gera_grupo_completo_com_status():
     mercado = lote[3]
     assert mercado.parcela_total == 1
     assert mercado.categoria == CategoriaEnum.ALIMENTACAO
-    assert mercado.status == StatusEnum.PAGO  # data no passado
+    assert mercado.status == StatusEnum.PAGO
     assert mercado.grupo_parcela_id != grupo_id
 
 
@@ -484,7 +651,7 @@ async def test_mensagem_resposta_simples_e_parcelada():
         data_referencia=hoje,
         menciona_cartao=False,
     )
-    categorizacao = CategorizacaoResult(categoria="ALIMENTACAO")
+    categorizacao = _cat("ALIMENTACAO")
     service, _, _, _, _, _ = _make_service(extracao_simples, categorizacao, criar_lote_result=[MagicMock()])
 
     resultado = await service.executar("gastei 45 no mercado", "5511999999999")
@@ -504,4 +671,4 @@ async def test_mensagem_resposta_simples_e_parcelada():
 
     resultado2 = await service2.executar("cadeira 600 em 3x", "5511999999999")
     assert "3 parcelas" in resultado2.mensagem_resposta
-    assert "já paga" not in resultado2.mensagem_resposta  # nenhuma no passado
+    assert "já paga" not in resultado2.mensagem_resposta

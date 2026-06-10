@@ -3,7 +3,9 @@
 import calendar
 from datetime import date
 
-from app.models.enums import StatusEnum
+from app.models.enums import FormaPagamentoEnum, StatusEnum
+
+_FORMAS_A_VISTA = {FormaPagamentoEnum.PIX, FormaPagamentoEnum.CARTAO_DEBITO}
 
 
 def adicionar_meses(data: date, meses: int) -> date:
@@ -21,6 +23,17 @@ def status_por_data(data: date, hoje: date | None = None) -> StatusEnum:
     if hoje is None:
         hoje = date.today()
     return StatusEnum.PAGO if data < hoje else StatusEnum.PENDENTE
+
+
+def data_status_por_forma(
+    data: date, forma_pagamento: FormaPagamentoEnum
+) -> tuple[date, StatusEnum]:
+    """À vista (PIX/CARTAO_DEBITO) → data real e PAGO; a prazo
+    (CARTAO_CREDITO/BOLETO) → data deslocada para a fatura (mês seguinte,
+    dia preservado) e PENDENTE."""
+    if forma_pagamento in _FORMAS_A_VISTA:
+        return data, StatusEnum.PAGO
+    return adicionar_meses(data, 1), StatusEnum.PENDENTE
 
 
 def datas_do_grupo(

@@ -47,6 +47,13 @@ class Pipeline:
             )
             return await self._formatador.formatar(resultado, "cadastro")
 
+        if estado.acao == "AGUARDAR_RECORRENCIA":
+            resposta = await self._confirmacao_chain.interpretar(texto, "sim_nao")
+            resultado = await self._cadastrar.executar_com_recorrencia_confirmada(
+                estado.mensagem_original, resposta.tipo == "sim", numero
+            )
+            return await self._formatador.formatar(resultado, "cadastro")
+
         if estado.acao == "EXCLUIR_LOTE":
             resposta = await self._confirmacao_chain.interpretar(texto, "sim_nao")
             resultado = await self._excluir.confirmar_lote(numero, resposta.tipo == "sim")

@@ -56,7 +56,7 @@ def test_extracao_result_retrocompatibilidade_defaults():
     resultado = ExtracaoResult(**dados_antigos)
 
     assert resultado.parcela_atual == 1
-    assert resultado.forma_pagamento == "OUTRO"
+    assert resultado.forma_pagamento == "PIX"
     assert resultado.responsavel == "Jhonatas"
     assert resultado.detalhes is None
 
@@ -73,7 +73,7 @@ def test_extracao_result_parcela_atual_e_valor_por_parcela():
         descricao="notebook",
         data_referencia=date(2026, 6, 10),
         menciona_cartao=True,
-        forma_pagamento="CARTAO",
+        forma_pagamento="CARTAO_CREDITO",
     )
 
     assert resultado.valor_por_parcela == Decimal("200")
