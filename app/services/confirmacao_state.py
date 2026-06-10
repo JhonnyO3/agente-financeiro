@@ -14,7 +14,7 @@ def _now() -> datetime:
 
 @dataclass
 class EstadoConfirmacao:
-    acao: Literal["ALTERAR", "EXCLUIR", "AGUARDAR_PARCELAS", "EXCLUIR_LOTE"]
+    acao: Literal["ALTERAR", "EXCLUIR", "AGUARDAR_PARCELAS", "EXCLUIR_LOTE", "MARCAR_PAGO"]
     transacao_id: int | None = None
     grupo_parcela_id: UUID | None = None
     novos_dados: TransacaoUpdate | None = None
