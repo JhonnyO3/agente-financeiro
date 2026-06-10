@@ -1,6 +1,8 @@
 /**
  * table.js — Tabela de transações com filtros, paginação e CRUD via modais (RF-07)
  * e seção de investimentos com tabela e cards de totais (RF-08).
+ * v2 (T09): colunas Status (badge) e Responsável, tooltip de detalhes,
+ * filtro de status e campos novos nos modais (contratos dom-v2 / api-json-v2).
  *
  * IIFE autocontido (contrato js-interop.md). Única global exposta:
  * window.filtrarPorCategoria — consumida por charts.js no clique da pizza.
@@ -53,7 +55,7 @@
   // ------------------------------------------------------------- estado
 
   // Tabela geral de transações
-  const estado = { pagina: 1, tipo: "", categoria: "" };
+  const estado = { pagina: 1, tipo: "", categoria: "", status: "" };
   // Tabela de investimentos (paginação própria, independente)
   const estadoInvest = { pagina: 1 };
 
@@ -101,6 +103,16 @@
     return btn;
   }
 
+  // Badge de status (dom-v2.md): PAGO verde, PENDENTE amarelo.
+  // Construído via createElement/textContent — nunca innerHTML com dados.
+  function criarBadgeStatus(status) {
+    const badge = document.createElement("span");
+    badge.className =
+      status === "PAGO" ? "badge text-bg-success" : "badge text-bg-warning";
+    badge.textContent = status || "";
+    return badge;
+  }
+
   function criarLinha(item) {
     const tr = document.createElement("tr");
 
@@ -117,6 +129,20 @@
       td.textContent = texto; // textContent: escapa dados do usuário
       tr.appendChild(td);
     }
+
+    // detalhes não vazio → tooltip na célula Descrição (2ª coluna)
+    if (item.detalhes) {
+      tr.children[1].title = item.detalhes;
+    }
+
+    // Colunas novas entre Tipo e Ações (mesma ordem do thead): Status, Responsável
+    const tdStatus = document.createElement("td");
+    tdStatus.appendChild(criarBadgeStatus(item.status));
+    tr.appendChild(tdStatus);
+
+    const tdResponsavel = document.createElement("td");
+    tdResponsavel.textContent = item.responsavel || "";
+    tr.appendChild(tdResponsavel);
 
     const tdAcoes = document.createElement("td");
     const grupo = document.createElement("div");
@@ -144,7 +170,7 @@
     if (!itens || itens.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = 9;
       td.className = "text-center text-muted";
       td.textContent = "Nenhuma transação encontrada";
       tr.appendChild(td);
@@ -203,6 +229,7 @@
     const params = new URLSearchParams({ periodo: PERIODO, pagina: String(estado.pagina) });
     if (estado.tipo) params.set("tipo", estado.tipo);
     if (estado.categoria) params.set("categoria", estado.categoria);
+    if (estado.status) params.set("status", estado.status);
 
     let dados;
     try {
@@ -324,11 +351,19 @@
     const campoDescricao = document.getElementById("edit-descricao");
     const campoCategoria = document.getElementById("edit-categoria");
     const campoValor = document.getElementById("edit-valor");
+    const campoStatus = document.getElementById("edit-status");
+    const campoForma = document.getElementById("edit-forma-pagamento");
+    const campoResponsavel = document.getElementById("edit-responsavel");
+    const campoDetalhes = document.getElementById("edit-detalhes");
 
     if (campoData) campoData.value = item.data || "";
     if (campoDescricao) campoDescricao.value = item.descricao || "";
     if (campoCategoria) campoCategoria.value = item.categoria || "";
     if (campoValor) campoValor.value = item.valor || "";
+    if (campoStatus) campoStatus.value = item.status || "";
+    if (campoForma) campoForma.value = item.forma_pagamento || "";
+    if (campoResponsavel) campoResponsavel.value = item.responsavel || "";
+    if (campoDetalhes) campoDetalhes.value = item.detalhes || "";
 
     m.modal.show();
   }
@@ -341,6 +376,10 @@
     const campoDescricao = document.getElementById("edit-descricao");
     const campoCategoria = document.getElementById("edit-categoria");
     const campoValor = document.getElementById("edit-valor");
+    const campoStatus = document.getElementById("edit-status");
+    const campoForma = document.getElementById("edit-forma-pagamento");
+    const campoResponsavel = document.getElementById("edit-responsavel");
+    const campoDetalhes = document.getElementById("edit-detalhes");
 
     const data = campoData ? campoData.value : "";
     const valor = campoValor ? campoValor.value : "";
@@ -356,6 +395,10 @@
       descricao: campoDescricao ? campoDescricao.value : "",
       categoria: categoria,
       valor: normalizarValor(valor),
+      status: campoStatus ? campoStatus.value : "",
+      forma_pagamento: campoForma ? campoForma.value : "",
+      responsavel: campoResponsavel ? campoResponsavel.value : "",
+      detalhes: campoDetalhes ? campoDetalhes.value : "",
     };
 
     try {
@@ -396,6 +439,10 @@
     const campoCategoria = document.getElementById("add-categoria");
     const campoValor = document.getElementById("add-valor");
     const campoTipo = document.getElementById("add-tipo");
+    const campoStatus = document.getElementById("add-status");
+    const campoForma = document.getElementById("add-forma-pagamento");
+    const campoResponsavel = document.getElementById("add-responsavel");
+    const campoDetalhes = document.getElementById("add-detalhes");
 
     const data = campoData ? campoData.value : "";
     const valor = campoValor ? campoValor.value : "";
@@ -415,6 +462,17 @@
       valor: normalizarValor(valor),
       tipo: tipo,
     };
+
+    // Campos v2 opcionais: vazios ficam fora do body para o servidor
+    // aplicar os defaults (api-json-v2.md).
+    const status = campoStatus ? campoStatus.value : "";
+    const forma = campoForma ? campoForma.value : "";
+    const responsavel = campoResponsavel ? campoResponsavel.value : "";
+    const detalhes = campoDetalhes ? campoDetalhes.value : "";
+    if (status) corpo.status = status;
+    if (forma) corpo.forma_pagamento = forma;
+    if (responsavel) corpo.responsavel = responsavel;
+    if (detalhes) corpo.detalhes = detalhes;
 
     try {
       await fetchJSON("/api/transacoes", {
@@ -474,6 +532,15 @@
     if (filtroCategoria) {
       filtroCategoria.addEventListener("change", function () {
         estado.categoria = filtroCategoria.value;
+        estado.pagina = 1;
+        carregarTabela();
+      });
+    }
+
+    const filtroStatus = document.getElementById("filtro-status");
+    if (filtroStatus) {
+      filtroStatus.addEventListener("change", function () {
+        estado.status = filtroStatus.value;
         estado.pagina = 1;
         carregarTabela();
       });
