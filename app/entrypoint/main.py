@@ -21,6 +21,7 @@ from app.services.confirmacao_state import ConfirmacaoState
 from app.services.cadastrar import CadastrarService
 from app.services.alterar import AlterarService
 from app.services.excluir import ExcluirService
+from app.services.marcar_pago import MarcarPagoService
 from app.services.consultar import ConsultarService
 from app.services.formatador import Formatador
 from app.services.pipeline import Pipeline
@@ -119,6 +120,11 @@ async def lifespan(app: FastAPI):
         embedder=embedder,
         confirmacao_state=confirmacao_state,
     )
+    marcar_pago = MarcarPagoService(
+        repository=repository,
+        embedder=embedder,
+        confirmacao_state=confirmacao_state,
+    )
     consultar = ConsultarService(
         repository=repository,
         filtro_chain=FiltroConsulta(),
@@ -130,6 +136,7 @@ async def lifespan(app: FastAPI):
         cadastrar=cadastrar,
         alterar=alterar,
         excluir=excluir,
+        marcar_pago=marcar_pago,
         consultar=consultar,
         formatador=formatador,
         confirmacao_state=confirmacao_state,

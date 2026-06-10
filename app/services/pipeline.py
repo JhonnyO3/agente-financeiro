@@ -8,6 +8,7 @@ class Pipeline:
         cadastrar,
         alterar,
         excluir,
+        marcar_pago,
         consultar,
         formatador,
         confirmacao_state,
@@ -20,6 +21,7 @@ class Pipeline:
         self._cadastrar = cadastrar
         self._alterar = alterar
         self._excluir = excluir
+        self._marcar_pago = marcar_pago
         self._consultar = consultar
         self._formatador = formatador
         self._state = confirmacao_state
@@ -57,6 +59,10 @@ class Pipeline:
             resultado = await self._alterar.confirmar(numero, resposta.tipo == "sim")
             return await self._formatador.formatar(resultado, "confirmacao")
 
+        if estado.acao == "MARCAR_PAGO":
+            resultado = await self._marcar_pago.confirmar(numero, resposta.tipo == "sim")
+            return await self._formatador.formatar(resultado, "confirmacao")
+
         if estado.acao == "EXCLUIR":
             resultado = await self._excluir.confirmar(numero, resposta.tipo)
             return await self._formatador.formatar(resultado, "confirmacao")
@@ -75,6 +81,10 @@ class Pipeline:
 
         if intencao.intencao == "ALTERAR":
             resultado = await self._alterar.iniciar(texto, numero)
+            return await self._formatador.formatar(resultado, "confirmacao")
+
+        if intencao.intencao == "MARCAR_PAGO":
+            resultado = await self._marcar_pago.iniciar(texto, numero)
             return await self._formatador.formatar(resultado, "confirmacao")
 
         if intencao.intencao == "EXCLUIR":

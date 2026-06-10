@@ -5,7 +5,7 @@ from app.agents.base import carregar_prompt, criar_llm
 
 
 class IntencaoResult(BaseModel):
-    intencao: Literal["CADASTRAR", "CADASTRAR_LOTE", "ALTERAR", "EXCLUIR", "EXCLUIR_LOTE", "CONSULTAR", "FORA_DE_ESCOPO"]
+    intencao: Literal["CADASTRAR", "CADASTRAR_LOTE", "ALTERAR", "MARCAR_PAGO", "EXCLUIR", "EXCLUIR_LOTE", "CONSULTAR", "FORA_DE_ESCOPO"]
     confianca: Literal["alta", "media", "baixa"]
 
 
