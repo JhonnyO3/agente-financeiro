@@ -32,11 +32,11 @@ class _SessionFactoryRepository:
         return TransacaoRepository(session)
 
     async def criar(self, transacao):
-        async with self._session_factory() as session:
+        async with self._session_factory.begin() as session:
             return await self._repo(session).criar(transacao)
 
     async def criar_lote(self, transacoes):
-        async with self._session_factory() as session:
+        async with self._session_factory.begin() as session:
             return await self._repo(session).criar_lote(transacoes)
 
     async def buscar_por_id(self, id):
@@ -56,15 +56,15 @@ class _SessionFactoryRepository:
             return await self._repo(session).buscar_semantico_com_distancia(embedding, limite)
 
     async def atualizar(self, id, dados):
-        async with self._session_factory() as session:
+        async with self._session_factory.begin() as session:
             return await self._repo(session).atualizar(id, dados)
 
     async def excluir(self, id):
-        async with self._session_factory() as session:
+        async with self._session_factory.begin() as session:
             return await self._repo(session).excluir(id)
 
     async def excluir_grupo(self, grupo_parcela_id):
-        async with self._session_factory() as session:
+        async with self._session_factory.begin() as session:
             return await self._repo(session).excluir_grupo(grupo_parcela_id)
 
     async def listar_por_periodo(self, inicio, fim):

@@ -1,8 +1,15 @@
+import os
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
+
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
+os.environ.setdefault("EVOLUTION_API_URL", "http://localhost:8080")
+os.environ.setdefault("EVOLUTION_INSTANCE", "test")
+os.environ.setdefault("EVOLUTION_API_KEY", "test-key")
+os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "5511957818539")
+
 from httpx import AsyncClient, ASGITransport
 from app.entrypoint.main import app
-
 
 AUTHORIZED_NUMBER = "5511957818539"
 
@@ -46,18 +53,21 @@ PAYLOAD_AUDIO = {
 }
 
 
+def _setup_app_state():
+    mock_debouncer = AsyncMock()
+    mock_debouncer.receber = AsyncMock()
+    app.state.debouncer = mock_debouncer
+    app.state.processar_e_responder = AsyncMock()
+    return mock_debouncer
+
+
 @pytest.mark.asyncio
 async def test_numero_nao_autorizado_retorna_200_sem_chamar_pipeline():
-    mock_pipeline = AsyncMock()
-    with (
-        patch("app.config.settings.WHATSAPP_ALLOWED_NUMBER", AUTHORIZED_NUMBER),
-        patch("app.entrypoint.webhook.debouncer") as mock_debouncer,
-    ):
-        mock_debouncer.receber = AsyncMock()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post("/webhook/mensagem", json=PAYLOAD_UNAUTHORIZED)
+    mock_debouncer = _setup_app_state()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/webhook/mensagem", json=PAYLOAD_UNAUTHORIZED)
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -66,15 +76,11 @@ async def test_numero_nao_autorizado_retorna_200_sem_chamar_pipeline():
 
 @pytest.mark.asyncio
 async def test_mensagem_audio_retorna_200_sem_chamar_pipeline():
-    with (
-        patch("app.config.settings.WHATSAPP_ALLOWED_NUMBER", AUTHORIZED_NUMBER),
-        patch("app.entrypoint.webhook.debouncer") as mock_debouncer,
-    ):
-        mock_debouncer.receber = AsyncMock()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post("/webhook/mensagem", json=PAYLOAD_AUDIO)
+    mock_debouncer = _setup_app_state()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/webhook/mensagem", json=PAYLOAD_AUDIO)
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
