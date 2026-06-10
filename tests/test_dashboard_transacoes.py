@@ -84,10 +84,10 @@ def make_transacao(
     id,
     dia=1,
     tipo="GASTO",
-    categoria="OUTROS",
+    categoria="COMPRAS",
     valor="10.00",
     status="PENDENTE",
-    forma_pagamento="OUTRO",
+    forma_pagamento="PIX",
     responsavel="Jhonatas",
     detalhes=None,
 ):
@@ -221,7 +221,7 @@ def test_post_descricao_opcional_vira_none():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
             },
@@ -240,7 +240,7 @@ def test_post_sem_valor_retorna_400():
     with stack:
         resposta = client.post(
             "/api/transacoes",
-            json={"data": "2026-06-10", "categoria": "OUTROS", "tipo": "GASTO"},
+            json={"data": "2026-06-10", "categoria": "COMPRAS", "tipo": "GASTO"},
         )
 
     assert resposta.status_code == 400
@@ -256,7 +256,7 @@ def test_post_tipo_invalido_retorna_400():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "BANANA",
             },
@@ -291,7 +291,7 @@ def test_post_valor_nao_decimal_retorna_400():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "abc",
                 "tipo": "GASTO",
             },
@@ -308,7 +308,7 @@ def test_post_data_invalida_retorna_400():
             "/api/transacoes",
             json={
                 "data": "10/06/2026",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
             },
@@ -423,7 +423,7 @@ def test_serializacao_do_item():
         "tipo": "GASTO",
         "grupo_parcela_id": "grupo-42",
         "status": "PENDENTE",
-        "forma_pagamento": "OUTRO",
+        "forma_pagamento": "PIX",
         "responsavel": "Jhonatas",
         "detalhes": "",
     }
@@ -521,7 +521,7 @@ def test_post_sem_campos_novos_usa_defaults():
             "/api/transacoes",
             json={
                 "data": "2099-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
             },
@@ -529,8 +529,8 @@ def test_post_sem_campos_novos_usa_defaults():
 
     assert resposta.status_code == 201
     dto = repo.criar.await_args.args[0]
-    assert dto.status == StatusEnum.PENDENTE
-    assert dto.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert dto.status == StatusEnum.PAGO
+    assert dto.forma_pagamento == FormaPagamentoEnum.PIX
     assert dto.responsavel == "Jhonatas"
     assert dto.detalhes is None
 
@@ -547,7 +547,7 @@ def test_post_com_campos_novos_repassa_valores():
                 "valor": "199.90",
                 "tipo": "GASTO",
                 "status": "PAGO",
-                "forma_pagamento": "CARTAO",
+                "forma_pagamento": "CARTAO_CREDITO",
                 "responsavel": "Maria",
                 "detalhes": "Presente de aniversário",
             },
@@ -556,7 +556,7 @@ def test_post_com_campos_novos_repassa_valores():
     assert resposta.status_code == 201
     dto = repo.criar.await_args.args[0]
     assert dto.status == StatusEnum.PAGO
-    assert dto.forma_pagamento == FormaPagamentoEnum.CARTAO
+    assert dto.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
     assert dto.responsavel == "Maria"
     assert dto.detalhes == "Presente de aniversário"
 
@@ -569,7 +569,7 @@ def test_post_status_invalido_retorna_400():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
                 "status": "XYZ",
@@ -588,10 +588,10 @@ def test_post_forma_pagamento_invalida_retorna_400():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
-                "forma_pagamento": "BOLETO",
+                "forma_pagamento": "DINHEIRO",
             },
         )
 
@@ -610,7 +610,7 @@ def test_post_pix_sem_status_vira_pago():
             "/api/transacoes",
             json={
                 "data": "2099-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
                 "forma_pagamento": "PIX",
@@ -631,7 +631,7 @@ def test_post_pix_com_status_explicito_respeita_o_enviado():
             "/api/transacoes",
             json={
                 "data": "2026-06-10",
-                "categoria": "OUTROS",
+                "categoria": "COMPRAS",
                 "valor": "50.00",
                 "tipo": "GASTO",
                 "forma_pagamento": "PIX",
@@ -658,6 +658,7 @@ def test_post_receita_data_passada_sem_status_vira_pago():
                 "categoria": "RECEITA",
                 "valor": "5000.00",
                 "tipo": "RECEITA",
+                "forma_pagamento": "BOLETO",
             },
         )
 
@@ -676,6 +677,7 @@ def test_post_receita_data_hoje_sem_status_vira_pago():
                 "categoria": "RECEITA",
                 "valor": "5000.00",
                 "tipo": "RECEITA",
+                "forma_pagamento": "BOLETO",
             },
         )
 
@@ -695,6 +697,7 @@ def test_post_receita_data_futura_sem_status_fica_pendente():
                 "categoria": "RECEITA",
                 "valor": "5000.00",
                 "tipo": "RECEITA",
+                "forma_pagamento": "BOLETO",
             },
         )
 
@@ -746,7 +749,7 @@ def test_put_aceita_os_quatro_campos_novos():
             "/api/transacoes/1",
             json={
                 "status": "PAGO",
-                "forma_pagamento": "CARTAO",
+                "forma_pagamento": "CARTAO_CREDITO",
                 "responsavel": "Maria",
                 "detalhes": "ajustado",
             },
@@ -755,7 +758,7 @@ def test_put_aceita_os_quatro_campos_novos():
     assert resposta.status_code == 200
     _, dados = repo.atualizar.await_args.args
     assert dados.status == StatusEnum.PAGO
-    assert dados.forma_pagamento == FormaPagamentoEnum.CARTAO
+    assert dados.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
     assert dados.responsavel == "Maria"
     assert dados.detalhes == "ajustado"
     assert dados.valor is None
@@ -776,7 +779,7 @@ def test_put_forma_pagamento_invalida_retorna_400():
     repo = fake_repo(buscar_por_id=AsyncMock(return_value=make_transacao(1)))
     client, stack = cliente_com(repo)
     with stack:
-        resposta = client.put("/api/transacoes/1", json={"forma_pagamento": "BOLETO"})
+        resposta = client.put("/api/transacoes/1", json={"forma_pagamento": "DINHEIRO"})
 
     assert resposta.status_code == 400
     repo.atualizar.assert_not_awaited()

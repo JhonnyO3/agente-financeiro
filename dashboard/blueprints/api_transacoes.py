@@ -109,7 +109,7 @@ async def criar_transacao():
         forma_pagamento = (
             FormaPagamentoEnum(body["forma_pagamento"])
             if body.get("forma_pagamento") is not None
-            else FormaPagamentoEnum.OUTRO
+            else FormaPagamentoEnum.PIX
         )
     except (ValueError, TypeError, InvalidOperation):
         return (

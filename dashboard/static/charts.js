@@ -26,11 +26,13 @@
     ALIMENTACAO: "#fd7e14",
     TRANSPORTE: "#0d6efd",
     LAZER: "#6f42c1",
+    EDUCACAO: "#20c997",
     GASTOS_FIXOS: "#dc3545",
     COMPRAS: "#d63384",
     GASTOS_PONTUAIS: "#ffc107",
-    OUTROS: "#6c757d",
   };
+
+  const COR_PADRAO = "#6c757d";
 
   // fetch JSON com tratamento de erro do contrato: não-2xx vira exceção,
   // o chamador loga via console.error e deixa o canvas vazio.
@@ -69,7 +71,7 @@
           {
             data: dados.map((d) => Number(d.total)),
             backgroundColor: categorias.map(
-              (c) => CORES_CATEGORIA[c] || CORES_CATEGORIA.OUTROS
+              (c) => CORES_CATEGORIA[c] || COR_PADRAO
             ),
           },
         ],

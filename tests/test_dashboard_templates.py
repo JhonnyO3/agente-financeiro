@@ -105,7 +105,7 @@ def test_filtros_da_tabela_tem_todas_as_opcoes(client):
     assert len(re.findall(r"<option\b", filtro_tipo)) == 4  # Todos + 3 tipos
     assert 'value="RECEITA"' in filtro_tipo
     filtro_categoria = _extrai_select(html, "filtro-categoria")
-    assert len(re.findall(r"<option\b", filtro_categoria)) == 11  # Todas + 10 categorias
+    assert len(re.findall(r"<option\b", filtro_categoria)) == 10  # Todas + 9 categorias
 
 
 def test_filtro_status_tem_3_opcoes(client):
@@ -141,8 +141,10 @@ def test_modais_tem_selects_de_status_e_forma_pagamento(client):
         assert 'value="PENDENTE"' in status
         forma = _extrai_select(html, f"{prefixo}-forma-pagamento")
         assert 'value="PIX"' in forma
-        assert 'value="CARTAO"' in forma
-        assert 'value="OUTRO"' in forma
+        assert 'value="CARTAO_CREDITO"' in forma
+        assert 'value="CARTAO_DEBITO"' in forma
+        assert 'value="BOLETO"' in forma
+        assert 'value="OUTRO"' not in forma
 
 
 def test_projecao_tem_titulo(client):
