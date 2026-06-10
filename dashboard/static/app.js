@@ -29,15 +29,18 @@
 
   async function carregarResumo() {
     const elGastos = document.getElementById("card-gastos");
+    const elReceitas = document.getElementById("card-receitas");
     const elInvestimentos = document.getElementById("card-investimentos");
     const elSaldo = document.getElementById("card-saldo");
-    if (!elGastos || !elInvestimentos || !elSaldo) {
+    if (!elGastos || !elReceitas || !elInvestimentos || !elSaldo) {
       return;
     }
     try {
       const resumo = await fetchJSON("/api/resumo?periodo=" + encodeURIComponent(PERIODO));
       elGastos.textContent = fmtBRL(resumo.gastos);
+      elReceitas.textContent = fmtBRL(resumo.receitas);
       elInvestimentos.textContent = fmtBRL(resumo.investimentos);
+      // `saldo` v2 = receitas − gastos (api-json-v2) — semântica vem da API.
       elSaldo.textContent = fmtBRL(resumo.saldo);
       // Sinal decidido pela string vinda da API — sem aritmética JS.
       const negativo = String(resumo.saldo).startsWith("-");
@@ -45,6 +48,70 @@
       elSaldo.classList.add(negativo ? "text-danger" : "text-success");
     } catch (erro) {
       console.error("Falha ao carregar resumo:", erro);
+    }
+  }
+
+  // --- Projeção dos próximos 6 meses (dom-v2 / api-json-v2) ----------------
+
+  function criarCelula(tag, texto, classe) {
+    const celula = document.createElement(tag);
+    celula.textContent = texto;
+    if (classe) {
+      celula.className = classe;
+    }
+    return celula;
+  }
+
+  function criarTabelaProjecao(meses) {
+    const tabela = document.createElement("table");
+    tabela.className = "table table-sm table-striped align-middle mb-0";
+
+    const thead = document.createElement("thead");
+    const linhaCabecalho = document.createElement("tr");
+    const titulos = ["Mês", "Gastos pendentes", "Receitas pendentes", "Saldo projetado", "Parcelas"];
+    for (const titulo of titulos) {
+      linhaCabecalho.appendChild(criarCelula("th", titulo));
+    }
+    thead.appendChild(linhaCabecalho);
+    tabela.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const mes of meses) {
+      const linha = document.createElement("tr");
+      linha.appendChild(criarCelula("td", mes.mes));
+      linha.appendChild(criarCelula("td", fmtBRL(mes.gastos_pendentes)));
+      linha.appendChild(criarCelula("td", fmtBRL(mes.receitas_pendentes)));
+      // Cor decidida pelo sinal da string vinda da API — sem aritmética JS.
+      const negativo = String(mes.saldo_projetado).startsWith("-");
+      linha.appendChild(
+        criarCelula("td", fmtBRL(mes.saldo_projetado), negativo ? "text-danger" : "text-success")
+      );
+      linha.appendChild(criarCelula("td", String(mes.qtd_parcelas)));
+      tbody.appendChild(linha);
+    }
+    tabela.appendChild(tbody);
+
+    return tabela;
+  }
+
+  async function carregarProjecao() {
+    const container = document.getElementById("projecao-container");
+    if (!container) {
+      return;
+    }
+    try {
+      const meses = await fetchJSON("/api/projecao");
+      container.replaceChildren();
+      if (!Array.isArray(meses) || meses.length === 0) {
+        const vazio = document.createElement("p");
+        vazio.className = "text-muted mb-0";
+        vazio.textContent = "Nenhum lançamento pendente nos próximos meses";
+        container.appendChild(vazio);
+        return;
+      }
+      container.appendChild(criarTabelaProjecao(meses));
+    } catch (erro) {
+      console.error("Falha ao carregar projeção:", erro);
     }
   }
 
@@ -148,6 +215,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     carregarResumo();
+    carregarProjecao();
     carregarParcelas();
   });
 })();
