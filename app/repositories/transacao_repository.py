@@ -25,6 +25,10 @@ class TransacaoRepository:
             parcela_total=transacao.parcela_total,
             grupo_parcela_id=str(transacao.grupo_parcela_id),
             embedding=transacao.embedding,
+            status=transacao.status,
+            forma_pagamento=transacao.forma_pagamento,
+            responsavel=transacao.responsavel,
+            detalhes=transacao.detalhes,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -43,6 +47,10 @@ class TransacaoRepository:
                 parcela_total=t.parcela_total,
                 grupo_parcela_id=str(t.grupo_parcela_id),
                 embedding=t.embedding,
+                status=t.status,
+                forma_pagamento=t.forma_pagamento,
+                responsavel=t.responsavel,
+                detalhes=t.detalhes,
             )
             for t in transacoes
         ]

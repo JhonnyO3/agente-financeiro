@@ -43,6 +43,83 @@ async def test_criar_chama_add_e_flush():
 
 
 @pytest.mark.asyncio
+async def test_criar_persiste_campos_novos():
+    from app.models.enums import FormaPagamentoEnum, StatusEnum
+
+    session = MagicMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+
+    repo = TransacaoRepository(session)
+    dto = make_dto(
+        status=StatusEnum.PAGO,
+        forma_pagamento=FormaPagamentoEnum.PIX,
+        responsavel="Mãe",
+        detalhes="compra do mês",
+    )
+    await repo.criar(dto)
+
+    obj = session.add.call_args[0][0]
+    assert obj.status == StatusEnum.PAGO
+    assert obj.forma_pagamento == FormaPagamentoEnum.PIX
+    assert obj.responsavel == "Mãe"
+    assert obj.detalhes == "compra do mês"
+
+
+@pytest.mark.asyncio
+async def test_criar_sem_campos_novos_usa_defaults_do_dto():
+    from app.models.enums import FormaPagamentoEnum, StatusEnum
+
+    session = MagicMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+
+    repo = TransacaoRepository(session)
+    await repo.criar(make_dto())
+
+    obj = session.add.call_args[0][0]
+    assert obj.status == StatusEnum.PENDENTE
+    assert obj.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert obj.responsavel == "Jhonatas"
+    assert obj.detalhes is None
+
+
+@pytest.mark.asyncio
+async def test_criar_lote_persiste_campos_novos():
+    from app.models.enums import FormaPagamentoEnum, StatusEnum
+
+    session = MagicMock()
+    session.add_all = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+
+    repo = TransacaoRepository(session)
+    grupo_id = uuid4()
+    dtos = [
+        make_dto(
+            grupo_parcela_id=grupo_id,
+            parcela_numero=i + 1,
+            status=StatusEnum.PAGO,
+            forma_pagamento=FormaPagamentoEnum.CARTAO,
+            responsavel="Mãe",
+            detalhes="notebook parcelado",
+        )
+        for i in range(3)
+    ]
+    await repo.criar_lote(dtos)
+
+    lista_passada = session.add_all.call_args[0][0]
+    assert len(lista_passada) == 3
+    for obj in lista_passada:
+        assert obj.status == StatusEnum.PAGO
+        assert obj.forma_pagamento == FormaPagamentoEnum.CARTAO
+        assert obj.responsavel == "Mãe"
+        assert obj.detalhes == "notebook parcelado"
+
+
+@pytest.mark.asyncio
 async def test_criar_lote_chama_add_all():
     session = MagicMock()
     session.add_all = MagicMock()

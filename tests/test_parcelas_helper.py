@@ -1,0 +1,152 @@
+from datetime import date, timedelta
+
+
+def test_adicionar_meses_preserva_dia():
+    from app.services.parcelas import adicionar_meses
+
+    assert adicionar_meses(date(2026, 6, 10), 1) == date(2026, 7, 10)
+    assert adicionar_meses(date(2026, 6, 10), -1) == date(2026, 5, 10)
+
+
+def test_adicionar_meses_clampa_ultimo_dia_do_mes():
+    from app.services.parcelas import adicionar_meses
+
+    assert adicionar_meses(date(2026, 1, 31), 1) == date(2026, 2, 28)
+
+
+def test_adicionar_meses_clampa_em_ano_bissexto():
+    from app.services.parcelas import adicionar_meses
+
+    assert adicionar_meses(date(2024, 1, 31), 1) == date(2024, 2, 29)
+
+
+def test_adicionar_meses_atravessa_virada_de_ano():
+    from app.services.parcelas import adicionar_meses
+
+    assert adicionar_meses(date(2026, 12, 15), 1) == date(2027, 1, 15)
+    assert adicionar_meses(date(2026, 1, 15), -1) == date(2025, 12, 15)
+
+
+def test_adicionar_meses_zero_retorna_mesma_data():
+    from app.services.parcelas import adicionar_meses
+
+    assert adicionar_meses(date(2026, 6, 10), 0) == date(2026, 6, 10)
+
+
+def test_status_por_data_passado_pago_futuro_pendente():
+    from app.models.enums import StatusEnum
+    from app.services.parcelas import status_por_data
+
+    hoje = date.today()
+    ontem = hoje - timedelta(days=1)
+    amanha = hoje + timedelta(days=1)
+
+    assert status_por_data(ontem) == StatusEnum.PAGO
+    assert status_por_data(amanha) == StatusEnum.PENDENTE
+
+
+def test_status_por_data_hoje_e_pendente():
+    from app.models.enums import StatusEnum
+    from app.services.parcelas import status_por_data
+
+    hoje = date(2026, 6, 10)
+    assert status_por_data(hoje, hoje=hoje) == StatusEnum.PENDENTE
+
+
+def test_status_por_data_com_hoje_explicito():
+    from app.models.enums import StatusEnum
+    from app.services.parcelas import status_por_data
+
+    hoje = date(2026, 6, 10)
+    assert status_por_data(date(2026, 6, 9), hoje=hoje) == StatusEnum.PAGO
+    assert status_por_data(date(2026, 6, 11), hoje=hoje) == StatusEnum.PENDENTE
+
+
+def test_datas_do_grupo_a_partir_da_parcela_atual():
+    from app.services.parcelas import datas_do_grupo
+
+    resultado = datas_do_grupo(date(2026, 6, 10), parcela_atual=2, parcela_total=4)
+
+    assert resultado == [
+        date(2026, 5, 10),
+        date(2026, 6, 10),
+        date(2026, 7, 10),
+        date(2026, 8, 10),
+    ]
+
+
+def test_datas_do_grupo_parcela_unica():
+    from app.services.parcelas import datas_do_grupo
+
+    assert datas_do_grupo(date(2026, 6, 10), 1, 1) == [date(2026, 6, 10)]
+
+
+def test_datas_do_grupo_primeira_parcela_avanca():
+    from app.services.parcelas import datas_do_grupo
+
+    resultado = datas_do_grupo(date(2026, 1, 31), parcela_atual=1, parcela_total=3)
+
+    assert resultado == [
+        date(2026, 1, 31),
+        date(2026, 2, 28),
+        date(2026, 3, 31),
+    ]
+
+
+def test_enums_novos_existem():
+    from app.models.enums import (
+        CategoriaEnum,
+        FormaPagamentoEnum,
+        StatusEnum,
+        TipoEnum,
+    )
+
+    assert TipoEnum.RECEITA.value == "RECEITA"
+    assert CategoriaEnum.RECEITA.value == "RECEITA"
+    assert CategoriaEnum.PARCELAMENTOS.value == "PARCELAMENTOS"
+    assert StatusEnum.PAGO.value == "PAGO"
+    assert StatusEnum.PENDENTE.value == "PENDENTE"
+    assert FormaPagamentoEnum.PIX.value == "PIX"
+    assert FormaPagamentoEnum.CARTAO.value == "CARTAO"
+    assert FormaPagamentoEnum.OUTRO.value == "OUTRO"
+
+
+def test_transacao_create_defaults_retrocompativeis():
+    from decimal import Decimal
+    from uuid import uuid4
+
+    from app.models.enums import (
+        CategoriaEnum,
+        FormaPagamentoEnum,
+        StatusEnum,
+        TipoEnum,
+    )
+    from app.repositories.dtos import TransacaoCreate
+
+    dto = TransacaoCreate(
+        tipo=TipoEnum.GASTO,
+        valor=Decimal("50.00"),
+        descricao="mercado",
+        categoria=CategoriaEnum.ALIMENTACAO,
+        data=date(2026, 6, 9),
+        parcela_numero=1,
+        parcela_total=1,
+        grupo_parcela_id=uuid4(),
+        embedding=[0.1] * 1536,
+    )
+
+    assert dto.status == StatusEnum.PENDENTE
+    assert dto.forma_pagamento == FormaPagamentoEnum.OUTRO
+    assert dto.responsavel == "Jhonatas"
+    assert dto.detalhes is None
+
+
+def test_transacao_update_defaults_none():
+    from app.repositories.dtos import TransacaoUpdate
+
+    dto = TransacaoUpdate()
+
+    assert dto.status is None
+    assert dto.forma_pagamento is None
+    assert dto.responsavel is None
+    assert dto.detalhes is None

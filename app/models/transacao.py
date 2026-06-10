@@ -6,7 +6,7 @@ from sqlalchemy import DATE, DECIMAL, INTEGER, TEXT, TIMESTAMP, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.models.enums import CategoriaEnum, TipoEnum
+from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 
 
 class Base(DeclarativeBase):
@@ -26,6 +26,12 @@ class Transacao(Base):
     parcela_total: Mapped[int] = mapped_column(INTEGER, nullable=False, default=1)
     grupo_parcela_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    status: Mapped[StatusEnum] = mapped_column(String, nullable=False, server_default="PENDENTE")
+    forma_pagamento: Mapped[FormaPagamentoEnum] = mapped_column(
+        String, nullable=False, server_default="OUTRO"
+    )
+    responsavel: Mapped[str] = mapped_column(String, nullable=False, server_default="Jhonatas")
+    detalhes: Mapped[str | None] = mapped_column(TEXT, nullable=True)
     criado_em: Mapped[datetime.datetime] = mapped_column(
         TIMESTAMP(timezone=False), nullable=False, server_default=func.now()
     )
