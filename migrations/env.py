@@ -1,6 +1,9 @@
 import asyncio
 import os
 from logging.config import fileConfig
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy import pool

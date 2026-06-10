@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -14,12 +14,16 @@ def _now() -> datetime:
 
 @dataclass
 class EstadoConfirmacao:
-    acao: Literal["ALTERAR", "EXCLUIR", "AGUARDAR_PARCELAS"]
+    acao: Literal["ALTERAR", "EXCLUIR", "AGUARDAR_PARCELAS", "EXCLUIR_LOTE"]
     transacao_id: int | None = None
     grupo_parcela_id: UUID | None = None
     novos_dados: TransacaoUpdate | None = None
     pergunta_grupo: bool = False
     mensagem_original: str = ""
+    filtro_inicio: date | None = None
+    filtro_fim: date | None = None
+    filtro_categoria: str | None = None
+    quantidade_registros: int = 0
 
 
 class ConfirmacaoState:

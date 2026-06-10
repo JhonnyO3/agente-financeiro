@@ -5,7 +5,7 @@ from app.agents.base import carregar_prompt, criar_llm
 
 
 class CategorizacaoResult(BaseModel):
-    categoria: Literal["ALIMENTACAO", "TRANSPORTE", "LAZER", "INVESTIMENTO", "GASTOS_FIXOS", "COMPRAS"]
+    categoria: Literal["ALIMENTACAO", "TRANSPORTE", "LAZER", "INVESTIMENTO", "GASTOS_FIXOS", "COMPRAS", "GASTOS_PONTUAIS", "OUTROS"]
 
 
 class Categorizador:

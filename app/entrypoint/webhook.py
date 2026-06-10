@@ -1,7 +1,10 @@
+import logging
 from fastapi import APIRouter, Request
 from app.config import settings
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def extrair_numero(payload: dict) -> str:
@@ -15,8 +18,14 @@ def extrair_texto(payload: dict) -> str | None:
 
 @router.post("/mensagem")
 async def receber_mensagem(payload: dict, request: Request) -> dict:
+    if payload.get("event") != "messages.upsert":
+        return {"status": "ok"}
+    if payload.get("data", {}).get("key", {}).get("fromMe"):
+        return {"status": "ok"}
+    logger.info("webhook recebido: %s", payload)
     numero = extrair_numero(payload)
     texto = extrair_texto(payload)
+    logger.info("numero=%s texto=%s autorizado=%s", numero, texto, numero == settings.WHATSAPP_ALLOWED_NUMBER)
     if numero != settings.WHATSAPP_ALLOWED_NUMBER:
         return {"status": "ok"}
     if texto is None:

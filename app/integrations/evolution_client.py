@@ -12,7 +12,7 @@ class EvolutionApiClient:
     async def enviar_mensagem(self, numero: str, texto: str) -> None:
         url = f"{self._base_url}/message/sendText/{self._instance}"
         payload = {"number": numero, "text": texto}
-        headers = {"Authorization": f"Bearer {self._api_key}"}
+        headers = {"apikey": self._api_key}
         try:
             await self._client.post(url, json=payload, headers=headers)
         except Exception as exc:

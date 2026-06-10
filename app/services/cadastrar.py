@@ -15,6 +15,11 @@ class ResultadoCadastro:
     mensagem_resposta: str = ""
 
 
+@dataclass
+class ResultadoCadastroLote:
+    transacoes: list = field(default_factory=list)
+
+
 class CadastrarService:
     def __init__(self, repository, embedder, extrator, categorizador, confirmacao_state: ConfirmacaoState):
         self._repository = repository
@@ -37,6 +42,31 @@ class CadastrarService:
             )
 
         return await self._processar(extracao, extracao.parcela_total, numero)
+
+    async def executar_lote(self, mensagem: str, extrator_lista) -> "ResultadoCadastroLote":
+        from datetime import date
+        extracao = await extrator_lista.extrair(mensagem, date.today())
+        lote_total = []
+        for item in extracao.itens:
+            grupo_parcela_id = uuid4()
+            embedding = await self._embedder.gerar_para_transacao(
+                item.tipo, item.categoria, item.descricao, item.data
+            )
+            lote_total.append(
+                TransacaoCreate(
+                    tipo=item.tipo,
+                    valor=item.valor,
+                    descricao=item.descricao,
+                    categoria=item.categoria,
+                    data=item.data,
+                    parcela_numero=item.parcela_numero,
+                    parcela_total=item.parcela_total,
+                    grupo_parcela_id=grupo_parcela_id,
+                    embedding=embedding,
+                )
+            )
+        transacoes = await self._repository.criar_lote(lote_total)
+        return ResultadoCadastroLote(transacoes=transacoes)
 
     async def executar_com_parcelas_confirmadas(
         self, mensagem_original: str, parcela_total: int, numero: str

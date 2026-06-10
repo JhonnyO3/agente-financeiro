@@ -107,6 +107,22 @@ class TransacaoRepository:
         await self._session.flush()
         return result.rowcount
 
+    async def excluir_por_filtros(self, inicio: date, fim: date, categoria: str | None = None) -> int:
+        stmt = delete(Transacao).where(Transacao.data.between(inicio, fim))
+        if categoria is not None:
+            stmt = stmt.where(Transacao.categoria == categoria)
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.rowcount
+
+    async def contar_por_filtros(self, inicio: date, fim: date, categoria: str | None = None) -> int:
+        from sqlalchemy import func as sa_func
+        stmt = select(sa_func.count()).select_from(Transacao).where(Transacao.data.between(inicio, fim))
+        if categoria is not None:
+            stmt = stmt.where(Transacao.categoria == categoria)
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
     async def listar_por_periodo(self, inicio: date, fim: date) -> list[Transacao]:
         result = await self._session.execute(
             select(Transacao)

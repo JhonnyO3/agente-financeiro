@@ -15,6 +15,8 @@ from app.agents.extrator_parcelas import ExtratorParcelas
 from app.agents.categorizador import Categorizador
 from app.agents.filtro_consulta import FiltroConsulta
 from app.agents.confirmacao_chain import ConfirmacaoChain
+from app.agents.extrator_exclusao_lote import ExtratorExclusaoLote
+from app.agents.extrator_lista import ExtratorLista
 from app.services.confirmacao_state import ConfirmacaoState
 from app.services.cadastrar import CadastrarService
 from app.services.alterar import AlterarService
@@ -66,6 +68,14 @@ class _SessionFactoryRepository:
     async def excluir_grupo(self, grupo_parcela_id):
         async with self._session_factory.begin() as session:
             return await self._repo(session).excluir_grupo(grupo_parcela_id)
+
+    async def excluir_por_filtros(self, inicio, fim, categoria=None):
+        async with self._session_factory.begin() as session:
+            return await self._repo(session).excluir_por_filtros(inicio, fim, categoria)
+
+    async def contar_por_filtros(self, inicio, fim, categoria=None):
+        async with self._session_factory() as session:
+            return await self._repo(session).contar_por_filtros(inicio, fim, categoria)
 
     async def listar_por_periodo(self, inicio, fim):
         async with self._session_factory() as session:
@@ -125,11 +135,19 @@ async def lifespan(app: FastAPI):
         confirmacao_state=confirmacao_state,
         confirmacao_chain=ConfirmacaoChain(),
         extrator_parcelas=ExtratorParcelas(),
+        extrator_exclusao_lote=ExtratorExclusaoLote(),
+        extrator_lista=ExtratorLista(),
     )
 
     async def _processar_e_responder(numero: str, texto: str) -> None:
-        resposta = await pipeline.processar(numero, texto)
-        await evolution_client.enviar_mensagem(numero, resposta)
+        import logging
+        try:
+            logging.info("processando numero=%s texto=%s", numero, texto)
+            resposta = await pipeline.processar(numero, texto)
+            logging.info("resposta gerada: %s", resposta)
+            await evolution_client.enviar_mensagem(numero, resposta)
+        except Exception as exc:
+            logging.exception("erro ao processar mensagem: %s", exc)
 
     debouncer = MessageDebouncer()
 

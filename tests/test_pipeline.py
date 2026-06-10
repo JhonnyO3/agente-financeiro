@@ -19,6 +19,8 @@ def _make_pipeline(**overrides):
     confirmacao_state = MagicMock()
     confirmacao_chain = AsyncMock()
     extrator_parcelas = AsyncMock()
+    extrator_exclusao_lote = AsyncMock()
+    extrator_lista = AsyncMock()
 
     formatador.formatar = AsyncMock(return_value="resposta formatada")
     confirmacao_state.obter = MagicMock(return_value=None)
@@ -33,6 +35,8 @@ def _make_pipeline(**overrides):
         confirmacao_state=confirmacao_state,
         confirmacao_chain=confirmacao_chain,
         extrator_parcelas=extrator_parcelas,
+        extrator_exclusao_lote=extrator_exclusao_lote,
+        extrator_lista=extrator_lista,
     )
     deps.update(overrides)
 

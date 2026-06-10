@@ -1,7 +1,7 @@
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.agents.base import criar_llm_formatacao, carregar_prompt
-from app.services.cadastrar import ResultadoCadastro
+from app.services.cadastrar import ResultadoCadastro, ResultadoCadastroLote
 from app.services.consultar import ResultadoConsulta
 
 
@@ -15,6 +15,9 @@ class Formatador:
 
         if tipo_resultado == "erro":
             return "Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
+
+        if tipo_resultado == "cadastro_lote":
+            return _serializar(resultado)
 
         prompt_map = {
             "cadastro": "cadastro-confirmado.md",
@@ -42,11 +45,36 @@ class Formatador:
 
 def _serializar(resultado) -> str:
     if isinstance(resultado, ResultadoCadastro):
+        if not resultado.transacoes:
+            return resultado.mensagem_resposta
+        t = resultado.transacoes[0]
+        parcela_total = t.parcela_total
         linhas = [
-            f"mensagem_resposta: {resultado.mensagem_resposta}",
-            f"aguarda_confirmacao: {resultado.aguarda_confirmacao}",
-            f"transacoes: {len(resultado.transacoes)} registrada(s)",
+            f"descricao: {t.descricao or ''}",
+            f"categoria: {t.categoria if isinstance(t.categoria, str) else t.categoria.value}",
+            f"parcela_total: {parcela_total}",
         ]
+        if parcela_total == 1:
+            linhas += [
+                f"data: {t.data.strftime('%d/%m/%Y')}",
+                f"valor: R$ {t.valor:.2f}",
+            ]
+        else:
+            valor_total = sum(x.valor for x in resultado.transacoes)
+            meses = " · ".join(x.data.strftime("%b/%y") for x in resultado.transacoes)
+            linhas += [
+                f"valor_por_parcela: R$ {t.valor:.2f}",
+                f"valor_total: R$ {valor_total:.2f}",
+                f"lista_meses: {meses}",
+            ]
+        return "\n".join(linhas)
+
+    if isinstance(resultado, ResultadoCadastroLote):
+        linhas = [f"✅ {len(resultado.transacoes)} registro(s) cadastrado(s) com sucesso!\n"]
+        for t in resultado.transacoes:
+            cat = t.categoria if isinstance(t.categoria, str) else t.categoria.value
+            parc = f" ({t.parcela_numero}/{t.parcela_total})" if t.parcela_total > 1 else ""
+            linhas.append(f"• {t.descricao or cat} — R$ {t.valor:.2f}{parc} [{cat}]")
         return "\n".join(linhas)
 
     if isinstance(resultado, ResultadoConsulta):

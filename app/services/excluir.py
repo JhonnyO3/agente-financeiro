@@ -1,3 +1,5 @@
+import calendar
+from datetime import date, timedelta
 from uuid import UUID
 
 from app.agents.embedder import Embedder
@@ -67,6 +69,62 @@ class ExcluirService:
         self._confirmacao_state.salvar(numero, estado)
         pergunta = "Confirma a exclusão deste lançamento? (sim / não)"
         return _formatar_card(transacao, pergunta)
+
+    async def iniciar_lote(self, mensagem: str, numero: str, extrator_lote) -> str:
+        hoje = date.today()
+        filtro = await extrator_lote.extrair(mensagem, hoje)
+
+        if filtro.periodo == "mes":
+            mes = filtro.mes or hoje.month
+            ano = filtro.ano or hoje.year
+            inicio = date(ano, mes, 1)
+            fim = date(ano, mes, calendar.monthrange(ano, mes)[1])
+            label = f"{mes:02d}/{ano}"
+        elif filtro.periodo == "ano":
+            ano = filtro.ano or hoje.year
+            inicio = date(ano, 1, 1)
+            fim = date(ano, 12, 31)
+            label = str(ano)
+        elif filtro.periodo == "semana":
+            inicio = hoje - timedelta(days=hoje.weekday())
+            fim = inicio + timedelta(days=6)
+            label = f"semana {inicio.strftime('%d/%m')}–{fim.strftime('%d/%m')}"
+        else:
+            inicio = date(2000, 1, 1)
+            fim = date(9999, 12, 31)
+            label = "todos os registros"
+
+        quantidade = await self._repository.contar_por_filtros(inicio, fim, filtro.categoria)
+
+        if quantidade == 0:
+            return "Não encontrei nenhum registro com esses filtros."
+
+        estado = EstadoConfirmacao(
+            acao="EXCLUIR_LOTE",
+            filtro_inicio=inicio,
+            filtro_fim=fim,
+            filtro_categoria=filtro.categoria,
+            quantidade_registros=quantidade,
+        )
+        self._confirmacao_state.salvar(numero, estado)
+
+        cat_label = f" de {filtro.categoria}" if filtro.categoria else ""
+        return (
+            f"Encontrei *{quantidade} registro(s)*{cat_label} em {label}.\n\n"
+            f"Deseja excluir todos esses registros? *(sim / não)*"
+        )
+
+    async def confirmar_lote(self, numero: str, confirmado: bool) -> str:
+        estado = self._confirmacao_state.obter(numero)
+        if estado is None:
+            return "Não há nenhuma exclusão em lote pendente."
+        self._confirmacao_state.limpar(numero)
+        if not confirmado:
+            return "Exclusão cancelada."
+        excluidos = await self._repository.excluir_por_filtros(
+            estado.filtro_inicio, estado.filtro_fim, estado.filtro_categoria
+        )
+        return f"✅ {excluidos} registro(s) excluído(s) com sucesso!"
 
     async def confirmar(self, numero: str, resposta_tipo: str) -> str:
         estado = self._confirmacao_state.obter(numero)
