@@ -14,6 +14,7 @@ def _make_pipeline(**overrides):
     cadastrar = AsyncMock()
     alterar = AsyncMock()
     excluir = AsyncMock()
+    marcar_pago = AsyncMock()
     consultar = AsyncMock()
     formatador = AsyncMock()
     confirmacao_state = MagicMock()
@@ -30,6 +31,7 @@ def _make_pipeline(**overrides):
         cadastrar=cadastrar,
         alterar=alterar,
         excluir=excluir,
+        marcar_pago=marcar_pago,
         consultar=consultar,
         formatador=formatador,
         confirmacao_state=confirmacao_state,
@@ -125,6 +127,54 @@ async def test_estado_alterar_sim_confirma_com_true():
     deps["formatador"].formatar.assert_called_once()
     _, tipo = deps["formatador"].formatar.call_args[0]
     assert tipo == "confirmacao"
+
+
+@pytest.mark.asyncio
+async def test_intencao_marcar_pago_inicia_e_formata_confirmacao():
+    pipeline, deps = _make_pipeline()
+    deps["classificador"].classificar = AsyncMock(
+        return_value=IntencaoResult(intencao="MARCAR_PAGO", confianca="alta")
+    )
+    deps["marcar_pago"].iniciar = AsyncMock(return_value="card de confirmação")
+
+    await pipeline.processar("5511999999999", "paguei o jogo do batman")
+
+    deps["marcar_pago"].iniciar.assert_called_once_with("paguei o jogo do batman", "5511999999999")
+    deps["formatador"].formatar.assert_called_once_with("card de confirmação", "confirmacao")
+
+
+@pytest.mark.asyncio
+async def test_estado_marcar_pago_sim_confirma_com_true():
+    estado = EstadoConfirmacao(acao="MARCAR_PAGO", transacao_id=42)
+    pipeline, deps = _make_pipeline()
+    deps["confirmacao_state"].obter = MagicMock(return_value=estado)
+    deps["confirmacao_chain"].interpretar = AsyncMock(
+        return_value=ConfirmacaoResposta(tipo="sim")
+    )
+    deps["marcar_pago"].confirmar = AsyncMock(return_value="Lançamento marcado como pago!")
+
+    await pipeline.processar("5511999999999", "sim")
+
+    deps["confirmacao_chain"].interpretar.assert_called_once_with("sim", "sim_nao")
+    deps["marcar_pago"].confirmar.assert_called_once_with("5511999999999", True)
+    deps["formatador"].formatar.assert_called_once()
+    _, tipo = deps["formatador"].formatar.call_args[0]
+    assert tipo == "confirmacao"
+
+
+@pytest.mark.asyncio
+async def test_estado_marcar_pago_nao_confirma_com_false():
+    estado = EstadoConfirmacao(acao="MARCAR_PAGO", transacao_id=42)
+    pipeline, deps = _make_pipeline()
+    deps["confirmacao_state"].obter = MagicMock(return_value=estado)
+    deps["confirmacao_chain"].interpretar = AsyncMock(
+        return_value=ConfirmacaoResposta(tipo="nao")
+    )
+    deps["marcar_pago"].confirmar = AsyncMock(return_value="Operação cancelada.")
+
+    await pipeline.processar("5511999999999", "não")
+
+    deps["marcar_pago"].confirmar.assert_called_once_with("5511999999999", False)
 
 
 @pytest.mark.asyncio
