@@ -49,14 +49,14 @@ def _valor_json(valor: Decimal) -> str:
     return str(valor.quantize(_DOIS_DECIMAIS))
 
 
-async def _listar(session: AsyncSession, periodo: str) -> list:
+async def _listar(session: AsyncSession, usuario_id: int, periodo: str) -> list:
     inicio, fim = resolver_periodo(periodo)
     repo = TransacaoRepository(session)
-    return await repo.listar_por_periodo(inicio, fim)
+    return await repo.listar_por_periodo(inicio, fim, usuario_id=usuario_id)
 
 
-async def calcular_resumo(session: AsyncSession, periodo: str) -> dict:
-    transacoes = await _listar(session, periodo)
+async def calcular_resumo(session: AsyncSession, usuario_id: int, periodo: str) -> dict:
+    transacoes = await _listar(session, usuario_id, periodo)
 
     gastos = sum(
         (t.valor for t in transacoes if _como_str(t.tipo) == TipoEnum.GASTO.value),
@@ -85,8 +85,8 @@ async def calcular_resumo(session: AsyncSession, periodo: str) -> dict:
     }
 
 
-async def categorias_gasto(session: AsyncSession, periodo: str) -> list[dict]:
-    transacoes = await _listar(session, periodo)
+async def categorias_gasto(session: AsyncSession, usuario_id: int, periodo: str) -> list[dict]:
+    transacoes = await _listar(session, usuario_id, periodo)
 
     totais: dict[str, Decimal] = {}
     for t in transacoes:

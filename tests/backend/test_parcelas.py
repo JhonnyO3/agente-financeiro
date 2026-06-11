@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from backend.auth.dependencies import UsuarioToken, get_usuario_atual
 from backend.dependencies import get_session, get_session_begin
 from backend.main import app
 
@@ -21,8 +22,12 @@ def _override_session():
     async def _fake():
         yield SimpleNamespace()
 
+    async def _fake_usuario():
+        return UsuarioToken(usuario_id=1, role="USER", email="user@exemplo.com")
+
     app.dependency_overrides[get_session] = _fake
     app.dependency_overrides[get_session_begin] = _fake
+    app.dependency_overrides[get_usuario_atual] = _fake_usuario
 
 
 def cliente_com(repo):
