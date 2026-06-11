@@ -11,6 +11,8 @@ def test_construir_comandos_inclui_backend_e_frontend():
         "run",
         "uvicorn",
         "backend.main:app",
+        "--host",
+        "127.0.0.1",
         "--port",
         "8000",
     ]
@@ -21,6 +23,8 @@ def test_construir_comandos_inclui_backend_e_frontend():
         "--app",
         "frontend.app",
         "run",
+        "--host",
+        "127.0.0.1",
         "--port",
         "5000",
     ]

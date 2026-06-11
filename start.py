@@ -4,8 +4,8 @@ import subprocess
 import sys
 import threading
 
-BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--port", "8000"]
-FRONTEND_CMD = ["uv", "run", "flask", "--app", "frontend.app", "run", "--port", "5000"]
+BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"]
+FRONTEND_CMD = ["uv", "run", "flask", "--app", "frontend.app", "run", "--host", "127.0.0.1", "--port", "5000"]
 
 IS_WINDOWS = os.name == "nt"
 
@@ -63,6 +63,7 @@ def encerrar(processos, timeout=10):
 
 
 def main():
+    print("Dashboard: http://127.0.0.1:5000  (use 127.0.0.1, nao 'localhost' — evita o atraso de IPv6)", flush=True)
     processos = []
     threads = []
     for prefixo, comando in construir_comandos():
