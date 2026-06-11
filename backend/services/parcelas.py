@@ -9,6 +9,10 @@ from app.repositories.transacao_repository import TransacaoRepository
 _DATA_TETO = date(2030, 12, 31)
 
 
+def _como_str(campo) -> str:
+    return campo.value if hasattr(campo, "value") else campo
+
+
 class IdInvalidoError(Exception):
     pass
 
@@ -28,7 +32,10 @@ async def listar_ativas(session: AsyncSession) -> list[dict]:
 
     itens = []
     for parcelas in grupos.values():
-        proxima = min(parcelas, key=lambda p: p.parcela_numero)
+        pendentes = [p for p in parcelas if _como_str(p.status) == "PENDENTE"]
+        if not pendentes:
+            continue
+        proxima = min(pendentes, key=lambda p: p.parcela_numero)
         itens.append(
             {
                 "grupo_parcela_id": proxima.grupo_parcela_id,

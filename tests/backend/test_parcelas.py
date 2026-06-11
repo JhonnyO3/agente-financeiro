@@ -35,14 +35,15 @@ def cliente_com(repo):
     return TestClient(app), stack
 
 
-def make_parcela(grupo, numero, total, dia, valor="100.00", descricao="Notebook"):
+def make_parcela(grupo, numero, total, dia, valor="100.00", descricao="Notebook", status="PENDENTE", mes=6):
     return SimpleNamespace(
         grupo_parcela_id=grupo,
         parcela_numero=numero,
         parcela_total=total,
-        data=date(2026, 6, dia),
+        data=date(2026, mes, dia),
         valor=Decimal(valor),
         descricao=descricao,
+        status=status,
     )
 
 
@@ -70,6 +71,37 @@ def test_parcelas_ativas_agrupa_e_pega_proxima():
     assert item["parcela_total"] == 5
     assert item["proxima_data"] == "2026-06-10"
     assert item["pagas"] == 2
+
+
+def test_parcelas_ativas_proxima_e_a_pendente_nao_a_paga():
+    grupo = "carro"
+    transacoes = [
+        make_parcela(grupo, 11, 12, dia=10, mes=6, status="PAGO", valor="1200.00"),
+        make_parcela(grupo, 12, 12, dia=10, mes=7, status="PENDENTE", valor="1200.00"),
+    ]
+    repo = SimpleNamespace(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/parcelas-ativas")
+
+    itens = resposta.json()
+    assert len(itens) == 1
+    item = itens[0]
+    assert item["parcela_numero"] == 12
+    assert item["proxima_data"] == "2026-07-10"
+    assert item["pagas"] == 11
+
+
+def test_parcelas_ativas_grupo_todo_pago_some():
+    transacoes = [
+        make_parcela("quitado", 4, 4, dia=10, status="PAGO"),
+    ]
+    repo = SimpleNamespace(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/parcelas-ativas")
+
+    assert resposta.json() == []
 
 
 def test_parcelas_ativas_ignora_nao_parceladas():
