@@ -28,6 +28,16 @@ def test_construir_comandos_inclui_backend_e_frontend():
         "--port",
         "5000",
     ]
+    assert comandos["agente"] == [
+        "uv",
+        "run",
+        "uvicorn",
+        "app.entrypoint.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8001",
+    ]
 
 
 def test_prefixar_linha_aplica_prefixo_e_remove_quebra():

@@ -6,12 +6,17 @@ import threading
 
 BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"]
 FRONTEND_CMD = ["uv", "run", "flask", "--app", "frontend.app", "run", "--host", "127.0.0.1", "--port", "5000"]
+AGENTE_CMD = ["uv", "run", "uvicorn", "app.entrypoint.main:app", "--host", "127.0.0.1", "--port", "8001"]
 
 IS_WINDOWS = os.name == "nt"
 
 
 def construir_comandos():
-    return [("backend", BACKEND_CMD), ("frontend", FRONTEND_CMD)]
+    return [
+        ("backend", BACKEND_CMD),
+        ("frontend", FRONTEND_CMD),
+        ("agente", AGENTE_CMD),
+    ]
 
 
 def prefixar_linha(prefixo, linha):
@@ -64,6 +69,7 @@ def encerrar(processos, timeout=10):
 
 def main():
     print("Dashboard: http://127.0.0.1:5000  (use 127.0.0.1, nao 'localhost' — evita o atraso de IPv6)", flush=True)
+    print("Agente (webhook WhatsApp): http://127.0.0.1:8001/webhook/mensagem", flush=True)
     processos = []
     threads = []
     for prefixo, comando in construir_comandos():
