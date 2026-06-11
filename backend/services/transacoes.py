@@ -54,6 +54,7 @@ async def listar(
     categoria: str | None,
     status: str | None,
     pagina: int,
+    forma_pagamento: str | None = None,
 ) -> dict:
     inicio, fim = resolver_periodo(periodo)
     repo = TransacaoRepository(session)
@@ -65,6 +66,7 @@ async def listar(
         if (tipo is None or _como_str(t.tipo) == tipo)
         and (categoria is None or _como_str(t.categoria) == categoria)
         and (status is None or _como_str(t.status) == status)
+        and (forma_pagamento is None or _como_str(t.forma_pagamento) == forma_pagamento)
     ]
     filtrada.sort(key=lambda t: (t.data, t.id), reverse=True)
 

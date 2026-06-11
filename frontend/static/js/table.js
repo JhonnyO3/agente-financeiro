@@ -55,7 +55,7 @@
   // ------------------------------------------------------------- estado
 
   // Tabela geral de transações
-  const estado = { pagina: 1, tipo: "", categoria: "", status: "" };
+  const estado = { pagina: 1, tipo: "", categoria: "", status: "", forma: "" };
   // Tabela de investimentos (paginação própria, independente)
   const estadoInvest = { pagina: 1 };
 
@@ -116,12 +116,15 @@
   function criarLinha(item) {
     const tr = document.createElement("tr");
 
+    const parcela =
+      item.parcela_total > 1 ? item.parcela_numero + "/" + item.parcela_total : "";
     const celulas = [
       fmtData(item.data),
       item.descricao || "",
       item.categoria || "",
       fmtBRL(item.valor),
-      item.parcela_numero + "/" + item.parcela_total,
+      parcela,
+      item.forma_pagamento || "",
       item.tipo || "",
     ];
     for (const texto of celulas) {
@@ -170,7 +173,7 @@
     if (!itens || itens.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 9;
+      td.colSpan = 10;
       td.className = "text-center text-muted";
       td.textContent = "Nenhuma transação encontrada";
       tr.appendChild(td);
@@ -230,6 +233,7 @@
     if (estado.tipo) params.set("tipo", estado.tipo);
     if (estado.categoria) params.set("categoria", estado.categoria);
     if (estado.status) params.set("status", estado.status);
+    if (estado.forma) params.set("forma_pagamento", estado.forma);
 
     let dados;
     try {
@@ -541,6 +545,15 @@
     if (filtroStatus) {
       filtroStatus.addEventListener("change", function () {
         estado.status = filtroStatus.value;
+        estado.pagina = 1;
+        carregarTabela();
+      });
+    }
+
+    const filtroForma = document.getElementById("filtro-forma-pagamento");
+    if (filtroForma) {
+      filtroForma.addEventListener("change", function () {
+        estado.forma = filtroForma.value;
         estado.pagina = 1;
         carregarTabela();
       });

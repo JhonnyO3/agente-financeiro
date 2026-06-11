@@ -41,7 +41,9 @@ class GraficosService:
 
         resultado = []
         for mes in meses:
-            por_categoria = somas[(mes.year, mes.month)]
+            por_categoria = somas.get((mes.year, mes.month))
+            if not por_categoria or sum(por_categoria.values()) == 0:
+                continue
             item = {"mes": fmt_mes(mes)}
             for categoria in CATEGORIAS_GASTO:
                 item[categoria] = _valor_str(por_categoria[categoria])

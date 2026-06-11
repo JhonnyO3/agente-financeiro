@@ -110,7 +110,7 @@
       <div class="card-body">
         <h5 class="card-title">Transações</h5>
         <div class="row g-2 align-items-end mb-3">
-          <div class="col-12 col-md-3">
+          <div class="col-6 col-md-2">
             <label for="filtro-tipo" class="form-label">Tipo</label>
             <select id="filtro-tipo" class="form-select">
               <option value="">Todos</option>
@@ -119,7 +119,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-12 col-md-3">
+          <div class="col-6 col-md-3">
             <label for="filtro-categoria" class="form-label">Categoria</label>
             <select id="filtro-categoria" class="form-select">
               <option value="">Todas</option>
@@ -128,7 +128,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-12 col-md-3">
+          <div class="col-6 col-md-2">
             <label for="filtro-status" class="form-label">Status</label>
             <select id="filtro-status" class="form-select">
               <option value="">Todos</option>
@@ -136,8 +136,18 @@
               <option value="PENDENTE">PENDENTE</option>
             </select>
           </div>
-          <div class="col-12 col-md-3 text-md-end">
-            <button type="button" id="btn-adicionar" class="btn btn-primary">+ Adicionar</button>
+          <div class="col-6 col-md-3">
+            <label for="filtro-forma-pagamento" class="form-label">Forma de pagamento</label>
+            <select id="filtro-forma-pagamento" class="form-select">
+              <option value="">Todas</option>
+              <option value="CARTAO_CREDITO">CARTAO_CREDITO</option>
+              <option value="CARTAO_DEBITO">CARTAO_DEBITO</option>
+              <option value="PIX">PIX</option>
+              <option value="BOLETO">BOLETO</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-2 text-md-end">
+            <button type="button" id="btn-adicionar" class="btn btn-primary w-100">+ Adicionar</button>
           </div>
         </div>
         <div class="table-responsive">
@@ -149,6 +159,7 @@
                 <th>Categoria</th>
                 <th>Valor</th>
                 <th>Parcela</th>
+                <th>Forma</th>
                 <th>Tipo</th>
                 <th>Status</th>
                 <th>Responsável</th>
@@ -197,6 +208,7 @@
                 <th>Categoria</th>
                 <th>Valor</th>
                 <th>Parcela</th>
+                <th>Forma</th>
                 <th>Tipo</th>
                 <th>Status</th>
                 <th>Responsável</th>

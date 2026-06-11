@@ -23,11 +23,12 @@ async def listar_transacoes(
     tipo: str | None = None,
     categoria: str | None = None,
     status: str | None = None,
+    forma_pagamento: str | None = None,
     pagina: int = 1,
     session: AsyncSession = Depends(get_session),
 ):
     return await service.listar(
-        session, periodo, tipo, categoria, status, pagina or 1
+        session, periodo, tipo, categoria, status, pagina or 1, forma_pagamento
     )
 
 

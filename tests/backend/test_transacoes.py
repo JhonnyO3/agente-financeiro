@@ -143,6 +143,23 @@ def test_filtros_combinados_tipo_e_categoria():
     assert {item["id"] for item in corpo["itens"]} == {1, 4}
 
 
+def test_filtro_por_forma_pagamento():
+    transacoes = [
+        make_transacao(1, forma_pagamento="PIX"),
+        make_transacao(2, forma_pagamento="CARTAO_CREDITO"),
+        make_transacao(3, forma_pagamento="CARTAO_CREDITO"),
+        make_transacao(4, forma_pagamento="BOLETO"),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?forma_pagamento=CARTAO_CREDITO")
+
+    corpo = resposta.json()
+    assert corpo["total"] == 2
+    assert {item["id"] for item in corpo["itens"]} == {2, 3}
+
+
 def test_post_cria_transacao():
     repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=43)))
     client, stack = cliente_com(repo)

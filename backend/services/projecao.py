@@ -41,6 +41,14 @@ class ProjecaoService:
         resultado = []
         for mes in meses:
             valores = somas[(mes.year, mes.month)]
+            sem_movimento = (
+                valores["gastos"] == 0
+                and valores["receitas"] == 0
+                and valores["investimentos"] == 0
+                and valores["qtd_parcelas"] == 0
+            )
+            if sem_movimento:
+                continue
             resultado.append(
                 ProjecaoMes(
                     mes=fmt_mes(mes),

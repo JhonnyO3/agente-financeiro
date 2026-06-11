@@ -41,27 +41,32 @@ def _build_client(monkeypatch, transacoes):
     return app, client, get_session
 
 
-def test_mensal_retorna_13_meses_em_ordem_crescente(monkeypatch):
+def test_mensal_omite_meses_sem_dados(monkeypatch):
     app, client, get_session = _build_client(monkeypatch, [])
     with client:
         resposta = client.get("/api/grafico/mensal")
     app.dependency_overrides.clear()
 
     assert resposta.status_code == 200
-    dados = resposta.json()
-    assert len(dados) == 13
+    assert resposta.json() == []
 
 
-def test_mensal_mes_sem_dados_zero(monkeypatch):
-    app, client, get_session = _build_client(monkeypatch, [])
+def test_mensal_retorna_apenas_meses_com_dados_em_ordem(monkeypatch):
+    from backend.services.graficos import fmt_mes
+    from backend.services.janela import janela_meses
+
+    meses = janela_meses(date.today())
+    transacoes = [
+        _FakeTransacao("GASTO", "ALIMENTACAO", Decimal("10.00"), meses[6]),
+        _FakeTransacao("GASTO", "TRANSPORTE", Decimal("20.00"), meses[8]),
+    ]
+    app, client, get_session = _build_client(monkeypatch, transacoes)
     with client:
         resposta = client.get("/api/grafico/mensal")
     app.dependency_overrides.clear()
 
     dados = resposta.json()
-    primeiro = dados[0]
-    assert primeiro["ALIMENTACAO"] == "0.00"
-    assert primeiro["GASTOS_PONTUAIS"] == "0.00"
+    assert [d["mes"] for d in dados] == [fmt_mes(meses[6]), fmt_mes(meses[8])]
 
 
 def test_mensal_soma_por_categoria_gasto(monkeypatch):
@@ -79,7 +84,8 @@ def test_mensal_soma_por_categoria_gasto(monkeypatch):
     app.dependency_overrides.clear()
 
     dados = resposta.json()
-    mes_atual = dados[6]
+    assert len(dados) == 1
+    mes_atual = dados[0]
     assert mes_atual["ALIMENTACAO"] == "15.00"
     assert mes_atual["TRANSPORTE"] == "20.00"
     assert "RECEITA" not in mes_atual

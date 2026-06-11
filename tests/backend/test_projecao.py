@@ -45,31 +45,19 @@ def _mes_futuro(hoje, meses):
     return date(base // 12, base % 12 + 1, 1)
 
 
-def test_projecao_cobre_13_meses(monkeypatch):
+def test_projecao_omite_meses_sem_dados(monkeypatch):
     app, client = _build_client(monkeypatch, [])
     with client:
         resposta = client.get("/api/projecao")
     app.dependency_overrides.clear()
 
     assert resposta.status_code == 200
-    dados = resposta.json()
-    assert len(dados) == 13
+    assert resposta.json() == []
 
 
-def test_projecao_mes_vazio_zero(monkeypatch):
-    app, client = _build_client(monkeypatch, [])
-    with client:
-        resposta = client.get("/api/projecao")
-    app.dependency_overrides.clear()
+def test_projecao_so_traz_meses_com_movimento(monkeypatch):
+    from backend.services.graficos import fmt_mes
 
-    dados = resposta.json()
-    assert dados[0]["gastos"] == "0.00"
-    assert dados[0]["receitas"] == "0.00"
-    assert dados[0]["saldo"] == "0.00"
-    assert dados[0]["qtd_parcelas"] == 0
-
-
-def test_projecao_soma_pago_e_pendente(monkeypatch):
     hoje = date.today()
     futuro = _mes_futuro(hoje, 3)
     transacoes = [
@@ -83,7 +71,9 @@ def test_projecao_soma_pago_e_pendente(monkeypatch):
     app.dependency_overrides.clear()
 
     dados = resposta.json()
-    alvo = dados[6 + 3]
+    assert len(dados) == 1
+    alvo = dados[0]
+    assert alvo["mes"] == fmt_mes(futuro)
     assert alvo["gastos"] == "200.00"
     assert alvo["receitas"] == "500.00"
     assert alvo["saldo"] == "300.00"
@@ -102,4 +92,5 @@ def test_projecao_mantem_qtd_parcelas(monkeypatch):
     app.dependency_overrides.clear()
 
     dados = resposta.json()
-    assert dados[6]["qtd_parcelas"] == 1
+    assert len(dados) == 1
+    assert dados[0]["qtd_parcelas"] == 1
