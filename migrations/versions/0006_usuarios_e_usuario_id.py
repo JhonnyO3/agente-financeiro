@@ -50,6 +50,10 @@ def upgrade() -> None:
         "ADD COLUMN usuario_id INTEGER NULL "
         "REFERENCES usuarios(id) ON DELETE CASCADE"
     )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_transacoes_usuario_id "
+        "ON transacoes(usuario_id)"
+    )
 
     op.execute(
         "INSERT INTO usuarios (nome, username, email, senha_hash, role, ativo) "
@@ -67,5 +71,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS ix_transacoes_usuario_id")
     op.execute("ALTER TABLE transacoes DROP COLUMN IF EXISTS usuario_id")
-    op.execute("DROP TABLE IF EXISTS usuarios")
+    op.execute("DROP TABLE IF EXISTS usuarios CASCADE")

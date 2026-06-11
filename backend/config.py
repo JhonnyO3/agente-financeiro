@@ -1,5 +1,3 @@
-from functools import cached_property
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,9 +9,9 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ACCESS_EXPIRES_MIN: int = 30
     JWT_REFRESH_EXPIRES_DAYS: int = 7
-    ADMIN_EMAILS_RAW: str = Field(default="", alias="ADMIN_EMAILS")
+    ADMIN_EMAILS_RAW: str = Field(alias="ADMIN_EMAILS")
 
-    @cached_property
+    @property
     def ADMIN_EMAILS(self) -> set[str]:
         return {
             parte.strip().lower()

@@ -36,3 +36,4 @@ class Settings(BaseSettings):
     backend_url: str = "http://127.0.0.1:8000"
     frontend_port: int = 5000
     backend_timeout: float = 10.0
+    session_cookie_secure: bool = False

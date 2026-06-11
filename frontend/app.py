@@ -16,6 +16,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.secret_key = settings.secret_key
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = settings.session_cookie_secure
     app.config["SETTINGS"] = settings
     app.config["BACKEND_CLIENT"] = BackendClient(
         base_url=settings.backend_url,

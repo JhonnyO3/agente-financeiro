@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_admin
@@ -8,6 +9,8 @@ from backend.dtos.usuario import UsuarioCreateRequest, UsuarioUpdateRequest
 from backend.services import admin_transacoes, admin_usuarios
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(get_admin)])
+
+ERRO_BODY_INVALIDO = "dados inválidos"
 
 
 async def _corpo(request: Request) -> dict:
@@ -38,7 +41,10 @@ async def criar_usuario(
     request: Request, session: AsyncSession = Depends(get_session_begin)
 ):
     body = await _corpo(request)
-    dados = UsuarioCreateRequest(**body)
+    try:
+        dados = UsuarioCreateRequest(**body)
+    except ValidationError:
+        return JSONResponse({"erro": ERRO_BODY_INVALIDO}, status_code=422)
     try:
         resultado = await admin_usuarios.criar(session, dados)
     except admin_usuarios.EmailDuplicadoError:
@@ -53,7 +59,10 @@ async def atualizar_usuario(
     id: int, request: Request, session: AsyncSession = Depends(get_session_begin)
 ):
     body = await _corpo(request)
-    dados = UsuarioUpdateRequest(**body)
+    try:
+        dados = UsuarioUpdateRequest(**body)
+    except ValidationError:
+        return JSONResponse({"erro": ERRO_BODY_INVALIDO}, status_code=422)
     try:
         return await admin_usuarios.atualizar(session, id, dados)
     except admin_usuarios.NaoEncontradoError:

@@ -59,6 +59,7 @@ async def login(request: Request):
     if not email or not senha:
         return JSONResponse(ERRO_CREDENCIAIS, status_code=401)
 
+    email = email.strip().lower()
     async with _abrir_sessao(request) as session:
         usuario = await _usuario_repo(session).buscar_por_email(email)
 

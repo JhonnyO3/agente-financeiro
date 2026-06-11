@@ -29,8 +29,9 @@ from agent.services.pipeline import Pipeline
 
 
 class _SessionFactoryRepository:
-    def __init__(self, session_factory):
+    def __init__(self, session_factory, usuario_id):
         self._session_factory = session_factory
+        self._usuario_id = usuario_id
 
     def _repo(self, session):
         return TransacaoRepository(session)
@@ -45,47 +46,69 @@ class _SessionFactoryRepository:
 
     async def buscar_por_id(self, id):
         async with self._session_factory() as session:
-            return await self._repo(session).buscar_por_id(id)
+            return await self._repo(session).buscar_por_id(id, usuario_id=self._usuario_id)
 
     async def buscar_por_grupo(self, grupo_parcela_id):
         async with self._session_factory() as session:
-            return await self._repo(session).buscar_por_grupo(grupo_parcela_id)
+            return await self._repo(session).buscar_por_grupo(
+                grupo_parcela_id, usuario_id=self._usuario_id
+            )
 
     async def buscar_semantico(self, embedding, limite=5):
         async with self._session_factory() as session:
-            return await self._repo(session).buscar_semantico(embedding, limite)
+            return await self._repo(session).buscar_semantico(
+                embedding, limite, usuario_id=self._usuario_id
+            )
 
     async def buscar_semantico_com_distancia(self, embedding, limite=1):
         async with self._session_factory() as session:
-            return await self._repo(session).buscar_semantico_com_distancia(embedding, limite)
+            return await self._repo(session).buscar_semantico_com_distancia(
+                embedding, limite, usuario_id=self._usuario_id
+            )
 
     async def atualizar(self, id, dados):
         async with self._session_factory.begin() as session:
-            return await self._repo(session).atualizar(id, dados)
+            return await self._repo(session).atualizar(id, dados, usuario_id=self._usuario_id)
 
     async def excluir(self, id):
         async with self._session_factory.begin() as session:
-            return await self._repo(session).excluir(id)
+            return await self._repo(session).excluir(id, usuario_id=self._usuario_id)
 
     async def excluir_grupo(self, grupo_parcela_id):
         async with self._session_factory.begin() as session:
-            return await self._repo(session).excluir_grupo(grupo_parcela_id)
+            return await self._repo(session).excluir_grupo(
+                grupo_parcela_id, usuario_id=self._usuario_id
+            )
 
     async def excluir_por_filtros(self, inicio, fim, categoria=None):
         async with self._session_factory.begin() as session:
-            return await self._repo(session).excluir_por_filtros(inicio, fim, categoria)
+            return await self._repo(session).excluir_por_filtros(
+                inicio, fim, categoria, usuario_id=self._usuario_id
+            )
 
     async def contar_por_filtros(self, inicio, fim, categoria=None):
         async with self._session_factory() as session:
-            return await self._repo(session).contar_por_filtros(inicio, fim, categoria)
+            return await self._repo(session).contar_por_filtros(
+                inicio, fim, categoria, usuario_id=self._usuario_id
+            )
 
     async def listar_por_periodo(self, inicio, fim):
         async with self._session_factory() as session:
-            return await self._repo(session).listar_por_periodo(inicio, fim)
+            return await self._repo(session).listar_por_periodo(
+                inicio, fim, usuario_id=self._usuario_id
+            )
+
+    async def listar_por_periodo_com_embedding(self, inicio, fim):
+        async with self._session_factory() as session:
+            return await self._repo(session).listar_por_periodo_com_embedding(
+                inicio, fim, usuario_id=self._usuario_id
+            )
 
     async def agregar_por_categoria(self, inicio, fim):
         async with self._session_factory() as session:
-            return await self._repo(session).agregar_por_categoria(inicio, fim)
+            return await self._repo(session).agregar_por_categoria(
+                inicio, fim, usuario_id=self._usuario_id
+            )
 
 
 async def resolver_usuario_id(usuario_repository, email: str) -> int:
@@ -116,7 +139,7 @@ async def lifespan(app: FastAPI):
 
     embedder = Embedder()
     confirmacao_state = ConfirmacaoState()
-    repository = _SessionFactoryRepository(session_factory)
+    repository = _SessionFactoryRepository(session_factory, usuario_id)
 
     cadastrar = CadastrarService(
         repository=repository,

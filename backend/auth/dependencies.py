@@ -5,11 +5,7 @@ from fastapi.responses import JSONResponse
 
 from backend.auth import jwt as jwt_module
 from backend.config import settings
-
-try:
-    from backend.repositories.usuario_repository import UsuarioRepository
-except ImportError:
-    UsuarioRepository = None
+from backend.repositories.usuario_repository import UsuarioRepository
 
 
 class HttpErro(Exception):

@@ -15,7 +15,10 @@ class UsuarioRepository:
 
     async def criar(self, usuario: UsuarioCreate | None = None, **kwargs) -> Usuario:
         dados = asdict(usuario) if usuario is not None else kwargs
-        obj = Usuario(**{k: v for k, v in dados.items() if k in _CAMPOS_USUARIO})
+        campos = {k: v for k, v in dados.items() if k in _CAMPOS_USUARIO}
+        if campos.get("email") is not None:
+            campos["email"] = campos["email"].strip().lower()
+        obj = Usuario(**campos)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
@@ -26,6 +29,7 @@ class UsuarioRepository:
         return result.scalar_one_or_none()
 
     async def buscar_por_email(self, email: str) -> Usuario | None:
+        email = email.strip().lower()
         result = await self._session.execute(select(Usuario).where(Usuario.email == email))
         return result.scalar_one_or_none()
 
@@ -38,6 +42,8 @@ class UsuarioRepository:
         campos = asdict(dados) if dados is not None else kwargs
         for campo, valor in campos.items():
             if valor is not None:
+                if campo == "email":
+                    valor = valor.strip().lower()
                 setattr(obj, campo, valor)
         await self._session.flush()
         await self._session.refresh(obj)

@@ -39,14 +39,15 @@ async def obter(session: AsyncSession, id: int) -> dict:
 
 async def criar(session: AsyncSession, dados: UsuarioCreateRequest) -> dict:
     repo = _repo(session)
-    if await repo.buscar_por_email(dados.email) is not None:
+    email = dados.email.strip().lower()
+    if await repo.buscar_por_email(email) is not None:
         raise EmailDuplicadoError(ERRO_EMAIL_DUPLICADO)
 
     novo = await repo.criar(
         UsuarioCreate(
             nome=dados.nome,
             username=dados.username,
-            email=dados.email,
+            email=email,
             senha_hash=hash_senha(dados.senha),
             telefone=dados.telefone,
             role=dados.role,
@@ -61,15 +62,16 @@ async def atualizar(session: AsyncSession, id: int, dados: UsuarioUpdateRequest)
     if atual is None:
         raise NaoEncontradoError(ERRO_NAO_ENCONTRADO)
 
-    if dados.email is not None and dados.email != atual.email:
-        existente = await repo.buscar_por_email(dados.email)
+    email = dados.email.strip().lower() if dados.email is not None else None
+    if email is not None and email != atual.email:
+        existente = await repo.buscar_por_email(email)
         if existente is not None and existente.id != id:
             raise EmailDuplicadoError(ERRO_EMAIL_DUPLICADO)
 
     update = UsuarioUpdate(
         nome=dados.nome,
         username=dados.username,
-        email=dados.email,
+        email=email,
         senha_hash=hash_senha(dados.senha) if dados.senha is not None else None,
         telefone=dados.telefone,
         role=dados.role,

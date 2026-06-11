@@ -343,6 +343,43 @@ def test_admin_exclui_usuario_inexistente_404():
     repo.excluir.assert_not_awaited()
 
 
+def test_admin_cria_usuario_role_invalida_422():
+    repo = SimpleNamespace(
+        buscar_por_email=AsyncMock(return_value=None),
+        criar=AsyncMock(),
+    )
+    client, stack = cliente_admin(usuario_repo=repo)
+    with stack:
+        resposta = client.post(
+            "/admin/usuarios",
+            json={
+                "nome": "Carol",
+                "username": "carol",
+                "email": "carol@example.com",
+                "senha": "abc123",
+                "role": "SUPERADMIN",
+            },
+        )
+
+    assert resposta.status_code == 422
+    assert "erro" in resposta.json()
+    repo.criar.assert_not_awaited()
+
+
+def test_admin_edita_usuario_role_invalida_422():
+    repo = SimpleNamespace(
+        buscar_por_id=AsyncMock(return_value=make_usuario(id=3)),
+        atualizar=AsyncMock(),
+    )
+    client, stack = cliente_admin(usuario_repo=repo)
+    with stack:
+        resposta = client.put("/admin/usuarios/3", json={"role": "INVALIDA"})
+
+    assert resposta.status_code == 422
+    assert "erro" in resposta.json()
+    repo.atualizar.assert_not_awaited()
+
+
 def test_resposta_criacao_nunca_expoe_senha_hash():
     criado = make_usuario(id=11, email="novo@b.com")
     repo = SimpleNamespace(

@@ -226,6 +226,20 @@ def test_login_credenciais_validas_retorna_tokens():
     assert "jti" in refresh
 
 
+def test_login_email_caixa_alta_normaliza_para_minusculo():
+    usuario = make_usuario()
+    repo = SimpleNamespace(buscar_por_email=AsyncMock(return_value=usuario))
+    client, store, stack = cliente_auth(repo)
+    with stack:
+        resposta = client.post(
+            "/auth/login",
+            json={"email": "  ALICE@Example.com  ", "senha": "senha-correta"},
+        )
+
+    assert resposta.status_code == 200
+    repo.buscar_por_email.assert_awaited_once_with("alice@example.com")
+
+
 def test_login_senha_errada_401_generico():
     usuario = make_usuario()
     repo = SimpleNamespace(buscar_por_email=AsyncMock(return_value=usuario))
@@ -582,3 +596,17 @@ def test_boot_sem_jwt_secret_falha():
         config = Settings(_env_file=None)
     assert config.JWT_SECRET == "x"
     assert config.ADMIN_EMAILS == {"a@b.com"}
+
+
+def test_boot_sem_admin_emails_falha():
+    from pydantic import ValidationError
+
+    from backend.config import Settings
+
+    ambiente = {
+        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
+        "JWT_SECRET": "x",
+    }
+    with patch.dict(os.environ, ambiente, clear=True):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None)
