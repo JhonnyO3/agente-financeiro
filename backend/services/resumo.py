@@ -74,7 +74,7 @@ async def calcular_resumo(session: AsyncSession, periodo: str) -> dict:
         ),
         Decimal("0"),
     )
-    saldo = receitas - gastos
+    saldo = receitas - gastos - investimentos
 
     return {
         "gastos": _valor_json(gastos),

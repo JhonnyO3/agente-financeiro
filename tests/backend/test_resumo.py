@@ -60,7 +60,7 @@ def test_resumo_formato_e_valores_string():
     assert corpo["gastos"] == "150.00"
     assert corpo["receitas"] == "500.00"
     assert corpo["investimentos"] == "200.00"
-    assert corpo["saldo"] == "350.00"
+    assert corpo["saldo"] == "150.00"
     assert corpo["periodo"] == "mes_atual"
     for chave in ("gastos", "receitas", "investimentos", "saldo"):
         assert isinstance(corpo[chave], str)

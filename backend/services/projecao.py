@@ -55,7 +55,9 @@ class ProjecaoService:
                     gastos=_valor_str(valores["gastos"]),
                     receitas=_valor_str(valores["receitas"]),
                     investimentos=_valor_str(valores["investimentos"]),
-                    saldo=_valor_str(valores["receitas"] - valores["gastos"]),
+                    saldo=_valor_str(
+                        valores["receitas"] - valores["gastos"] - valores["investimentos"]
+                    ),
                     qtd_parcelas=valores["qtd_parcelas"],
                 )
             )
