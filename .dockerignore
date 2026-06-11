@@ -1,0 +1,24 @@
+.git/
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# segredos e ambiente local — NUNCA na imagem
+.env
+.env.*
+!.env.example
+
+# nao precisam ir para a imagem de runtime
+tests/
+specs/
+.claude/
+DEPLOY.md
+*.log

@@ -21,6 +21,7 @@ dependencies = [
   "pyjwt>=2.13.0",
   "passlib[bcrypt]>=1.7.4",
   "bcrypt<4.1",
+  "gunicorn>=26.0.0",
 ]
 
 [project.optional-dependencies]
