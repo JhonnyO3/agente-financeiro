@@ -38,13 +38,13 @@ WHATSAPP_ALLOWED_NUMBER=5511912345678
 JWT_SECRET=<segredo forte, >= 32 bytes>
 JWT_ACCESS_EXPIRES_MIN=30
 JWT_REFRESH_EXPIRES_DAYS=7
-ADMIN_EMAILS=jhonatas2004@gmail.com
+ADMIN_EMAILS=admin@exemplo.com
 
 # Sessão do frontend Flask — SECRET_KEY é obrigatório; o frontend não sobe sem ele
 SECRET_KEY=<segredo forte>
 
 # Usuário dono das transações criadas pelo agente (WhatsApp)
-AGENTE_USUARIO_EMAIL=jhonatas2004@gmail.com
+AGENTE_USUARIO_EMAIL=admin@exemplo.com
 ```
 
 > **Segredos obrigatórios:** `JWT_SECRET` (backend) e `SECRET_KEY` (frontend) não têm default. Se faltarem, o processo correspondente falha no boot com erro de validação do `pydantic-settings`. Gere cada um com `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
@@ -153,7 +153,7 @@ Use `scripts/criar_usuario.py` (idempotente por email: recria/atualiza se já ex
 ```bash
 # Usuário admin (precisa estar também em ADMIN_EMAILS no .env para acessar /admin/*)
 uv run python scripts/criar_usuario.py \
-  --nome "Jhonatas" --username jhonatas --email jhonatas2004@gmail.com \
+  --nome "Admin" --username admin --email admin@exemplo.com \
   --senha "<senha-forte>" --role ADMIN
 
 # Usuário comum
