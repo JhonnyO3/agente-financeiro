@@ -57,18 +57,30 @@ Configure o webhook da Evolution API apontando para `POST /webhook/mensagem`.
 
 Painel Flask para **visualizar e gerenciar** os dados registrados pelo agente — gráficos, resumos e CRUD de transações. Roda em processo separado e compartilha o mesmo banco e o mesmo `.env` do agente.
 
+O painel é dividido em dois processos: um **backend** FastAPI (`backend.main:app`, porta 8000) que fala com o banco e expõe `/api/*`, e um **frontend** Flask (`frontend.app`, porta 5000) que serve as páginas e faz proxy de `/api/*` para o backend.
+
 ```bash
 # A dependência flask[async] já vem no uv.lock — basta sincronizar
 uv sync
 
-# Iniciar o painel (porta 5000)
-uv run flask --app dashboard.app run --port 5000
+# Subir backend e frontend juntos (logs prefixados, CTRL+C encerra ambos)
+uv run python start.py
 
 # Abra no navegador
 http://localhost:5000
 ```
 
-> O agente (FastAPI, porta 8000) e o painel (Flask, porta 5000) são independentes — você pode rodar só o painel para consultar os dados, sem o webhook ativo. Ambos leem a mesma `DATABASE_URL`.
+Para rodar cada processo isoladamente:
+
+```bash
+# Backend (porta 8000)
+uv run uvicorn backend.main:app --port 8000
+
+# Frontend (porta 5000)
+uv run flask --app frontend.app run --port 5000
+```
+
+> O agente (FastAPI do webhook), o backend do painel (porta 8000) e o frontend (porta 5000) leem a mesma `DATABASE_URL`. O frontend depende do backend para os dados de `/api/*`.
 
 ### O que o painel oferece
 
