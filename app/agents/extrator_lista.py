@@ -1,9 +1,9 @@
 from datetime import date
 from decimal import Decimal
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.base import criar_llm
+from app.agents.base import coagir_data, criar_llm
 
 
 class ItemLista(BaseModel):
@@ -14,6 +14,8 @@ class ItemLista(BaseModel):
     data: date
     tipo: Literal["GASTO", "INVESTIMENTO", "RECEITA"] = "GASTO"
     categoria: Literal["ALIMENTACAO", "TRANSPORTE", "LAZER", "EDUCACAO", "GASTOS_FIXOS", "COMPRAS", "GASTOS_PONTUAIS", "INVESTIMENTO", "RECEITA"] = "GASTOS_PONTUAIS"
+
+    _normaliza_data = field_validator("data", mode="before")(coagir_data)
 
 
 class ExtracaoListaResult(BaseModel):

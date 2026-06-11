@@ -1,8 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.base import criar_llm
+from app.agents.base import coagir_data, criar_llm
 
 
 class ExtracaoAlteracaoResult(BaseModel):
@@ -10,6 +10,8 @@ class ExtracaoAlteracaoResult(BaseModel):
     nova_descricao: str | None = None
     nova_categoria: str | None = None
     nova_data: date | None = None
+
+    _normaliza_data = field_validator("nova_data", mode="before")(coagir_data)
 
 
 class ExtratorAlteracao:

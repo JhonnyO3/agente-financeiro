@@ -355,3 +355,30 @@ async def test_embedder_gerar_para_transacao_sem_descricao():
     mock_client.aembed_query.assert_called_once_with(
         "INVESTIMENTO INVESTIMENTO 09/06/2026"
     )
+
+
+def test_coagir_data_aceita_iso_e_ddmmyyyy():
+    from datetime import date
+
+    from app.agents.base import coagir_data
+
+    assert coagir_data("2026-06-10") == date(2026, 6, 10)
+    assert coagir_data("10/06/2026") == date(2026, 6, 10)
+    assert coagir_data(date(2026, 6, 10)) == date(2026, 6, 10)
+    assert coagir_data(None) is None
+
+
+def test_extracao_result_aceita_data_ddmmyyyy():
+    from datetime import date
+
+    from app.agents.extrator import ExtracaoResult
+
+    resultado = ExtracaoResult(
+        tipo="INVESTIMENTO",
+        valor_total=Decimal("3202"),
+        valor_por_parcela=None,
+        descricao="bitcoin",
+        data_referencia="10/06/2026",
+        menciona_cartao=False,
+    )
+    assert resultado.data_referencia == date(2026, 6, 10)

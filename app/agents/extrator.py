@@ -1,9 +1,9 @@
 from datetime import date
 from decimal import Decimal
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.base import carregar_prompt, criar_llm
+from app.agents.base import carregar_prompt, coagir_data, criar_llm
 
 
 class ExtracaoResult(BaseModel):
@@ -18,6 +18,8 @@ class ExtracaoResult(BaseModel):
     menciona_cartao: bool
     forma_pagamento: Literal["CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "BOLETO"] = "PIX"
     responsavel: str = "Jhonatas"
+
+    _normaliza_data = field_validator("data_referencia", mode="before")(coagir_data)
 
 
 class Extrator:
