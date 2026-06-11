@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     EVOLUTION_INSTANCE: str
     EVOLUTION_API_KEY: str
     WHATSAPP_ALLOWED_NUMBER: str
+    AGENTE_USUARIO_EMAIL: str = "jhonatas2004@gmail.com"
 
 
 settings = Settings()

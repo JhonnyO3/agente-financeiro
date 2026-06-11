@@ -7,6 +7,7 @@ from agent.entrypoint.webhook import router as webhook_router
 from agent.entrypoint.debounce import MessageDebouncer
 from agent.integrations.evolution_client import EvolutionApiClient
 from backend.repositories.transacao_repository import TransacaoRepository
+from backend.repositories.usuario_repository import UsuarioRepository
 from agent.agents.embedder import Embedder
 from agent.agents.classificador import Classificador
 from agent.agents.extrator import Extrator
@@ -87,10 +88,25 @@ class _SessionFactoryRepository:
             return await self._repo(session).agregar_por_categoria(inicio, fim)
 
 
+async def resolver_usuario_id(usuario_repository, email: str) -> int:
+    usuario = await usuario_repository.buscar_por_email(email)
+    if usuario is None:
+        raise RuntimeError(
+            f"Usuário dono do agente não encontrado para AGENTE_USUARIO_EMAIL={email!r}. "
+            "Crie o usuário (scripts/criar_usuario.py) antes de iniciar o agente."
+        )
+    return usuario.id
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     engine = create_async_engine(settings.DATABASE_URL)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with session_factory() as session:
+        usuario_id = await resolver_usuario_id(
+            UsuarioRepository(session), settings.AGENTE_USUARIO_EMAIL
+        )
 
     evolution_client = EvolutionApiClient(
         base_url=settings.EVOLUTION_API_URL,
@@ -108,6 +124,7 @@ async def lifespan(app: FastAPI):
         extrator=Extrator(),
         categorizador=Categorizador(),
         confirmacao_state=confirmacao_state,
+        usuario_id=usuario_id,
     )
     alterar = AlterarService(
         repository=repository,

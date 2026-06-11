@@ -51,6 +51,7 @@ def _make_service(extracao_result, categorizacao_result, embedding_result=None, 
         extrator=extrator,
         categorizador=categorizador,
         confirmacao_state=confirmacao_state,
+        usuario_id=1,
     )
     return service, extrator, categorizador, embedder, repository, confirmacao_state
 
@@ -90,6 +91,7 @@ async def test_gasto_simples_uma_transacao():
     assert lote_chamado[0].recorrente is False
     assert lote_chamado[0].responsavel == "Jhonatas"
     assert lote_chamado[0].detalhes is None
+    assert lote_chamado[0].usuario_id == 1
 
 
 @pytest.mark.asyncio
@@ -135,6 +137,7 @@ async def test_parcelas_implicam_cartao_credito_pendente_data_deslocada():
     for t in lote:
         assert t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO
         assert t.categoria == CategoriaEnum.COMPRAS
+        assert t.usuario_id == 1
     assert lote[0].data == adicionar_meses(hoje, 1)
     assert lote[0].status == StatusEnum.PENDENTE
     categorizador.categorizar.assert_called_once()
@@ -631,6 +634,8 @@ async def test_executar_lote_gera_grupo_completo_com_status():
     assert parcelas_linkedin[0].status == StatusEnum.PAGO
     assert parcelas_linkedin[1].status == StatusEnum.PENDENTE
     assert parcelas_linkedin[2].status == StatusEnum.PENDENTE
+
+    assert all(t.usuario_id == 1 for t in lote)
 
     mercado = lote[3]
     assert mercado.parcela_total == 1
