@@ -2,8 +2,8 @@
 
 | ID | Tarefa | Stack | Estado | Worktree/Branch | Nota |
 |----|--------|-------|--------|-----------------|------|
-| 01 | Separação de módulos: app/models+repositories → backend/, resto → agent/ (imports, alembic, start, pyproject, testes, docs) | python | doing | feat/multiusuario-auth | bloqueante |
-| 02 | Schema usuarios + usuario_id (migration 3 fases) | python | todo | — | depende 01 |
+| 01 | Separação de módulos: app/models+repositories → backend/, resto → agent/ (imports, alembic, start, pyproject, testes, docs) | python | done | feat/multiusuario-auth | commit 539dcfa (213 testes) |
+| 02 | Schema usuarios + usuario_id (migration 3 fases) | python | doing | feat/multiusuario-auth | depende 01 |
 | 03 | Repository com usuario_id + UsuarioRepository | python | todo | — | depende 02 |
 | 04 | Auth backend (JWT, guard, hashing) | python | todo | — | depende 02 |
 | 05 | Endpoints protegidos + filtro usuario_id | python | todo | — | depende 03,04 |

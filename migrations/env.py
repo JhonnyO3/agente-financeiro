@@ -11,6 +11,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from backend.models.transacao import Base
+from backend.models.usuario import Usuario  # noqa: F401
 
 config = context.config
 

@@ -29,3 +29,8 @@ class FormaPagamentoEnum(str, enum.Enum):
     CARTAO_DEBITO = "CARTAO_DEBITO"
     PIX = "PIX"
     BOLETO = "BOLETO"
+
+
+class RoleEnum(str, enum.Enum):
+    ADMIN = "ADMIN"
+    USER = "USER"

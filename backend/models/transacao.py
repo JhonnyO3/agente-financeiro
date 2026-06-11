@@ -2,7 +2,17 @@ import datetime
 import decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BOOLEAN, DATE, DECIMAL, INTEGER, TEXT, TIMESTAMP, String, func
+from sqlalchemy import (
+    BOOLEAN,
+    DATE,
+    DECIMAL,
+    INTEGER,
+    TEXT,
+    TIMESTAMP,
+    ForeignKey,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -17,6 +27,9 @@ class Transacao(Base):
     __tablename__ = "transacoes"
 
     id: Mapped[int] = mapped_column(INTEGER, primary_key=True, autoincrement=True)
+    usuario_id: Mapped[int] = mapped_column(
+        INTEGER, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
     tipo: Mapped[TipoEnum] = mapped_column(String, nullable=False)
     valor: Mapped[decimal.Decimal] = mapped_column(DECIMAL(12, 2), nullable=False)
     descricao: Mapped[str | None] = mapped_column(TEXT, nullable=True)
