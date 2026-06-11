@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from backend.auth.dependencies import instalar_handlers
+from backend.auth.refresh_store import RefreshStore
 from backend.config import settings
 from backend.db import criar_engine, criar_sessionmaker
 
@@ -15,6 +17,8 @@ CONTROLLERS = [
     "parcelas",
     "graficos",
     "projecao",
+    "auth",
+    "admin",
 ]
 
 
@@ -38,6 +42,7 @@ async def lifespan(app: FastAPI):
     engine = criar_engine(settings.DATABASE_URL)
     app.state.engine = engine
     app.state.sessionmaker = criar_sessionmaker(engine)
+    app.state.refresh_store = RefreshStore()
     try:
         yield
     finally:
@@ -45,6 +50,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+instalar_handlers(app)
 _registrar_controllers(app)
 
 

@@ -1,7 +1,10 @@
+import os
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
+
+os.environ.setdefault("SECRET_KEY", "test-secret")
 
 from frontend.app import create_app
 from frontend.config import Settings
@@ -24,10 +27,22 @@ def backend():
 
 @pytest.fixture
 def client(backend):
-    app = create_app(Settings(backend_url="http://backend.test", frontend_port=5000))
+    app = create_app(
+        Settings(
+            backend_url="http://backend.test",
+            frontend_port=5000,
+            secret_key="test-secret",
+        )
+    )
     app.config["BACKEND_CLIENT"] = backend
     app.config["TESTING"] = True
-    return app.test_client()
+    test_client = app.test_client()
+    with test_client.session_transaction() as sessao:
+        sessao["access_token"] = "token-teste"
+        sessao["refresh_token"] = "refresh-teste"
+        sessao["role"] = "USER"
+        sessao["email"] = "tester@example.com"
+    return test_client
 
 
 @pytest.fixture

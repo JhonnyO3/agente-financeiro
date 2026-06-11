@@ -31,6 +31,8 @@ PERIODOS = {
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    secret_key: str
+
     backend_url: str = "http://127.0.0.1:8000"
     frontend_port: int = 5000
     backend_timeout: float = 10.0
