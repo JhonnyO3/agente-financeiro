@@ -24,7 +24,7 @@ Agente de IA pessoal acessível via WhatsApp para registrar, alterar, excluir e 
 
 ## Configuração
 
-Crie um arquivo `.env` na raiz:
+Copie `.env.example` para `.env` na raiz e preencha:
 
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/agente_financeiro
@@ -33,7 +33,23 @@ EVOLUTION_API_URL=http://localhost:8080
 EVOLUTION_INSTANCE=minha-instancia
 EVOLUTION_API_KEY=sua-chave
 WHATSAPP_ALLOWED_NUMBER=5511912345678
+
+# Autenticação JWT (backend) — JWT_SECRET é obrigatório; o backend não sobe sem ele
+JWT_SECRET=<segredo forte, >= 32 bytes>
+JWT_ACCESS_EXPIRES_MIN=30
+JWT_REFRESH_EXPIRES_DAYS=7
+ADMIN_EMAILS=jhonatas2004@gmail.com
+
+# Sessão do frontend Flask — SECRET_KEY é obrigatório; o frontend não sobe sem ele
+SECRET_KEY=<segredo forte>
+
+# Usuário dono das transações criadas pelo agente (WhatsApp)
+AGENTE_USUARIO_EMAIL=jhonatas2004@gmail.com
 ```
+
+> **Segredos obrigatórios:** `JWT_SECRET` (backend) e `SECRET_KEY` (frontend) não têm default. Se faltarem, o processo correspondente falha no boot com erro de validação do `pydantic-settings`. Gere cada um com `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+
+Veja todas as variáveis documentadas em [`.env.example`](.env.example).
 
 ## Instalação e execução
 
@@ -44,7 +60,7 @@ uv sync
 # Subir o banco
 docker compose up -d
 
-# Aplicar migrations
+# Aplicar migrations (cria as tabelas, incluindo `usuarios`)
 uv run alembic upgrade head
 
 # Iniciar o servidor
@@ -97,7 +113,7 @@ uv run flask --app frontend.app run --port 5000
 
 Todos os cálculos monetários são feitos em Python com `Decimal` e trafegam como string — o JavaScript apenas formata para exibição, nunca soma valores. Inclusões manuais gravam `embedding = NULL` (sem chamada à OpenAI no painel).
 
-> **Sem autenticação** — o painel foi pensado para uso local/intranet. Não exponha a porta 5000 à internet sem uma camada de proteção própria.
+> **Autenticação obrigatória** — o painel exige login. Veja [Autenticação e multiusuário](#autenticação-e-multiusuário). Cada usuário vê apenas as próprias transações; admins têm acesso ao CRUD global em `/admin/*`.
 
 ### Endpoints da API do painel
 
@@ -115,6 +131,69 @@ Todos retornam JSON e aceitam `?periodo=`; `/api/transacoes` aceita também `tip
 | GET/POST | `/api/transacoes` | Listar (paginado) / criar manual |
 | PUT/DELETE | `/api/transacoes/<id>` | Editar / excluir transação |
 | DELETE | `/api/grupos/<grupo_parcela_id>` | Excluir um grupo de parcelas inteiro |
+
+## Autenticação e multiusuário
+
+O sistema é multiusuário com autenticação JWT. Cada transação pertence a um usuário; o agente do WhatsApp grava em nome do usuário identificado por `AGENTE_USUARIO_EMAIL`, e o painel mostra apenas os dados do usuário logado.
+
+### Estrutura de módulos
+
+| Pacote | Responsabilidade |
+|---|---|
+| `backend/` | Camada de dados, API de dados (`/api/*`), autenticação (`/auth/*`) e administração (`/admin/*`). Models, repositories, hashing bcrypt e emissão/validação de tokens JWT vivem aqui. |
+| `agent/` | Orquestração do agente de WhatsApp (webhook, pipeline, agents LangChain, services). Importa a camada de dados de `backend.*` in-process, com seu próprio engine (`agent/db.py`). |
+| `frontend/` | Interface web Flask: páginas do dashboard, tela de login e proxy de `/api/*` para o backend. Não importa a camada de dados — só fala com o backend por HTTP, injetando o Bearer da sessão. |
+
+### Criar usuários
+
+A tabela `usuarios` é criada pela migration — rode `uv run alembic upgrade head` antes.
+
+Use `scripts/criar_usuario.py` (idempotente por email: recria/atualiza se já existir). A senha em texto puro vira um hash bcrypt one-way e nunca é ecoada.
+
+```bash
+# Usuário admin (precisa estar também em ADMIN_EMAILS no .env para acessar /admin/*)
+uv run python scripts/criar_usuario.py \
+  --nome "Jhonatas" --username jhonatas --email jhonatas2004@gmail.com \
+  --senha "<senha-forte>" --role ADMIN
+
+# Usuário comum
+uv run python scripts/criar_usuario.py \
+  --nome "Alice" --username alice --email alice@example.com \
+  --senha "<senha-forte>" --role USER
+
+# --telefone é opcional (único quando preenchido); --role default é USER
+```
+
+> Ser ADMIN exige **duas** condições: `role=ADMIN` no banco **e** o email presente em `ADMIN_EMAILS` (allowlist do `.env`). As rotas `/admin/*` revalidam isso no banco a cada requisição.
+
+### Fluxo de login (frontend)
+
+1. Acesse `http://localhost:5000` sem sessão → redireciona para `/login` (sem cadastro pelo painel).
+2. Informe email e senha → o frontend chama `POST /auth/login` no backend e guarda `access_token`/`refresh_token` na sessão Flask (cookie assinado, `HttpOnly`, `SameSite=Lax`).
+3. As chamadas a `/api/*` levam `Authorization: Bearer <access>`. Em `401`, o frontend tenta **uma vez** `POST /auth/refresh` e refaz a chamada; se o refresh falhar, limpa a sessão e volta ao login.
+4. Logout (`/logout`) chama `POST /auth/logout` (revoga o refresh) e limpa a sessão.
+
+### Rotas de autenticação (backend)
+
+| Método | Rota | Função |
+|---|---|---|
+| POST | `/auth/login` | Valida credenciais (bcrypt, `ativo=true`) e emite `access_token` + `refresh_token`. 401 genérico se inválido/inativo. |
+| POST | `/auth/refresh` | Rotaciona o refresh (novo `jti`) e emite novo access. 401 se revogado/expirado. |
+| POST | `/auth/logout` | Revoga o `jti` do refresh. Idempotente. |
+
+Access token (HS256, `JWT_SECRET`) expira em `JWT_ACCESS_EXPIRES_MIN` minutos; refresh em `JWT_REFRESH_EXPIRES_DAYS` dias. A decisão de papel vem sempre do token validado no servidor.
+
+### Rotas de administração (`/admin/*`, somente ADMIN)
+
+Protegidas por `Depends(get_admin)`; falham com 403 se o usuário não for admin válido.
+
+| Método | Rota | Função |
+|---|---|---|
+| GET | `/admin/usuarios` | Lista usuários |
+| GET/PUT/DELETE | `/admin/usuarios/{id}` | Detalha / atualiza / desativa usuário |
+| POST | `/admin/usuarios` | Cria usuário |
+| GET/POST | `/admin/usuarios/{usuario_id}/transacoes` | Lista / cria transações de um usuário |
+| GET/PUT/DELETE | `/admin/transacoes/{id}` | Detalha / edita / exclui qualquer transação |
 
 ## Testes
 
