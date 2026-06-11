@@ -55,7 +55,7 @@
   // ------------------------------------------------------------- estado
 
   // Tabela geral de transações
-  const estado = { pagina: 1, tipo: "", categoria: "", status: "", forma: "" };
+  const estado = { pagina: 1, tipo: "", categoria: "", status: "", forma: "", ordenar: "", direcao: "desc" };
   // Tabela de investimentos (paginação própria, independente)
   const estadoInvest = { pagina: 1 };
 
@@ -234,6 +234,10 @@
     if (estado.categoria) params.set("categoria", estado.categoria);
     if (estado.status) params.set("status", estado.status);
     if (estado.forma) params.set("forma_pagamento", estado.forma);
+    if (estado.ordenar) {
+      params.set("ordenar", estado.ordenar);
+      params.set("direcao", estado.direcao);
+    }
 
     let dados;
     try {
@@ -520,6 +524,42 @@
     carregarTabela();
   };
 
+  // ------------------------------------------------------- ordenação
+
+  function atualizarIndicadores(thead) {
+    const ths = thead.querySelectorAll("th[data-ordenar]");
+    for (const th of ths) {
+      const seta = th.querySelector(".sort-arrow");
+      if (seta) seta.remove();
+      if (th.getAttribute("data-ordenar") === estado.ordenar) {
+        const span = document.createElement("span");
+        span.className = "sort-arrow";
+        span.textContent = estado.direcao === "asc" ? " ▲" : " ▼";
+        th.appendChild(span);
+      }
+    }
+  }
+
+  function ativarOrdenacao() {
+    const thead = document.querySelector("#tabela-transacoes thead");
+    if (!thead) return;
+    for (const th of thead.querySelectorAll("th[data-ordenar]")) {
+      th.style.cursor = "pointer";
+      th.addEventListener("click", function () {
+        const coluna = th.getAttribute("data-ordenar");
+        if (estado.ordenar === coluna) {
+          estado.direcao = estado.direcao === "asc" ? "desc" : "asc";
+        } else {
+          estado.ordenar = coluna;
+          estado.direcao = "asc";
+        }
+        estado.pagina = 1;
+        atualizarIndicadores(thead);
+        carregarTabela();
+      });
+    }
+  }
+
   // -------------------------------------------------------------- init
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -558,6 +598,8 @@
         carregarTabela();
       });
     }
+
+    ativarOrdenacao();
 
     const btnAdicionar = document.getElementById("btn-adicionar");
     if (btnAdicionar) btnAdicionar.addEventListener("click", abrirModalAdicionar);

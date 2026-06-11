@@ -29,6 +29,19 @@ def _como_str(campo) -> str:
     return campo if isinstance(campo, str) else campo.value
 
 
+_CHAVES_ORDENACAO = {
+    "data": lambda t: (t.data, t.id),
+    "descricao": lambda t: (t.descricao or "").lower(),
+    "categoria": lambda t: _como_str(t.categoria),
+    "valor": lambda t: t.valor,
+    "parcela": lambda t: (t.parcela_total, t.parcela_numero),
+    "forma_pagamento": lambda t: _como_str(t.forma_pagamento),
+    "tipo": lambda t: _como_str(t.tipo),
+    "status": lambda t: _como_str(t.status),
+    "responsavel": lambda t: (t.responsavel or "").lower(),
+}
+
+
 def _serializar(t) -> dict:
     return {
         "id": t.id,
@@ -55,6 +68,8 @@ async def listar(
     status: str | None,
     pagina: int,
     forma_pagamento: str | None = None,
+    ordenar: str | None = None,
+    direcao: str = "desc",
 ) -> dict:
     inicio, fim = resolver_periodo(periodo)
     repo = TransacaoRepository(session)
@@ -68,7 +83,11 @@ async def listar(
         and (status is None or _como_str(t.status) == status)
         and (forma_pagamento is None or _como_str(t.forma_pagamento) == forma_pagamento)
     ]
-    filtrada.sort(key=lambda t: (t.data, t.id), reverse=True)
+    chave = _CHAVES_ORDENACAO.get(ordenar)
+    if chave is not None:
+        filtrada.sort(key=chave, reverse=direcao != "asc")
+    else:
+        filtrada.sort(key=lambda t: (t.data, t.id), reverse=True)
 
     total = len(filtrada)
     paginas = math.ceil(total / POR_PAGINA)

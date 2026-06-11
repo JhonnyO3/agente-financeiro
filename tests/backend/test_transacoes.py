@@ -160,6 +160,51 @@ def test_filtro_por_forma_pagamento():
     assert {item["id"] for item in corpo["itens"]} == {2, 3}
 
 
+def test_ordenar_por_valor_ascendente():
+    transacoes = [
+        make_transacao(1, valor="30.00"),
+        make_transacao(2, valor="10.00"),
+        make_transacao(3, valor="20.00"),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?ordenar=valor&direcao=asc")
+
+    ids = [item["id"] for item in resposta.json()["itens"]]
+    assert ids == [2, 3, 1]
+
+
+def test_ordenar_por_valor_descendente():
+    transacoes = [
+        make_transacao(1, valor="30.00"),
+        make_transacao(2, valor="10.00"),
+        make_transacao(3, valor="20.00"),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?ordenar=valor&direcao=desc")
+
+    ids = [item["id"] for item in resposta.json()["itens"]]
+    assert ids == [1, 3, 2]
+
+
+def test_ordenar_coluna_invalida_usa_padrao_data_desc():
+    transacoes = [
+        make_transacao(1, dia=5),
+        make_transacao(2, dia=20),
+        make_transacao(3, dia=10),
+    ]
+    repo = fake_repo(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/transacoes?ordenar=coluna_inexistente")
+
+    ids = [item["id"] for item in resposta.json()["itens"]]
+    assert ids == [2, 3, 1]
+
+
 def test_post_cria_transacao():
     repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=43)))
     client, stack = cliente_com(repo)
