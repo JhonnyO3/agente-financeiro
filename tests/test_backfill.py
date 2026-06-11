@@ -223,6 +223,7 @@ def test_agrupar_por_grupo_filtra_e_agrupa():
 def _make_repository(transacoes):
     repository = MagicMock()
     repository.listar_por_periodo = AsyncMock(return_value=transacoes)
+    repository.listar_por_periodo_com_embedding = AsyncMock(return_value=transacoes)
     repository.criar_lote = AsyncMock(return_value=[])
     return repository
 

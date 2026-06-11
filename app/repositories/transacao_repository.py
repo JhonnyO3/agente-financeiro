@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from app.models.transacao import Transacao
 from app.repositories.dtos import AgregadoCategoria, TransacaoCreate, TransacaoUpdate
@@ -138,6 +139,17 @@ class TransacaoRepository:
             select(Transacao)
             .where(Transacao.data.between(inicio, fim))
             .order_by(Transacao.data)
+        )
+        return list(result.scalars().all())
+
+    async def listar_por_periodo_com_embedding(
+        self, inicio: date, fim: date
+    ) -> list[Transacao]:
+        result = await self._session.execute(
+            select(Transacao)
+            .where(Transacao.data.between(inicio, fim))
+            .order_by(Transacao.data)
+            .options(undefer(Transacao.embedding))
         )
         return list(result.scalars().all())
 

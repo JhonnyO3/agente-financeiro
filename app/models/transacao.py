@@ -25,7 +25,9 @@ class Transacao(Base):
     parcela_numero: Mapped[int] = mapped_column(INTEGER, nullable=False, default=1)
     parcela_total: Mapped[int] = mapped_column(INTEGER, nullable=False, default=1)
     grupo_parcela_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(1536), nullable=True, deferred=True
+    )
     status: Mapped[StatusEnum] = mapped_column(String, nullable=False, server_default="PENDENTE")
     forma_pagamento: Mapped[FormaPagamentoEnum] = mapped_column(
         String, nullable=False, server_default="PIX"

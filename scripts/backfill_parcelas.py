@@ -129,7 +129,7 @@ async def executar_backfill(
     repository, dry_run: bool, hoje: date | None = None
 ) -> list[ResultadoAnalise]:
     """Busca os grupos, analisa cada um e (fora do dry-run) cria as faltantes."""
-    transacoes = await repository.listar_por_periodo(PERIODO_INICIO, PERIODO_FIM)
+    transacoes = await repository.listar_por_periodo_com_embedding(PERIODO_INICIO, PERIODO_FIM)
     grupos = agrupar_por_grupo(transacoes)
 
     resultados = [analisar_grupo(grupo, hoje=hoje) for grupo in grupos.values()]
