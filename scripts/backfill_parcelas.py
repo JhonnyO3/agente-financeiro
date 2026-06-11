@@ -112,6 +112,7 @@ def analisar_grupo(transacoes: Sequence, hoje: date | None = None) -> ResultadoA
             forma_pagamento=referencia.forma_pagamento,
             responsavel=referencia.responsavel,
             detalhes=referencia.detalhes,
+            usuario_id=referencia.usuario_id,
         )
         for numero in range(1, parcela_total + 1)
         if numero not in numeros_existentes
