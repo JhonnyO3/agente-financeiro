@@ -3,14 +3,14 @@
 | ID | Tarefa | Stack | Estado | Worktree/Branch | Nota |
 |----|--------|-------|--------|-----------------|------|
 | 01 | Separação de módulos: app/models+repositories → backend/, resto → agent/ (imports, alembic, start, pyproject, testes, docs) | python | done | feat/multiusuario-auth | commit 539dcfa (213 testes) |
-| 02 | Schema usuarios + usuario_id (migration 3 fases) | python | doing | feat/multiusuario-auth | depende 01 |
-| 03 | Repository com usuario_id + UsuarioRepository | python | todo | — | depende 02 |
-| 04 | Auth backend (JWT, guard, hashing) | python | todo | — | depende 02 |
-| 05 | Endpoints protegidos + filtro usuario_id | python | todo | — | depende 03,04 |
-| 06 | Admin CRUD (usuários + transações de qualquer dono) | python | todo | — | depende 03,04 |
-| 07 | Script criar_usuario.py | python | todo | — | depende 02 |
-| 08 | Agente grava usuario_id | python | todo | — | depende 03 |
-| 09 | Frontend auth (modal, sessão, Bearer, refresh, logout) | python | todo | — | depende 04 (contrato) |
+| 02 | Schema usuarios + usuario_id (migration 3 fases) | python | done | feat/multiusuario-auth | commit 1bbab5b (238 testes) |
+| 03 | Repository com usuario_id + UsuarioRepository | python | done | feat/multiusuario-auth | merge batch3 (TransacaoCreate.usuario_id obrigatório) |
+| 04 | Auth backend (JWT, guard, hashing) | python | done | feat/multiusuario-auth | merge batch3 (bcrypt pin <4.1) |
+| 05 | Endpoints protegidos + filtro usuario_id | python | doing | sq/05 | worktree t05; corrige test_transacoes |
+| 06 | Admin CRUD (usuários + transações de qualquer dono) | python | doing | sq/06 | worktree t06 |
+| 07 | Script criar_usuario.py | python | doing | sq/07 | worktree t07 |
+| 08 | Agente grava usuario_id | python | doing | sq/08 | worktree t08; corrige test_service_cadastrar |
+| 09 | Frontend auth (modal, sessão, Bearer, refresh, logout) | python | done | feat/multiusuario-auth | merge batch3 |
 | 10 | Config final + start.py + .env.example + docs | python | todo | — | depende 05,06,07,08,09 |
 
 Contratos: `reorg-agent.md`, `schema-usuarios.md`, `auth-jwt.md`, `api-endpoints-protegidos.md`,
