@@ -126,3 +126,31 @@ def test_categorias_vazio_retorna_lista_vazia():
         resposta = client.get("/api/grafico/categorias")
 
     assert resposta.json() == []
+
+
+def test_resolver_periodo_tudo_cobre_o_futuro():
+    from backend.services.resumo import resolver_periodo
+
+    inicio, fim = resolver_periodo("tudo")
+    assert inicio == date(2000, 1, 1)
+    assert fim >= date(2099, 1, 1)
+
+
+def test_resolver_periodo_mes_atual_vai_ate_fim_do_mes():
+    from datetime import timedelta
+
+    from backend.services.resumo import resolver_periodo
+
+    hoje = date.today()
+    inicio, fim = resolver_periodo("mes_atual")
+    assert inicio == date(hoje.year, hoje.month, 1)
+    assert fim >= hoje
+    assert (fim + timedelta(days=1)).month != hoje.month
+
+
+def test_resolver_periodo_ano_atual_vai_ate_dezembro():
+    from backend.services.resumo import resolver_periodo
+
+    hoje = date.today()
+    _, fim = resolver_periodo("ano_atual")
+    assert fim == date(hoje.year, 12, 31)

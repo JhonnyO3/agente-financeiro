@@ -8,10 +8,17 @@ from app.repositories.transacao_repository import TransacaoRepository
 
 _DOIS_DECIMAIS = Decimal("0.01")
 _DATA_PISO = date(2000, 1, 1)
+_DATA_TETO = date(2100, 1, 1)
+
+
+def _ultimo_dia_mes(d: date) -> date:
+    prox = date(d.year + 1, 1, 1) if d.month == 12 else date(d.year, d.month + 1, 1)
+    return prox - timedelta(days=1)
 
 
 def resolver_periodo(periodo: str) -> tuple[date, date]:
     hoje = date.today()
+    fim_mes = _ultimo_dia_mes(hoje)
 
     if periodo == "mes_anterior":
         primeiro_mes_atual = date(hoje.year, hoje.month, 1)
@@ -20,18 +27,18 @@ def resolver_periodo(periodo: str) -> tuple[date, date]:
         return inicio, ultimo_mes_anterior
 
     if periodo == "ultimos_3_meses":
-        return hoje - timedelta(days=90), hoje
+        return hoje - timedelta(days=90), fim_mes
 
     if periodo == "ultimos_6_meses":
-        return hoje - timedelta(days=180), hoje
+        return hoje - timedelta(days=180), fim_mes
 
     if periodo == "ano_atual":
-        return date(hoje.year, 1, 1), hoje
+        return date(hoje.year, 1, 1), date(hoje.year, 12, 31)
 
     if periodo == "tudo":
-        return _DATA_PISO, hoje
+        return _DATA_PISO, _DATA_TETO
 
-    return date(hoje.year, hoje.month, 1), hoje
+    return date(hoje.year, hoje.month, 1), fim_mes
 
 
 def _como_str(atributo) -> str:
