@@ -11,6 +11,14 @@
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
       <span class="navbar-brand">💰 Dashboard Financeiro</span>
+      {% if session.get("email") %}
+      <div class="d-flex align-items-center">
+        <span class="navbar-text text-light me-3">{{ session.get("email") }}</span>
+        <form method="POST" action="{{ url_for('auth.logout') }}" class="m-0">
+          <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>
+        </form>
+      </div>
+      {% endif %}
     </div>
   </nav>
   <main class="app-container py-4">
