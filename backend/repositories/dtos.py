@@ -3,11 +3,18 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+from backend.models.enums import (
+    CategoriaEnum,
+    FormaPagamentoEnum,
+    RoleEnum,
+    StatusEnum,
+    TipoEnum,
+)
 
 
 @dataclass
 class TransacaoCreate:
+    usuario_id: int
     tipo: TipoEnum
     valor: Decimal
     descricao: str | None
@@ -36,6 +43,28 @@ class TransacaoUpdate:
     recorrente: bool | None = None
     responsavel: str | None = None
     detalhes: str | None = None
+
+
+@dataclass
+class UsuarioCreate:
+    nome: str
+    username: str
+    email: str
+    senha_hash: str
+    telefone: str | None = None
+    role: RoleEnum = RoleEnum.USER
+    ativo: bool = True
+
+
+@dataclass
+class UsuarioUpdate:
+    nome: str | None = None
+    username: str | None = None
+    email: str | None = None
+    senha_hash: str | None = None
+    telefone: str | None = None
+    role: RoleEnum | None = None
+    ativo: bool | None = None
 
 
 @dataclass

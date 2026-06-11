@@ -134,6 +134,7 @@ def test_transacao_create_defaults_retrocompativeis():
     from backend.repositories.dtos import TransacaoCreate
 
     dto = TransacaoCreate(
+        usuario_id=1,
         tipo=TipoEnum.GASTO,
         valor=Decimal("50.00"),
         descricao="mercado",

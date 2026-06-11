@@ -12,6 +12,7 @@ from backend.repositories.transacao_repository import TransacaoRepository
 
 def make_dto(**kwargs) -> TransacaoCreate:
     defaults = dict(
+        usuario_id=1,
         tipo=TipoEnum.GASTO,
         valor=Decimal("50.00"),
         descricao="mercado",
