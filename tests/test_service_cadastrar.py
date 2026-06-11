@@ -640,6 +640,44 @@ async def test_executar_lote_gera_grupo_completo_com_status():
 
 
 @pytest.mark.asyncio
+async def test_executar_lote_receitas_categoria_receita_e_pago():
+    from app.agents.extrator_lista import ExtracaoListaResult, ItemLista
+
+    hoje = date.today()
+    extracao_lista = ExtracaoListaResult(
+        itens=[
+            ItemLista(
+                descricao="salário do bradesco",
+                valor=Decimal("7463.00"),
+                data=hoje,
+                tipo="RECEITA",
+                categoria="RECEITA",
+            ),
+            ItemLista(
+                descricao="décimo terceiro",
+                valor=Decimal("4644.00"),
+                data=hoje,
+                tipo="RECEITA",
+                categoria="GASTOS_PONTUAIS",
+            ),
+        ]
+    )
+    extrator_lista = MagicMock()
+    extrator_lista.extrair = AsyncMock(return_value=extracao_lista)
+
+    service, _, _, _, repository, _ = _make_service(None, None, criar_lote_result=[MagicMock()] * 2)
+
+    await service.executar_lote("recebi salário e 13º", extrator_lista)
+
+    lote = repository.criar_lote.call_args[0][0]
+    assert len(lote) == 2
+    for t in lote:
+        assert t.tipo == "RECEITA"
+        assert t.categoria == CategoriaEnum.RECEITA
+        assert t.status == StatusEnum.PAGO
+
+
+@pytest.mark.asyncio
 async def test_mensagem_resposta_simples_e_parcelada():
     hoje = date.today()
     extracao_simples = ExtracaoResult(

@@ -81,12 +81,20 @@ class CadastrarService:
         lote_total = []
         for item in extracao.itens:
             grupo_parcela_id = uuid4()
-            categoria = CategoriaEnum(item.categoria)
+            if item.tipo == "RECEITA":
+                categoria = CategoriaEnum.RECEITA
+            elif item.tipo == "INVESTIMENTO":
+                categoria = CategoriaEnum.INVESTIMENTO
+            else:
+                categoria = CategoriaEnum(item.categoria)
             embedding = await self._embedder.gerar_para_transacao(
                 item.tipo, categoria, item.descricao, item.data
             )
             datas = datas_do_grupo(item.data, item.parcela_numero, item.parcela_total)
             for i, data_parcela in enumerate(datas):
+                status = status_por_data(data_parcela, hoje)
+                if item.tipo == "RECEITA" and data_parcela <= hoje:
+                    status = StatusEnum.PAGO
                 lote_total.append(
                     TransacaoCreate(
                         tipo=item.tipo,
@@ -98,7 +106,7 @@ class CadastrarService:
                         parcela_total=item.parcela_total,
                         grupo_parcela_id=grupo_parcela_id,
                         embedding=embedding,
-                        status=status_por_data(data_parcela, hoje),
+                        status=status,
                     )
                 )
         transacoes = await self._repository.criar_lote(lote_total)
