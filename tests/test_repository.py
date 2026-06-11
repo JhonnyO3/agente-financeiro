@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.enums import CategoriaEnum, TipoEnum
-from app.repositories.dtos import TransacaoCreate, TransacaoUpdate
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.models.enums import CategoriaEnum, TipoEnum
+from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
+from backend.repositories.transacao_repository import TransacaoRepository
 
 
 def make_dto(**kwargs) -> TransacaoCreate:
@@ -44,7 +44,7 @@ async def test_criar_chama_add_e_flush():
 
 @pytest.mark.asyncio
 async def test_criar_persiste_campos_novos():
-    from app.models.enums import FormaPagamentoEnum, StatusEnum
+    from backend.models.enums import FormaPagamentoEnum, StatusEnum
 
     session = MagicMock()
     session.add = MagicMock()
@@ -69,7 +69,7 @@ async def test_criar_persiste_campos_novos():
 
 @pytest.mark.asyncio
 async def test_criar_sem_campos_novos_usa_defaults_do_dto():
-    from app.models.enums import FormaPagamentoEnum, StatusEnum
+    from backend.models.enums import FormaPagamentoEnum, StatusEnum
 
     session = MagicMock()
     session.add = MagicMock()
@@ -89,7 +89,7 @@ async def test_criar_sem_campos_novos_usa_defaults_do_dto():
 
 @pytest.mark.asyncio
 async def test_criar_lote_persiste_campos_novos():
-    from app.models.enums import FormaPagamentoEnum, StatusEnum
+    from backend.models.enums import FormaPagamentoEnum, StatusEnum
 
     session = MagicMock()
     session.add_all = MagicMock()
@@ -189,7 +189,7 @@ async def test_buscar_semantico_com_distancia_retorna_none_quando_vazio():
 
 @pytest.mark.asyncio
 async def test_agregar_por_categoria_retorna_decimal():
-    from app.models.transacao import Transacao
+    from backend.models.transacao import Transacao
 
     mock_result = MagicMock()
     mock_result.all.return_value = [

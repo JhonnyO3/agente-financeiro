@@ -6,7 +6,7 @@ from sqlalchemy import BOOLEAN, DATE, DECIMAL, INTEGER, TEXT, TIMESTAMP, String,
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 
 
 class Base(DeclarativeBase):

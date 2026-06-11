@@ -11,7 +11,7 @@ pulados e listados no relatório com o motivo.
 
 A lógica de decisão fica em funções puras (``agrupar_por_grupo``,
 ``analisar_grupo``, ``formatar_relatorio``) testáveis sem banco; apenas
-``main`` abre sessão real via ``app.repositories.database``.
+``main`` abre sessão real via ``agent.db``.
 """
 
 import argparse
@@ -21,8 +21,8 @@ from datetime import date
 from typing import Iterable, Sequence
 from uuid import UUID
 
-from app.repositories.dtos import TransacaoCreate
-from app.services.parcelas import adicionar_meses, status_por_data
+from backend.repositories.dtos import TransacaoCreate
+from agent.services.parcelas import adicionar_meses, status_por_data
 
 PERIODO_INICIO = date(2000, 1, 1)
 PERIODO_FIM = date(2035, 12, 31)
@@ -183,8 +183,8 @@ async def main() -> None:
     args = parser.parse_args()
 
     # Imports tardios: exigem settings (.env) e conexão com o banco.
-    from app.repositories.database import AsyncSessionLocal
-    from app.repositories.transacao_repository import TransacaoRepository
+    from agent.db import AsyncSessionLocal
+    from backend.repositories.transacao_repository import TransacaoRepository
 
     async with AsyncSessionLocal() as session:
         async with session.begin():

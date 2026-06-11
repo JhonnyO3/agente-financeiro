@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 @pytest.mark.asyncio
 async def test_classificador_cadastrar():
-    from app.agents.classificador import Classificador, IntencaoResult
+    from agent.agents.classificador import Classificador, IntencaoResult
 
     resultado = IntencaoResult(intencao="CADASTRAR", confianca="alta")
 
-    with patch("app.agents.classificador.criar_llm") as mock_criar:
+    with patch("agent.agents.classificador.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -25,9 +25,9 @@ async def test_classificador_cadastrar():
 
 @pytest.mark.asyncio
 async def test_categorizador_investimento_sem_llm():
-    from app.agents.categorizador import Categorizador, CategorizacaoResult
+    from agent.agents.categorizador import Categorizador, CategorizacaoResult
 
-    with patch("app.agents.categorizador.criar_llm") as mock_criar:
+    with patch("agent.agents.categorizador.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock()
@@ -42,11 +42,11 @@ async def test_categorizador_investimento_sem_llm():
 
 @pytest.mark.asyncio
 async def test_categorizador_curso_vira_educacao():
-    from app.agents.categorizador import Categorizador, CategorizacaoResult
+    from agent.agents.categorizador import Categorizador, CategorizacaoResult
 
     resultado = CategorizacaoResult(categoria="EDUCACAO")
 
-    with patch("app.agents.categorizador.criar_llm") as mock_criar:
+    with patch("agent.agents.categorizador.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -61,11 +61,11 @@ async def test_categorizador_curso_vira_educacao():
 
 @pytest.mark.asyncio
 async def test_categorizador_objeto_vira_compras():
-    from app.agents.categorizador import Categorizador, CategorizacaoResult
+    from agent.agents.categorizador import Categorizador, CategorizacaoResult
 
     resultado = CategorizacaoResult(categoria="COMPRAS")
 
-    with patch("app.agents.categorizador.criar_llm") as mock_criar:
+    with patch("agent.agents.categorizador.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -78,7 +78,7 @@ async def test_categorizador_objeto_vira_compras():
 
 
 def test_categorizacao_result_literal_sem_outros():
-    from app.agents.categorizador import CategorizacaoResult
+    from agent.agents.categorizador import CategorizacaoResult
 
     args = CategorizacaoResult.model_fields["categoria"].annotation.__args__
     assert set(args) == {
@@ -95,7 +95,7 @@ def test_categorizacao_result_literal_sem_outros():
 
 
 def test_extracao_result_retrocompatibilidade_defaults():
-    from app.agents.extrator import ExtracaoResult
+    from agent.agents.extrator import ExtracaoResult
 
     dados_antigos = {
         "tipo": "GASTO",
@@ -116,7 +116,7 @@ def test_extracao_result_retrocompatibilidade_defaults():
 
 
 def test_extracao_result_parcela_atual_e_valor_por_parcela():
-    from app.agents.extrator import ExtracaoResult
+    from agent.agents.extrator import ExtracaoResult
 
     resultado = ExtracaoResult(
         tipo="GASTO",
@@ -137,7 +137,7 @@ def test_extracao_result_parcela_atual_e_valor_por_parcela():
 
 
 def test_extracao_result_aceita_tipo_receita():
-    from app.agents.extrator import ExtracaoResult
+    from agent.agents.extrator import ExtracaoResult
 
     resultado = ExtracaoResult(
         tipo="RECEITA",
@@ -152,7 +152,7 @@ def test_extracao_result_aceita_tipo_receita():
 
 
 def test_extracao_result_campos_novos_preenchidos():
-    from app.agents.extrator import ExtracaoResult
+    from agent.agents.extrator import ExtracaoResult
 
     resultado = ExtracaoResult(
         tipo="GASTO",
@@ -173,7 +173,7 @@ def test_extracao_result_campos_novos_preenchidos():
 
 @pytest.mark.asyncio
 async def test_extrator_extrair_retorna_campos_v2():
-    from app.agents.extrator import Extrator, ExtracaoResult
+    from agent.agents.extrator import Extrator, ExtracaoResult
 
     resultado = ExtracaoResult(
         tipo="RECEITA",
@@ -185,7 +185,7 @@ async def test_extrator_extrair_retorna_campos_v2():
         forma_pagamento="PIX",
     )
 
-    with patch("app.agents.extrator.criar_llm") as mock_criar:
+    with patch("agent.agents.extrator.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -203,11 +203,11 @@ async def test_extrator_extrair_retorna_campos_v2():
 
 @pytest.mark.asyncio
 async def test_extrator_parcelas_a_vista():
-    from app.agents.extrator_parcelas import ExtratorParcelas, ExtratorParcelasResult
+    from agent.agents.extrator_parcelas import ExtratorParcelas, ExtratorParcelasResult
 
     resultado = ExtratorParcelasResult(parcela_total=1)
 
-    with patch("app.agents.extrator_parcelas.criar_llm") as mock_criar:
+    with patch("agent.agents.extrator_parcelas.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -221,11 +221,11 @@ async def test_extrator_parcelas_a_vista():
 
 @pytest.mark.asyncio
 async def test_extrator_parcelas_tres_vezes():
-    from app.agents.extrator_parcelas import ExtratorParcelas, ExtratorParcelasResult
+    from agent.agents.extrator_parcelas import ExtratorParcelas, ExtratorParcelasResult
 
     resultado = ExtratorParcelasResult(parcela_total=3)
 
-    with patch("app.agents.extrator_parcelas.criar_llm") as mock_criar:
+    with patch("agent.agents.extrator_parcelas.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -239,11 +239,11 @@ async def test_extrator_parcelas_tres_vezes():
 
 @pytest.mark.asyncio
 async def test_extrator_alteracao_novo_valor():
-    from app.agents.extrator_alteracao import ExtratorAlteracao, ExtracaoAlteracaoResult
+    from agent.agents.extrator_alteracao import ExtratorAlteracao, ExtracaoAlteracaoResult
 
     resultado = ExtracaoAlteracaoResult(novo_valor=Decimal("80"))
 
-    with patch("app.agents.extrator_alteracao.criar_llm") as mock_criar:
+    with patch("agent.agents.extrator_alteracao.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -260,11 +260,11 @@ async def test_extrator_alteracao_novo_valor():
 
 @pytest.mark.asyncio
 async def test_filtro_consulta_mensal():
-    from app.agents.filtro_consulta import FiltroConsulta, FiltroConsultaResult
+    from agent.agents.filtro_consulta import FiltroConsulta, FiltroConsultaResult
 
     resultado = FiltroConsultaResult(tipo_consulta="mensal", mes=6, ano=2026)
 
-    with patch("app.agents.filtro_consulta.criar_llm") as mock_criar:
+    with patch("agent.agents.filtro_consulta.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -279,11 +279,11 @@ async def test_filtro_consulta_mensal():
 
 @pytest.mark.asyncio
 async def test_confirmacao_sim_nao():
-    from app.agents.confirmacao_chain import ConfirmacaoChain, ConfirmacaoResposta
+    from agent.agents.confirmacao_chain import ConfirmacaoChain, ConfirmacaoResposta
 
     resultado = ConfirmacaoResposta(tipo="sim")
 
-    with patch("app.agents.confirmacao_chain.criar_llm") as mock_criar:
+    with patch("agent.agents.confirmacao_chain.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -297,11 +297,11 @@ async def test_confirmacao_sim_nao():
 
 @pytest.mark.asyncio
 async def test_confirmacao_escopo_parcela():
-    from app.agents.confirmacao_chain import ConfirmacaoChain, ConfirmacaoResposta
+    from agent.agents.confirmacao_chain import ConfirmacaoChain, ConfirmacaoResposta
 
     resultado = ConfirmacaoResposta(tipo="parcela")
 
-    with patch("app.agents.confirmacao_chain.criar_llm") as mock_criar:
+    with patch("agent.agents.confirmacao_chain.criar_llm") as mock_criar:
         mock_chain = MagicMock()
         mock_chain.with_structured_output.return_value = mock_chain
         mock_chain.ainvoke = AsyncMock(return_value=resultado)
@@ -315,11 +315,11 @@ async def test_confirmacao_escopo_parcela():
 
 @pytest.mark.asyncio
 async def test_embedder_gerar_para_transacao():
-    from app.agents.embedder import Embedder
+    from agent.agents.embedder import Embedder
 
     vetor_fake = [0.1] * 1536
 
-    with patch("app.agents.embedder.OpenAIEmbeddings") as mock_emb_cls:
+    with patch("agent.agents.embedder.OpenAIEmbeddings") as mock_emb_cls:
         mock_client = MagicMock()
         mock_client.aembed_query = AsyncMock(return_value=vetor_fake)
         mock_emb_cls.return_value = mock_client
@@ -337,11 +337,11 @@ async def test_embedder_gerar_para_transacao():
 
 @pytest.mark.asyncio
 async def test_embedder_gerar_para_transacao_sem_descricao():
-    from app.agents.embedder import Embedder
+    from agent.agents.embedder import Embedder
 
     vetor_fake = [0.2] * 1536
 
-    with patch("app.agents.embedder.OpenAIEmbeddings") as mock_emb_cls:
+    with patch("agent.agents.embedder.OpenAIEmbeddings") as mock_emb_cls:
         mock_client = MagicMock()
         mock_client.aembed_query = AsyncMock(return_value=vetor_fake)
         mock_emb_cls.return_value = mock_client
@@ -360,7 +360,7 @@ async def test_embedder_gerar_para_transacao_sem_descricao():
 def test_coagir_data_aceita_iso_e_ddmmyyyy():
     from datetime import date
 
-    from app.agents.base import coagir_data
+    from agent.agents.base import coagir_data
 
     assert coagir_data("2026-06-10") == date(2026, 6, 10)
     assert coagir_data("10/06/2026") == date(2026, 6, 10)
@@ -371,7 +371,7 @@ def test_coagir_data_aceita_iso_e_ddmmyyyy():
 def test_extracao_result_aceita_data_ddmmyyyy():
     from datetime import date
 
-    from app.agents.extrator import ExtracaoResult
+    from agent.agents.extrator import ExtracaoResult
 
     resultado = ExtracaoResult(
         tipo="INVESTIMENTO",

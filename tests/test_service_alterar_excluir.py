@@ -6,11 +6,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.enums import CategoriaEnum, TipoEnum
-from app.repositories.dtos import TransacaoUpdate
-from app.services.alterar import AlterarService
-from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
-from app.services.excluir import ExcluirService
+from backend.models.enums import CategoriaEnum, TipoEnum
+from backend.repositories.dtos import TransacaoUpdate
+from agent.services.alterar import AlterarService
+from agent.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
+from agent.services.excluir import ExcluirService
 
 
 def _make_transacao(parcela_total: int = 1, parcela_numero: int = 1, distancia: float = 0.5):

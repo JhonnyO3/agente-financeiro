@@ -14,8 +14,8 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from app.models.enums import FormaPagamentoEnum, StatusEnum
-from app.repositories.dtos import TransacaoCreate, TransacaoUpdate
+from backend.models.enums import FormaPagamentoEnum, StatusEnum
+from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from backend.dependencies import get_session, get_session_begin
 from backend.main import app
 

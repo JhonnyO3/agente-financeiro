@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.repositories.transacao_repository import TransacaoRepository
 from backend.dtos.graficos import ProjecaoMes
 from backend.services.graficos import _como_str, _valor_str, fmt_mes
 from backend.services.janela import janela_meses, ultimo_dia

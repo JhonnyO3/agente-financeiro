@@ -5,11 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from app.agents.extrator import ExtracaoResult
-from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
-from app.services.cadastrar import CadastrarService
-from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
-from app.services.parcelas import adicionar_meses
+from agent.agents.extrator import ExtracaoResult
+from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
+from agent.services.cadastrar import CadastrarService
+from agent.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
+from agent.services.parcelas import adicionar_meses
 
 
 def _cat(valor):
@@ -586,7 +586,7 @@ async def test_recorrencia_negada_grava_recorrente_false():
 
 @pytest.mark.asyncio
 async def test_executar_lote_gera_grupo_completo_com_status():
-    from app.agents.extrator_lista import ExtracaoListaResult, ItemLista
+    from agent.agents.extrator_lista import ExtracaoListaResult, ItemLista
 
     hoje = date.today()
     extracao_lista = ExtracaoListaResult(
@@ -641,7 +641,7 @@ async def test_executar_lote_gera_grupo_completo_com_status():
 
 @pytest.mark.asyncio
 async def test_executar_lote_receitas_categoria_receita_e_pago():
-    from app.agents.extrator_lista import ExtracaoListaResult, ItemLista
+    from agent.agents.extrator_lista import ExtracaoListaResult, ItemLista
 
     hoje = date.today()
     extracao_lista = ExtracaoListaResult(

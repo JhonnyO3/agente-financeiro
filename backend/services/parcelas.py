@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.repositories.transacao_repository import TransacaoRepository
 
 _DATA_TETO = date(2030, 12, 31)
 

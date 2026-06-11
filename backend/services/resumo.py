@@ -3,8 +3,8 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import TipoEnum
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.models.enums import TipoEnum
+from backend.repositories.transacao_repository import TransacaoRepository
 
 _DOIS_DECIMAIS = Decimal("0.01")
 _DATA_PISO = date(2000, 1, 1)

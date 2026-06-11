@@ -9,7 +9,7 @@ os.environ.setdefault("EVOLUTION_API_KEY", "test-key")
 os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "5511957818539")
 
 from httpx import AsyncClient, ASGITransport
-from app.entrypoint.main import app
+from agent.entrypoint.main import app
 
 AUTHORIZED_NUMBER = "5511957818539"
 

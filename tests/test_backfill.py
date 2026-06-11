@@ -55,7 +55,7 @@ def _make_transacao(
 
 
 def test_analisar_grupo_incompleto_cria_faltantes_com_datas_e_status():
-    from app.models.enums import StatusEnum
+    from backend.models.enums import StatusEnum
     from scripts.backfill_parcelas import analisar_grupo
 
     existente = _make_transacao(parcela_numero=2, data=date(2026, 6, 10), parcela_total=4)

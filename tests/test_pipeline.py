@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from app.agents.classificador import IntencaoResult
-from app.agents.confirmacao_chain import ConfirmacaoResposta
-from app.agents.extrator_parcelas import ExtratorParcelasResult
-from app.services.cadastrar import ResultadoCadastro
-from app.services.confirmacao_state import EstadoConfirmacao
-from app.services.pipeline import Pipeline
+from agent.agents.classificador import IntencaoResult
+from agent.agents.confirmacao_chain import ConfirmacaoResposta
+from agent.agents.extrator_parcelas import ExtratorParcelasResult
+from agent.services.cadastrar import ResultadoCadastro
+from agent.services.confirmacao_state import EstadoConfirmacao
+from agent.services.pipeline import Pipeline
 
 
 def _make_pipeline(**overrides):

@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 
 
 @dataclass

@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from pydantic import BaseModel, field_validator
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.base import coagir_data, criar_llm
+from agent.agents.base import coagir_data, criar_llm
 
 
 class ItemLista(BaseModel):

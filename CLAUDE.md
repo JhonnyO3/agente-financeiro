@@ -15,7 +15,7 @@ uv run pytest tests/ -v
 uv run pytest tests/test_pipeline.py::test_sem_estado_classificador_chamado -v
 
 # Start the server
-uv run uvicorn app.entrypoint.main:app --reload
+uv run uvicorn agent.entrypoint.main:app --reload
 
 # Run migrations
 uv run alembic upgrade head
@@ -32,14 +32,17 @@ WhatsApp message → Evolution API webhook → FastAPI → 10s debounce → Pipe
 
 ### Layer rules
 
-- `app/entrypoint/` — HTTP boundary only. No business logic. `webhook.py` filters unauthorized numbers and non-text messages silently (returns 200), then hands off to `debouncer`.
-- `app/services/` — orchestrate agents + repository. All math in `Decimal`, never delegated to LLM.
-- `app/agents/` — LangChain chains against OpenAI. Each chain uses `with_structured_output(PydanticModel)`. Prompts loaded from `prompts/` via `carregar_prompt(nome)`.
-- `app/repositories/` — SQLAlchemy 2.0 async. `TransacaoRepository` takes a single `AsyncSession`; the wiring adapter `_SessionFactoryRepository` in `main.py` wraps it with per-call sessions using `session_factory.begin()` (auto-commit) for writes and `session_factory()` for reads.
+The codebase is split into three packages: `agent/` (WhatsApp orchestration), `backend/` (data layer + REST API), and `frontend/` (Flask dashboard). The data layer (`backend/models/`, `backend/repositories/`) is shared in-process by the agent.
+
+- `agent/entrypoint/` — HTTP boundary only. No business logic. `webhook.py` filters unauthorized numbers and non-text messages silently (returns 200), then hands off to `debouncer`.
+- `agent/services/` — orchestrate agents + repository. All math in `Decimal`, never delegated to LLM.
+- `agent/agents/` — LangChain chains against OpenAI. Each chain uses `with_structured_output(PydanticModel)`. Prompts loaded from `prompts/` via `carregar_prompt(nome)`.
+- `backend/models/` — SQLAlchemy 2.0 ORM. The declarative `Base` lives in `backend/models/transacao.py`.
+- `backend/repositories/` — SQLAlchemy 2.0 async. `TransacaoRepository` takes a single `AsyncSession`; the wiring adapter `_SessionFactoryRepository` in `agent/entrypoint/main.py` wraps it with per-call sessions using `session_factory.begin()` (auto-commit) for writes and `session_factory()` for reads. The agent's engine helper is `agent/db.py` (uses `agent.config`); the backend's is `backend/db.py` (uses `backend.config`).
 
 ### Dependency injection
 
-Everything is wired in `app/entrypoint/main.py` lifespan. No global `Depends()`. Services are stored in `app.state` and accessed via `request.app.state` in the webhook.
+Everything is wired in `agent/entrypoint/main.py` lifespan. No global `Depends()`. Services are stored in `app.state` and accessed via `request.app.state` in the webhook.
 
 ### Conversation state machine (`ConfirmacaoState`)
 

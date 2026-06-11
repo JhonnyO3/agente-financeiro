@@ -2,29 +2,29 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from app.config import settings
-from app.entrypoint.webhook import router as webhook_router
-from app.entrypoint.debounce import MessageDebouncer
-from app.integrations.evolution_client import EvolutionApiClient
-from app.repositories.transacao_repository import TransacaoRepository
-from app.agents.embedder import Embedder
-from app.agents.classificador import Classificador
-from app.agents.extrator import Extrator
-from app.agents.extrator_alteracao import ExtratorAlteracao
-from app.agents.extrator_parcelas import ExtratorParcelas
-from app.agents.categorizador import Categorizador
-from app.agents.filtro_consulta import FiltroConsulta
-from app.agents.confirmacao_chain import ConfirmacaoChain
-from app.agents.extrator_exclusao_lote import ExtratorExclusaoLote
-from app.agents.extrator_lista import ExtratorLista
-from app.services.confirmacao_state import ConfirmacaoState
-from app.services.cadastrar import CadastrarService
-from app.services.alterar import AlterarService
-from app.services.excluir import ExcluirService
-from app.services.marcar_pago import MarcarPagoService
-from app.services.consultar import ConsultarService
-from app.services.formatador import Formatador
-from app.services.pipeline import Pipeline
+from agent.config import settings
+from agent.entrypoint.webhook import router as webhook_router
+from agent.entrypoint.debounce import MessageDebouncer
+from agent.integrations.evolution_client import EvolutionApiClient
+from backend.repositories.transacao_repository import TransacaoRepository
+from agent.agents.embedder import Embedder
+from agent.agents.classificador import Classificador
+from agent.agents.extrator import Extrator
+from agent.agents.extrator_alteracao import ExtratorAlteracao
+from agent.agents.extrator_parcelas import ExtratorParcelas
+from agent.agents.categorizador import Categorizador
+from agent.agents.filtro_consulta import FiltroConsulta
+from agent.agents.confirmacao_chain import ConfirmacaoChain
+from agent.agents.extrator_exclusao_lote import ExtratorExclusaoLote
+from agent.agents.extrator_lista import ExtratorLista
+from agent.services.confirmacao_state import ConfirmacaoState
+from agent.services.cadastrar import CadastrarService
+from agent.services.alterar import AlterarService
+from agent.services.excluir import ExcluirService
+from agent.services.marcar_pago import MarcarPagoService
+from agent.services.consultar import ConsultarService
+from agent.services.formatador import Formatador
+from agent.services.pipeline import Pipeline
 
 
 class _SessionFactoryRepository:

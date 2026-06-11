@@ -1,4 +1,4 @@
-from app.services.confirmacao_state import EstadoConfirmacao
+from agent.services.confirmacao_state import EstadoConfirmacao
 
 
 class Pipeline:

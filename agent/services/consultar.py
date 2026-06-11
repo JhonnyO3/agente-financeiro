@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from typing import Literal
 
-from app.models.enums import CategoriaEnum
+from backend.models.enums import CategoriaEnum
 
 
 @dataclass

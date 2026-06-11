@@ -1,8 +1,8 @@
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from app.agents.base import criar_llm_formatacao, carregar_prompt
-from app.services.cadastrar import ResultadoCadastro, ResultadoCadastroLote
-from app.services.consultar import ResultadoConsulta
+from agent.agents.base import criar_llm_formatacao, carregar_prompt
+from agent.services.cadastrar import ResultadoCadastro, ResultadoCadastroLote
+from agent.services.consultar import ResultadoConsulta
 
 
 class Formatador:

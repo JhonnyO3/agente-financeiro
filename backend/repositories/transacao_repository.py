@@ -7,8 +7,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
-from app.models.transacao import Transacao
-from app.repositories.dtos import AgregadoCategoria, TransacaoCreate, TransacaoUpdate
+from backend.models.transacao import Transacao
+from backend.repositories.dtos import AgregadoCategoria, TransacaoCreate, TransacaoUpdate
 
 
 class TransacaoRepository:

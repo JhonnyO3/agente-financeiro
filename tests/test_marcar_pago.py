@@ -6,10 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from app.models.enums import CategoriaEnum, StatusEnum, TipoEnum
-from app.repositories.dtos import TransacaoUpdate
-from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
-from app.services.marcar_pago import MarcarPagoService
+from backend.models.enums import CategoriaEnum, StatusEnum, TipoEnum
+from backend.repositories.dtos import TransacaoUpdate
+from agent.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
+from agent.services.marcar_pago import MarcarPagoService
 
 
 def _make_transacao(parcela_total: int = 1, parcela_numero: int = 1):

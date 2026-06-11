@@ -2,7 +2,7 @@ from datetime import date
 from typing import Literal
 from pydantic import BaseModel
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agents.base import criar_llm
+from agent.agents.base import criar_llm
 
 
 class ExclusaoLoteResult(BaseModel):

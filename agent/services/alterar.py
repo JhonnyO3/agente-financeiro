@@ -1,10 +1,10 @@
 from datetime import date
 
-from app.agents.embedder import Embedder
-from app.agents.extrator_alteracao import ExtratorAlteracao
-from app.repositories.dtos import TransacaoUpdate
-from app.repositories.transacao_repository import TransacaoRepository
-from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
+from agent.agents.embedder import Embedder
+from agent.agents.extrator_alteracao import ExtratorAlteracao
+from backend.repositories.dtos import TransacaoUpdate
+from backend.repositories.transacao_repository import TransacaoRepository
+from agent.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
 
 _NAO_ENCONTRADO = "Não encontrei nenhum registro parecido com o que você descreveu. Pode detalhar mais?"
 

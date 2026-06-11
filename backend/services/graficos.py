@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.repositories.transacao_repository import TransacaoRepository
 from backend.dtos.graficos import CATEGORIAS_GASTO, EvolucaoMes
 from backend.services.janela import janela_meses, ultimo_dia
 

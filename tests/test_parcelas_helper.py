@@ -2,40 +2,40 @@ from datetime import date, timedelta
 
 
 def test_adicionar_meses_preserva_dia():
-    from app.services.parcelas import adicionar_meses
+    from agent.services.parcelas import adicionar_meses
 
     assert adicionar_meses(date(2026, 6, 10), 1) == date(2026, 7, 10)
     assert adicionar_meses(date(2026, 6, 10), -1) == date(2026, 5, 10)
 
 
 def test_adicionar_meses_clampa_ultimo_dia_do_mes():
-    from app.services.parcelas import adicionar_meses
+    from agent.services.parcelas import adicionar_meses
 
     assert adicionar_meses(date(2026, 1, 31), 1) == date(2026, 2, 28)
 
 
 def test_adicionar_meses_clampa_em_ano_bissexto():
-    from app.services.parcelas import adicionar_meses
+    from agent.services.parcelas import adicionar_meses
 
     assert adicionar_meses(date(2024, 1, 31), 1) == date(2024, 2, 29)
 
 
 def test_adicionar_meses_atravessa_virada_de_ano():
-    from app.services.parcelas import adicionar_meses
+    from agent.services.parcelas import adicionar_meses
 
     assert adicionar_meses(date(2026, 12, 15), 1) == date(2027, 1, 15)
     assert adicionar_meses(date(2026, 1, 15), -1) == date(2025, 12, 15)
 
 
 def test_adicionar_meses_zero_retorna_mesma_data():
-    from app.services.parcelas import adicionar_meses
+    from agent.services.parcelas import adicionar_meses
 
     assert adicionar_meses(date(2026, 6, 10), 0) == date(2026, 6, 10)
 
 
 def test_status_por_data_passado_pago_futuro_pendente():
-    from app.models.enums import StatusEnum
-    from app.services.parcelas import status_por_data
+    from backend.models.enums import StatusEnum
+    from agent.services.parcelas import status_por_data
 
     hoje = date.today()
     ontem = hoje - timedelta(days=1)
@@ -46,16 +46,16 @@ def test_status_por_data_passado_pago_futuro_pendente():
 
 
 def test_status_por_data_hoje_e_pendente():
-    from app.models.enums import StatusEnum
-    from app.services.parcelas import status_por_data
+    from backend.models.enums import StatusEnum
+    from agent.services.parcelas import status_por_data
 
     hoje = date(2026, 6, 10)
     assert status_por_data(hoje, hoje=hoje) == StatusEnum.PENDENTE
 
 
 def test_status_por_data_com_hoje_explicito():
-    from app.models.enums import StatusEnum
-    from app.services.parcelas import status_por_data
+    from backend.models.enums import StatusEnum
+    from agent.services.parcelas import status_por_data
 
     hoje = date(2026, 6, 10)
     assert status_por_data(date(2026, 6, 9), hoje=hoje) == StatusEnum.PAGO
@@ -63,7 +63,7 @@ def test_status_por_data_com_hoje_explicito():
 
 
 def test_datas_do_grupo_a_partir_da_parcela_atual():
-    from app.services.parcelas import datas_do_grupo
+    from agent.services.parcelas import datas_do_grupo
 
     resultado = datas_do_grupo(date(2026, 6, 10), parcela_atual=2, parcela_total=4)
 
@@ -76,13 +76,13 @@ def test_datas_do_grupo_a_partir_da_parcela_atual():
 
 
 def test_datas_do_grupo_parcela_unica():
-    from app.services.parcelas import datas_do_grupo
+    from agent.services.parcelas import datas_do_grupo
 
     assert datas_do_grupo(date(2026, 6, 10), 1, 1) == [date(2026, 6, 10)]
 
 
 def test_datas_do_grupo_primeira_parcela_avanca():
-    from app.services.parcelas import datas_do_grupo
+    from agent.services.parcelas import datas_do_grupo
 
     resultado = datas_do_grupo(date(2026, 1, 31), parcela_atual=1, parcela_total=3)
 
@@ -94,7 +94,7 @@ def test_datas_do_grupo_primeira_parcela_avanca():
 
 
 def test_enums_novos_existem():
-    from app.models.enums import (
+    from backend.models.enums import (
         CategoriaEnum,
         FormaPagamentoEnum,
         StatusEnum,
@@ -113,7 +113,7 @@ def test_enums_novos_existem():
 
 
 def test_enums_removidos_nao_existem():
-    from app.models.enums import CategoriaEnum, FormaPagamentoEnum
+    from backend.models.enums import CategoriaEnum, FormaPagamentoEnum
 
     assert not hasattr(CategoriaEnum, "PARCELAMENTOS")
     assert not hasattr(CategoriaEnum, "OUTROS")
@@ -125,13 +125,13 @@ def test_transacao_create_defaults_retrocompativeis():
     from decimal import Decimal
     from uuid import uuid4
 
-    from app.models.enums import (
+    from backend.models.enums import (
         CategoriaEnum,
         FormaPagamentoEnum,
         StatusEnum,
         TipoEnum,
     )
-    from app.repositories.dtos import TransacaoCreate
+    from backend.repositories.dtos import TransacaoCreate
 
     dto = TransacaoCreate(
         tipo=TipoEnum.GASTO,
@@ -153,7 +153,7 @@ def test_transacao_create_defaults_retrocompativeis():
 
 
 def test_transacao_update_defaults_none():
-    from app.repositories.dtos import TransacaoUpdate
+    from backend.repositories.dtos import TransacaoUpdate
 
     dto = TransacaoUpdate()
 

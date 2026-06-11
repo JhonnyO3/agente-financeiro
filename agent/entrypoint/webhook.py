@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, Request
-from app.config import settings
+from agent.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

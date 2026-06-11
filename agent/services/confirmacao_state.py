@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 from uuid import UUID
 
-from app.repositories.dtos import TransacaoUpdate
+from backend.repositories.dtos import TransacaoUpdate
 
 _UTC = timezone.utc
 

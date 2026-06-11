@@ -6,10 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from app.agents.filtro_consulta import FiltroConsultaResult
-from app.models.enums import CategoriaEnum, TipoEnum
-from app.repositories.dtos import AgregadoCategoria
-from app.services.consultar import ConsultarService, ParcelaStatus, ResultadoConsulta
+from agent.agents.filtro_consulta import FiltroConsultaResult
+from backend.models.enums import CategoriaEnum, TipoEnum
+from backend.repositories.dtos import AgregadoCategoria
+from agent.services.consultar import ConsultarService, ParcelaStatus, ResultadoConsulta
 
 
 def make_service(repository=None, filtro_chain=None, embedder=None):

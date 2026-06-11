@@ -48,7 +48,7 @@ docker compose up -d
 uv run alembic upgrade head
 
 # Iniciar o servidor
-uv run uvicorn app.entrypoint.main:app --reload
+uv run uvicorn agent.entrypoint.main:app --reload
 ```
 
 Configure o webhook da Evolution API apontando para `POST /webhook/mensagem`.

@@ -10,7 +10,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.models.transacao import Base
+from backend.models.transacao import Base
 
 config = context.config
 

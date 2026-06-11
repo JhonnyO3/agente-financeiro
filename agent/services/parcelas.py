@@ -3,7 +3,7 @@
 import calendar
 from datetime import date
 
-from app.models.enums import FormaPagamentoEnum, StatusEnum
+from backend.models.enums import FormaPagamentoEnum, StatusEnum
 
 _FORMAS_A_VISTA = {FormaPagamentoEnum.PIX, FormaPagamentoEnum.CARTAO_DEBITO}
 

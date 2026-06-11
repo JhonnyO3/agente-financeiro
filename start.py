@@ -6,7 +6,7 @@ import threading
 
 BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"]
 FRONTEND_CMD = ["uv", "run", "flask", "--app", "frontend.app", "run", "--host", "127.0.0.1", "--port", "5000"]
-AGENTE_CMD = ["uv", "run", "uvicorn", "app.entrypoint.main:app", "--host", "127.0.0.1", "--port", "8001"]
+AGENTE_CMD = ["uv", "run", "uvicorn", "agent.entrypoint.main:app", "--host", "127.0.0.1", "--port", "8001"]
 
 IS_WINDOWS = os.name == "nt"
 

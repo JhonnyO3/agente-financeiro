@@ -3,10 +3,10 @@ from datetime import date
 from decimal import Decimal, ROUND_DOWN
 from uuid import uuid4
 
-from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
-from app.repositories.dtos import TransacaoCreate
-from app.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
-from app.services.parcelas import (
+from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum
+from backend.repositories.dtos import TransacaoCreate
+from agent.services.confirmacao_state import ConfirmacaoState, EstadoConfirmacao
+from agent.services.parcelas import (
     adicionar_meses,
     datas_do_grupo,
     data_status_por_forma,

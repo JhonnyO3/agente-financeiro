@@ -5,9 +5,9 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
-from app.repositories.dtos import TransacaoCreate, TransacaoUpdate
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
+from backend.repositories.transacao_repository import TransacaoRepository
 from backend.services.resumo import resolver_periodo
 
 POR_PAGINA = 25

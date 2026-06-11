@@ -32,7 +32,7 @@ def test_construir_comandos_inclui_backend_e_frontend():
         "uv",
         "run",
         "uvicorn",
-        "app.entrypoint.main:app",
+        "agent.entrypoint.main:app",
         "--host",
         "127.0.0.1",
         "--port",

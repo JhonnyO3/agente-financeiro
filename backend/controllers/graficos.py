@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.transacao_repository import TransacaoRepository
+from backend.repositories.transacao_repository import TransacaoRepository
 from backend.dependencies import get_session
 from backend.dtos.graficos import EvolucaoMes
 from backend.services.graficos import GraficosService
