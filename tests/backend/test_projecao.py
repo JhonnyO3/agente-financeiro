@@ -80,6 +80,26 @@ def test_projecao_so_traz_meses_com_movimento(monkeypatch):
     assert alvo["qtd_parcelas"] == 2
 
 
+def test_projecao_ignora_meses_passados(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    passado = _mes_futuro(hoje, -2)
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao("GASTO", "COMPRAS", Decimal("10.00"), passado),
+        _FakeTransacao("GASTO", "COMPRAS", Decimal("20.00"), futuro),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    meses = [linha["mes"] for linha in resposta.json()]
+    assert fmt_mes(passado) not in meses
+    assert fmt_mes(futuro) in meses
+
+
 def test_projecao_mantem_qtd_parcelas(monkeypatch):
     hoje = date.today()
     transacoes = [
