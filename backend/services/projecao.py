@@ -11,9 +11,11 @@ class ProjecaoService:
     def __init__(self, repo: TransacaoRepository) -> None:
         self._repo = repo
 
-    async def projecao(self, hoje: date) -> list[ProjecaoMes]:
+    async def projecao(self, hoje: date, usuario_id: int) -> list[ProjecaoMes]:
         meses = janela_meses(hoje)[6:]
-        transacoes = await self._repo.listar_por_periodo(meses[0], ultimo_dia(meses[-1]))
+        transacoes = await self._repo.listar_por_periodo(
+            meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
+        )
 
         somas: dict[tuple[int, int], dict] = {
             (mes.year, mes.month): {

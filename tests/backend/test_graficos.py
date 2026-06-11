@@ -20,23 +20,28 @@ class _FakeRepo:
     def __init__(self, transacoes):
         self._transacoes = transacoes
 
-    async def listar_por_periodo(self, inicio, fim):
+    async def listar_por_periodo(self, inicio, fim, usuario_id=None):
         return [t for t in self._transacoes if inicio <= t.data <= fim]
 
 
 def _build_client(monkeypatch, transacoes):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost/db")
+    from backend.auth.dependencies import UsuarioToken, get_usuario_atual
     from backend.dependencies import get_session
     from backend.main import app
 
     async def _fake_session():
         yield None
 
+    async def _fake_usuario():
+        return UsuarioToken(usuario_id=1, role="USER", email="user@exemplo.com")
+
     monkeypatch.setattr(
         "backend.controllers.graficos.TransacaoRepository",
         lambda session: _FakeRepo(transacoes),
     )
     app.dependency_overrides[get_session] = _fake_session
+    app.dependency_overrides[get_usuario_atual] = _fake_usuario
     client = TestClient(app)
     return app, client, get_session
 

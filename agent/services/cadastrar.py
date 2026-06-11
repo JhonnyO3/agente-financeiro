@@ -41,12 +41,13 @@ def _valores_das_parcelas(
 
 
 class CadastrarService:
-    def __init__(self, repository, embedder, extrator, categorizador, confirmacao_state: ConfirmacaoState):
+    def __init__(self, repository, embedder, extrator, categorizador, confirmacao_state: ConfirmacaoState, usuario_id: int):
         self._repository = repository
         self._embedder = embedder
         self._extrator = extrator
         self._categorizador = categorizador
         self._confirmacao_state = confirmacao_state
+        self._usuario_id = usuario_id
 
     async def executar(self, mensagem: str, numero: str) -> ResultadoCadastro:
         extracao = await self._extrator.extrair(mensagem, date.today())
@@ -97,6 +98,7 @@ class CadastrarService:
                     status = StatusEnum.PAGO
                 lote_total.append(
                     TransacaoCreate(
+                        usuario_id=self._usuario_id,
                         tipo=item.tipo,
                         valor=item.valor,
                         descricao=item.descricao,
@@ -182,6 +184,7 @@ class CadastrarService:
                 status = status_por_data(data_parcela, hoje)
             lote.append(
                 TransacaoCreate(
+                    usuario_id=self._usuario_id,
                     tipo=extracao.tipo,
                     valor=valores[i],
                     descricao=extracao.descricao,

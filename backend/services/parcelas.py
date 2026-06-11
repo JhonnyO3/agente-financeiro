@@ -21,9 +21,11 @@ class GrupoNaoEncontradoError(Exception):
     pass
 
 
-async def listar_ativas(session: AsyncSession) -> list[dict]:
+async def listar_ativas(session: AsyncSession, usuario_id: int) -> list[dict]:
     repo = TransacaoRepository(session)
-    transacoes = await repo.listar_por_periodo(date.today(), _DATA_TETO)
+    transacoes = await repo.listar_por_periodo(
+        date.today(), _DATA_TETO, usuario_id=usuario_id
+    )
 
     grupos: dict[str, list] = {}
     for transacao in transacoes:
@@ -52,14 +54,16 @@ async def listar_ativas(session: AsyncSession) -> list[dict]:
     return itens
 
 
-async def excluir_grupo(session: AsyncSession, grupo_parcela_id: str) -> dict:
+async def excluir_grupo(
+    session: AsyncSession, usuario_id: int, grupo_parcela_id: str
+) -> dict:
     try:
         gid = UUID(grupo_parcela_id)
     except ValueError:
         raise IdInvalidoError("ID inválido")
 
     repo = TransacaoRepository(session)
-    removidos = await repo.excluir_grupo(gid)
+    removidos = await repo.excluir_grupo(gid, usuario_id=usuario_id)
     if removidos == 0:
         raise GrupoNaoEncontradoError("Grupo nao encontrado")
     return {"ok": True, "removidos": removidos}

@@ -14,18 +14,25 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
+from backend.auth.dependencies import UsuarioToken, get_usuario_atual
 from backend.models.enums import FormaPagamentoEnum, StatusEnum
 from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from backend.dependencies import get_session, get_session_begin
 from backend.main import app
+
+USUARIO = UsuarioToken(usuario_id=1, role="USER", email="user@exemplo.com")
 
 
 def _override_session():
     async def _fake():
         yield SimpleNamespace()
 
+    async def _fake_usuario():
+        return USUARIO
+
     app.dependency_overrides[get_session] = _fake
     app.dependency_overrides[get_session_begin] = _fake
+    app.dependency_overrides[get_usuario_atual] = _fake_usuario
 
 
 def fake_repo(**overrides):
@@ -345,7 +352,7 @@ def test_put_atualiza_apenas_campos_enviados():
     assert resposta.status_code == 200
     assert resposta.json() == {"ok": True}
 
-    repo.buscar_por_id.assert_awaited_once_with(1)
+    repo.buscar_por_id.assert_awaited_once_with(1, usuario_id=1)
     id_chamado, dados = repo.atualizar.await_args.args
     assert id_chamado == 1
     assert isinstance(dados, TransacaoUpdate)
@@ -387,8 +394,8 @@ def test_delete_remove_e_retorna_ok():
 
     assert resposta.status_code == 200
     assert resposta.json() == {"ok": True}
-    repo.buscar_por_id.assert_awaited_once_with(5)
-    repo.excluir.assert_awaited_once_with(5)
+    repo.buscar_por_id.assert_awaited_once_with(5, usuario_id=1)
+    repo.excluir.assert_awaited_once_with(5, usuario_id=1)
 
 
 def test_valores_como_string_decimal_duas_casas():

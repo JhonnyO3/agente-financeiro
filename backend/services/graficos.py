@@ -27,9 +27,11 @@ class GraficosService:
     def __init__(self, repo: TransacaoRepository) -> None:
         self._repo = repo
 
-    async def mensal(self, hoje: date) -> list[dict]:
+    async def mensal(self, hoje: date, usuario_id: int) -> list[dict]:
         meses = janela_meses(hoje)
-        transacoes = await self._repo.listar_por_periodo(meses[0], ultimo_dia(meses[-1]))
+        transacoes = await self._repo.listar_por_periodo(
+            meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
+        )
 
         somas: dict[tuple[int, int], dict[str, Decimal]] = defaultdict(
             lambda: defaultdict(lambda: Decimal("0"))
@@ -50,9 +52,11 @@ class GraficosService:
             resultado.append(item)
         return resultado
 
-    async def evolucao(self, hoje: date) -> list[EvolucaoMes]:
+    async def evolucao(self, hoje: date, usuario_id: int) -> list[EvolucaoMes]:
         meses = janela_meses(hoje)
-        transacoes = await self._repo.listar_por_periodo(meses[0], ultimo_dia(meses[-1]))
+        transacoes = await self._repo.listar_por_periodo(
+            meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
+        )
 
         somas: dict[tuple[int, int], dict[str, Decimal]] = defaultdict(
             lambda: {

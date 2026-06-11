@@ -62,6 +62,7 @@ def _serializar(t) -> dict:
 
 async def listar(
     session: AsyncSession,
+    usuario_id: int,
     periodo: str,
     tipo: str | None,
     categoria: str | None,
@@ -73,7 +74,7 @@ async def listar(
 ) -> dict:
     inicio, fim = resolver_periodo(periodo)
     repo = TransacaoRepository(session)
-    transacoes = await repo.listar_por_periodo(inicio, fim)
+    transacoes = await repo.listar_por_periodo(inicio, fim, usuario_id=usuario_id)
 
     filtrada = [
         t
@@ -102,7 +103,7 @@ async def listar(
     }
 
 
-async def criar(session: AsyncSession, body: dict) -> dict:
+async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
     faltando = [
         campo
         for campo in ("data", "valor", "tipo", "categoria")
@@ -141,6 +142,7 @@ async def criar(session: AsyncSession, body: dict) -> dict:
             status = StatusEnum.PENDENTE
 
     transacao = TransacaoCreate(
+        usuario_id=usuario_id,
         tipo=tipo,
         valor=valor,
         descricao=body.get("descricao"),
@@ -161,7 +163,7 @@ async def criar(session: AsyncSession, body: dict) -> dict:
     return {"id": novo.id, "ok": True}
 
 
-async def atualizar(session: AsyncSession, id: int, body: dict) -> dict:
+async def atualizar(session: AsyncSession, usuario_id: int, id: int, body: dict) -> dict:
     campos = {}
     try:
         if "data" in body:
@@ -187,15 +189,15 @@ async def atualizar(session: AsyncSession, id: int, body: dict) -> dict:
         )
 
     repo = TransacaoRepository(session)
-    if await repo.buscar_por_id(id) is None:
+    if await repo.buscar_por_id(id, usuario_id=usuario_id) is None:
         raise NaoEncontradaError(ERRO_NAO_ENCONTRADA)
-    await repo.atualizar(id, TransacaoUpdate(**campos))
+    await repo.atualizar(id, TransacaoUpdate(**campos), usuario_id=usuario_id)
     return {"ok": True}
 
 
-async def excluir(session: AsyncSession, id: int) -> dict:
+async def excluir(session: AsyncSession, usuario_id: int, id: int) -> dict:
     repo = TransacaoRepository(session)
-    if await repo.buscar_por_id(id) is None:
+    if await repo.buscar_por_id(id, usuario_id=usuario_id) is None:
         raise NaoEncontradaError(ERRO_NAO_ENCONTRADA)
-    await repo.excluir(id)
+    await repo.excluir(id, usuario_id=usuario_id)
     return {"ok": True}
