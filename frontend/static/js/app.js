@@ -68,7 +68,7 @@
 
     const thead = document.createElement("thead");
     const linhaCabecalho = document.createElement("tr");
-    const titulos = ["Mês", "Gastos pendentes", "Receitas pendentes", "Saldo projetado", "Parcelas"];
+    const titulos = ["Mês", "Gastos", "Receitas", "Saldo projetado", "Parcelas"];
     for (const titulo of titulos) {
       linhaCabecalho.appendChild(criarCelula("th", titulo));
     }
@@ -79,12 +79,12 @@
     for (const mes of meses) {
       const linha = document.createElement("tr");
       linha.appendChild(criarCelula("td", mes.mes));
-      linha.appendChild(criarCelula("td", fmtBRL(mes.gastos_pendentes)));
-      linha.appendChild(criarCelula("td", fmtBRL(mes.receitas_pendentes)));
+      linha.appendChild(criarCelula("td", fmtBRL(mes.gastos)));
+      linha.appendChild(criarCelula("td", fmtBRL(mes.receitas)));
       // Cor decidida pelo sinal da string vinda da API — sem aritmética JS.
-      const negativo = String(mes.saldo_projetado).startsWith("-");
+      const negativo = String(mes.saldo).startsWith("-");
       linha.appendChild(
-        criarCelula("td", fmtBRL(mes.saldo_projetado), negativo ? "text-danger" : "text-success")
+        criarCelula("td", fmtBRL(mes.saldo), negativo ? "text-danger" : "text-success")
       );
       linha.appendChild(criarCelula("td", String(mes.qtd_parcelas)));
       tbody.appendChild(linha);
