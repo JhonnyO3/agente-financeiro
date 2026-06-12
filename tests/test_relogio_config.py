@@ -51,11 +51,24 @@ def _importar_settings_classe():
     return Settings
 
 
+_OPCIONAIS_CONHECIDAS = {
+    "TIMEZONE_USUARIO",
+    "DEBOUNCE_SEGUNDOS",
+    "CONFIANCA_MINIMA",
+    "RAG_PISO",
+    "RAG_MARGEM",
+    "RAG_MAX_OPCOES",
+    "LLM_MODELO_CLASSIFICACAO",
+    "LLM_MODELO_CONVERSAR",
+}
+
+
 def _settings_com(env: dict):
     """Instancia Settings sem ler .env, usando apenas o dict fornecido.
 
-    Remove temporariamente do os.environ as vars conhecidas que NÃO estão em
-    env, para que pydantic-settings não as leia e mascare ausências intencionais.
+    Remove temporariamente do os.environ as vars conhecidas (obrigatórias e
+    opcionais) que NÃO estão em env, para que pydantic-settings não as leia e
+    mascare ausências intencionais ou valores contaminados de outros módulos.
     """
     old_env = {}
     # Vars presentes em env: definir no ambiente
@@ -64,6 +77,10 @@ def _settings_com(env: dict):
         os.environ[k] = v
     # Vars conhecidas ausentes de env: remover do ambiente temporariamente
     for k in _OBRIGATORIOS_BASE:
+        if k not in env and k in os.environ:
+            old_env[k] = os.environ.pop(k)
+    # Vars opcionais ausentes de env: remover para não contaminar defaults
+    for k in _OPCIONAIS_CONHECIDAS:
         if k not in env and k in os.environ:
             old_env[k] = os.environ.pop(k)
 
