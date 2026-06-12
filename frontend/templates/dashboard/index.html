@@ -98,10 +98,15 @@
 <!-- 5. Parcelas em andamento (RF-06) -->
 <div class="row mb-4">
   <div class="col-12">
-    <h5>Parcelas em andamento</h5>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Parcelas em andamento</h5>
+      <button type="button" id="btn-novo-parcelamento" class="btn btn-primary btn-sm">+ Novo parcelamento</button>
+    </div>
     <div id="parcelas-container" class="row g-3"></div>
   </div>
 </div>
+
+{% include "dashboard/_gastos_fixos.html" %}
 
 <!-- 6. Tabela de transações (RF-07) -->
 <div class="row mb-4">
@@ -358,4 +363,70 @@
     </div>
   </div>
 </div>
+<!-- 9. Modal de grupo de parcelas (T05) -->
+<div class="modal fade" id="modal-grupo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Parcelamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="grupo-id">
+        <div id="grupo-erro" class="text-danger mb-2"></div>
+        <div class="mb-3">
+          <label for="grupo-descricao" class="form-label">Descrição</label>
+          <input type="text" class="form-control" id="grupo-descricao">
+        </div>
+        <div class="mb-3">
+          <label for="grupo-valor" class="form-label">Valor da parcela</label>
+          <input type="text" class="form-control" id="grupo-valor" inputmode="decimal">
+        </div>
+        <div class="mb-3">
+          <label for="grupo-parcela-atual" class="form-label">Parcela atual</label>
+          <input type="number" class="form-control" id="grupo-parcela-atual" min="1">
+        </div>
+        <div class="mb-3">
+          <label for="grupo-parcela-total" class="form-label">Total de parcelas</label>
+          <input type="number" class="form-control" id="grupo-parcela-total" min="1">
+        </div>
+        <div class="mb-3">
+          <label for="grupo-proxima-data" class="form-label">Próxima data</label>
+          <input type="date" class="form-control" id="grupo-proxima-data">
+        </div>
+        <div class="mb-3" id="grupo-categoria-wrapper">
+          <label for="grupo-categoria" class="form-label">Categoria</label>
+          <select class="form-select" id="grupo-categoria">
+            {% for categoria in categorias %}
+            <option value="{{ categoria }}">{{ categoria }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3" id="grupo-forma-pagamento-wrapper">
+          <label for="grupo-forma-pagamento" class="form-label">Forma de pagamento</label>
+          <select class="form-select" id="grupo-forma-pagamento">
+            <option value="CARTAO_CREDITO">CARTAO_CREDITO</option>
+            <option value="CARTAO_DEBITO">CARTAO_DEBITO</option>
+            <option value="PIX">PIX</option>
+            <option value="BOLETO">BOLETO</option>
+          </select>
+        </div>
+        <div class="mb-3" id="grupo-responsavel-wrapper">
+          <label for="grupo-responsavel" class="form-label">Responsável</label>
+          <input type="text" class="form-control" id="grupo-responsavel">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-salvar-grupo">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/grupos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gastos_fixos.js') }}"></script>
 {% endblock %}

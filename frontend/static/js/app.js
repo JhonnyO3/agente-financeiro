@@ -159,6 +159,21 @@
     progresso.appendChild(barra);
     corpo.appendChild(progresso);
 
+    const acoes = document.createElement("div");
+    acoes.className = "d-flex gap-2";
+
+    const botaoEditar = document.createElement("button");
+    botaoEditar.type = "button";
+    botaoEditar.className = "btn btn-outline-secondary btn-sm btn-editar-grupo";
+    botaoEditar.textContent = "Editar";
+    botaoEditar.dataset.grupo = grupo.grupo_parcela_id;
+    botaoEditar.dataset.descricao = grupo.descricao;
+    botaoEditar.dataset.valor = grupo.valor_parcela;
+    botaoEditar.dataset.parcelaAtual = String(grupo.parcela_numero);
+    botaoEditar.dataset.parcelaTotal = String(grupo.parcela_total);
+    botaoEditar.dataset.proximaData = grupo.proxima_data;
+    acoes.appendChild(botaoEditar);
+
     const botaoExcluir = document.createElement("button");
     botaoExcluir.type = "button";
     botaoExcluir.className = "btn btn-outline-danger btn-sm";
@@ -166,7 +181,9 @@
     botaoExcluir.addEventListener("click", function () {
       excluirGrupo(grupo.grupo_parcela_id, grupo.descricao);
     });
-    corpo.appendChild(botaoExcluir);
+    acoes.appendChild(botaoExcluir);
+
+    corpo.appendChild(acoes);
 
     return coluna;
   }
@@ -210,6 +227,9 @@
       console.error("Falha ao excluir grupo de parcelas:", erro);
     }
   }
+
+  // Exposto para grupos.js recarregar a seção sem reload de página.
+  window.carregarParcelas = carregarParcelas;
 
   // --- Inicialização -------------------------------------------------------
 
