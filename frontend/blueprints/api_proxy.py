@@ -102,7 +102,9 @@ def criar_transacao():
 @bp.put("/transacoes/<int:id>")
 def atualizar_transacao(id: int):
     try:
-        resposta = _cliente().atualizar_transacao(id, request.get_json(silent=True) or {})
+        resposta = _cliente().atualizar_transacao(
+            id, request.get_json(silent=True) or {}
+        )
     except httpx.HTTPError:
         return _BACKEND_INDISPONIVEL
     return _repassar(resposta)
@@ -112,6 +114,64 @@ def atualizar_transacao(id: int):
 def excluir_transacao(id: int):
     try:
         resposta = _cliente().excluir_transacao(id)
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.put("/grupos/<grupo>")
+def atualizar_grupo(grupo: str):
+    try:
+        resposta = _cliente().atualizar_grupo(
+            grupo, request.get_json(silent=True) or {}
+        )
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.post("/grupos")
+def criar_grupo():
+    try:
+        resposta = _cliente().criar_grupo(request.get_json(silent=True) or {})
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.get("/gastos-fixos")
+def listar_gastos_fixos():
+    try:
+        resposta = _cliente().listar_gastos_fixos()
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.post("/gastos-fixos")
+def criar_gasto_fixo():
+    try:
+        resposta = _cliente().criar_gasto_fixo(request.get_json(silent=True) or {})
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.put("/gastos-fixos/<int:id>")
+def atualizar_gasto_fixo(id: int):
+    try:
+        resposta = _cliente().atualizar_gasto_fixo(
+            id, request.get_json(silent=True) or {}
+        )
+    except httpx.HTTPError:
+        return _BACKEND_INDISPONIVEL
+    return _repassar(resposta)
+
+
+@bp.delete("/gastos-fixos/<int:id>")
+def excluir_gasto_fixo(id: int):
+    try:
+        resposta = _cliente().excluir_gasto_fixo(id)
     except httpx.HTTPError:
         return _BACKEND_INDISPONIVEL
     return _repassar(resposta)

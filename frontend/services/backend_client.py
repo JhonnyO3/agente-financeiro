@@ -93,3 +93,21 @@ class BackendClient:
 
     def excluir_transacao(self, id: int) -> httpx.Response:
         return self._autenticado("DELETE", f"/api/transacoes/{id}")
+
+    def atualizar_grupo(self, grupo: str, body: dict) -> httpx.Response:
+        return self._autenticado("PUT", f"/api/grupos/{grupo}", json=body)
+
+    def criar_grupo(self, body: dict) -> httpx.Response:
+        return self._autenticado("POST", "/api/grupos", json=body)
+
+    def listar_gastos_fixos(self) -> httpx.Response:
+        return self._autenticado("GET", "/api/gastos-fixos")
+
+    def criar_gasto_fixo(self, body: dict) -> httpx.Response:
+        return self._autenticado("POST", "/api/gastos-fixos", json=body)
+
+    def atualizar_gasto_fixo(self, id: int, body: dict) -> httpx.Response:
+        return self._autenticado("PUT", f"/api/gastos-fixos/{id}", json=body)
+
+    def excluir_gasto_fixo(self, id: int) -> httpx.Response:
+        return self._autenticado("DELETE", f"/api/gastos-fixos/{id}")
