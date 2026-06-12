@@ -19,6 +19,7 @@ CONTROLLERS = [
     "projecao",
     "auth",
     "admin",
+    "grupos",
 ]
 
 
