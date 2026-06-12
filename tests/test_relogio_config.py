@@ -80,12 +80,12 @@ def _settings_com(env: dict):
 class TestRelogioHoje:
     def test_hoje_brt_quando_utc_virou_dia(self):
         """
-        UTC 2026-06-12T03:00:00Z → BRT (UTC-3) ainda é 2026-06-11 às 00:00.
+        UTC 2026-06-12T02:30:00Z → BRT (UTC-3) ainda é 2026-06-11 às 23:30.
         hoje() deve retornar date(2026, 6, 11), não date(2026, 6, 12).
         """
         from agent.services.relogio import Relogio  # noqa: PLC0415
 
-        utc_fixo = datetime(2026, 6, 12, 3, 0, 0, tzinfo=timezone.utc)
+        utc_fixo = datetime(2026, 6, 12, 2, 30, 0, tzinfo=timezone.utc)
         relogio = Relogio("America/Sao_Paulo", _fixed=utc_fixo)
 
         resultado = relogio.hoje()
