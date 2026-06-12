@@ -52,12 +52,20 @@ def _importar_settings_classe():
 
 
 def _settings_com(env: dict):
-    """Instancia Settings sem ler .env, usando apenas o dict fornecido."""
-    # Define env vars necessárias para que o module-level não falhe
+    """Instancia Settings sem ler .env, usando apenas o dict fornecido.
+
+    Remove temporariamente do os.environ as vars conhecidas que NÃO estão em
+    env, para que pydantic-settings não as leia e mascare ausências intencionais.
+    """
     old_env = {}
+    # Vars presentes em env: definir no ambiente
     for k, v in env.items():
         old_env[k] = os.environ.get(k)
         os.environ[k] = v
+    # Vars conhecidas ausentes de env: remover do ambiente temporariamente
+    for k in _OBRIGATORIOS_BASE:
+        if k not in env and k in os.environ:
+            old_env[k] = os.environ.pop(k)
 
     try:
         for mod in list(sys.modules.keys()):

@@ -7,6 +7,11 @@ os.environ.setdefault("EVOLUTION_API_URL", "http://localhost:8080")
 os.environ.setdefault("EVOLUTION_INSTANCE", "test")
 os.environ.setdefault("EVOLUTION_API_KEY", "test-key")
 os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "5511957818539")
+os.environ.setdefault("OPENAI_API_KEY", "sk-fake-key-for-tests")
+os.environ.setdefault("RESPONSAVEL_PADRAO", "Jhonatas")
+os.environ.setdefault("WEBHOOK_APIKEY", "test-apikey")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("AGENTE_USUARIO_EMAIL", "test@exemplo.com")
 
 from httpx import AsyncClient, ASGITransport
 from agent.entrypoint.main import app

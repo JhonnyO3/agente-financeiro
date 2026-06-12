@@ -10,6 +10,9 @@ os.environ.setdefault("EVOLUTION_INSTANCE", "fake-instance")
 os.environ.setdefault("EVOLUTION_API_KEY", "fake-api-key")
 os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "5511999999999")
 os.environ.setdefault("RESPONSAVEL_PADRAO", "Jhon")
+os.environ.setdefault("AGENTE_USUARIO_EMAIL", "test@exemplo.com")
+os.environ.setdefault("WEBHOOK_APIKEY", "test-apikey")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 import pytest
 from unittest.mock import patch, MagicMock
@@ -251,11 +254,11 @@ def test_criar_llm_importavel_de_agents_llm():
 
 
 def test_criar_llm_usa_modelo_de_settings():
-    """criar_llm deve usar Settings.MODELO_PADRAO (ou equivalente), não string fixa."""
+    """criar_llm deve usar Settings.LLM_MODELO_CLASSIFICACAO, não string fixa."""
     with patch("agent.agents_llm.ChatOpenAI") as MockLLM:
         MockLLM.return_value = MagicMock()
         with patch("agent.agents_llm.settings") as mock_settings:
-            mock_settings.MODELO_PADRAO = "gpt-4o-mini"
+            mock_settings.LLM_MODELO_CLASSIFICACAO = "gpt-4o-mini"
             from agent import agents_llm
             # Reimporta para capturar o mock
             import importlib

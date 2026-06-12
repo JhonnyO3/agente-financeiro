@@ -34,9 +34,9 @@ def coagir_data(valor):
 
 def criar_llm(temperatura: float = 0.0):
     _cls = sys.modules[__name__].__dict__["ChatOpenAI"]
-    return _cls(model=settings.MODELO_PADRAO, temperature=temperatura)
+    return _cls(model=settings.LLM_MODELO_CLASSIFICACAO, temperature=temperatura)
 
 
 def criar_llm_formatacao():
     _cls = sys.modules[__name__].__dict__["ChatOpenAI"]
-    return _cls(model=settings.MODELO_FORMATACAO, temperature=0.3)
+    return _cls(model=settings.LLM_MODELO_CONVERSAR, temperature=0.3)

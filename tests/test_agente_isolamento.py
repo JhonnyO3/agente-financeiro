@@ -6,6 +6,10 @@ os.environ.setdefault("EVOLUTION_API_URL", "http://localhost")
 os.environ.setdefault("EVOLUTION_INSTANCE", "test")
 os.environ.setdefault("EVOLUTION_API_KEY", "test")
 os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "+5511999990001")
+os.environ.setdefault("RESPONSAVEL_PADRAO", "Jhonatas")
+os.environ.setdefault("WEBHOOK_APIKEY", "test-apikey")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("AGENTE_USUARIO_EMAIL", "test@exemplo.com")
 
 from contextlib import asynccontextmanager
 from datetime import date
