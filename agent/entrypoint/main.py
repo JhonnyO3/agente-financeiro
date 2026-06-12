@@ -1,35 +1,44 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+"""
+Wiring da nova arquitetura (Task 16).
 
+Invariante: EXATAMENTE 1 processo Uvicorn/Gunicorn deve executar este app.
+A fila asyncio e o estado Redis são locais ao processo; múltiplos workers
+divergiriam na fila in-process e teriam filas separadas por processo.
+"""
+
+import asyncio
+from contextlib import asynccontextmanager
+
+import redis.asyncio as aioredis
+from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from agent.agents_llm import Embedder
 from agent.config import settings
 from agent.entrypoint.webhook import router as webhook_router
-from agent.entrypoint.debounce import MessageDebouncer
+from agent.entrypoint.worker import Worker
 from agent.integrations.evolution_client import EvolutionApiClient
+from agent.services.classificador import Classificador
+from agent.services.estado_store import EstadoStoreRedis
+from agent.services.formatador import Formatador
+from agent.services.rag import BuscaRAG
+from agent.services.relogio import Relogio
+from agent.services.roteador import Roteador
+from agent.tools.atualizar import ToolAtualizar
+from agent.tools.cadastrar import ToolCadastrar
+from agent.tools.conversar import ToolConversar
+from agent.tools.excluir import ToolExcluir
+from agent.tools.listar import ToolListar
 from backend.repositories.transacao_repository import TransacaoRepository
 from backend.repositories.usuario_repository import UsuarioRepository
-from agent.agents.embedder import Embedder
-from agent.agents.classificador import Classificador
-from agent.agents.extrator import Extrator
-from agent.agents.extrator_alteracao import ExtratorAlteracao
-from agent.agents.extrator_parcelas import ExtratorParcelas
-from agent.agents.categorizador import Categorizador
-from agent.agents.filtro_consulta import FiltroConsulta
-from agent.agents.confirmacao_chain import ConfirmacaoChain
-from agent.agents.extrator_exclusao_lote import ExtratorExclusaoLote
-from agent.agents.extrator_lista import ExtratorLista
-from agent.services.confirmacao_state import ConfirmacaoState
-from agent.services.cadastrar import CadastrarService
-from agent.services.alterar import AlterarService
-from agent.services.excluir import ExcluirService
-from agent.services.marcar_pago import MarcarPagoService
-from agent.services.consultar import ConsultarService
-from agent.services.formatador import Formatador
-from agent.services.pipeline import Pipeline
 
+
+# ---------------------------------------------------------------------------
+# Adapter: envolve session_factory com usuario_id fixo para o repo de transações
+# ---------------------------------------------------------------------------
 
 class _SessionFactoryRepository:
-    def __init__(self, session_factory, usuario_id):
+    def __init__(self, session_factory, usuario_id: int) -> None:
         self._session_factory = session_factory
         self._usuario_id = usuario_id
 
@@ -64,6 +73,12 @@ class _SessionFactoryRepository:
         async with self._session_factory() as session:
             return await self._repo(session).buscar_semantico_com_distancia(
                 embedding, limite, usuario_id=self._usuario_id
+            )
+
+    async def buscar_semantico_multiplos_com_distancia(self, embedding, limite=5):
+        async with self._session_factory() as session:
+            return await self._repo(session).buscar_semantico_multiplos_com_distancia(
+                embedding, limite=limite, usuario_id=self._usuario_id
             )
 
     async def atualizar(self, id, dados):
@@ -111,6 +126,10 @@ class _SessionFactoryRepository:
             )
 
 
+# ---------------------------------------------------------------------------
+# Fail-fast: resolve usuario_id pelo email ou levanta RuntimeError
+# ---------------------------------------------------------------------------
+
 async def resolver_usuario_id(usuario_repository, email: str) -> int:
     usuario = await usuario_repository.buscar_por_email(email)
     if usuario is None:
@@ -121,8 +140,13 @@ async def resolver_usuario_id(usuario_repository, email: str) -> int:
     return usuario.id
 
 
+# ---------------------------------------------------------------------------
+# Lifespan: wiring completo (1 worker — invariante documentada acima)
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Banco de dados
     engine = create_async_engine(settings.DATABASE_URL)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -131,81 +155,82 @@ async def lifespan(app: FastAPI):
             UsuarioRepository(session), settings.AGENTE_USUARIO_EMAIL
         )
 
+    # Repository com usuario_id fixo
+    repository = _SessionFactoryRepository(session_factory, usuario_id)
+
+    # Infraestrutura
+    relogio = Relogio(settings.TIMEZONE_USUARIO)
+    embedder = Embedder()
+
+    # Redis + EstadoStore de produção
+    redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    estado_store = EstadoStoreRedis(redis_client)
+
+    # RAG
+    rag = BuscaRAG(embedder=embedder, adapter=repository)
+
+    # 5 Tools
+    tool_cadastrar = ToolCadastrar(relogio=relogio, repository=repository)
+    tool_listar = ToolListar(repo=repository, relogio=relogio, usuario_id=usuario_id)
+    tool_atualizar = ToolAtualizar(rag=rag, repository=repository, relogio=relogio)
+    tool_excluir = ToolExcluir(rag=rag, repository=repository, relogio=relogio)
+    tool_conversar = ToolConversar()
+
+    # Serviços
+    formatador = Formatador()
+    classificador = Classificador()
+    roteador = Roteador(
+        tool_cadastrar=tool_cadastrar,
+        tool_listar=tool_listar,
+        tool_atualizar=tool_atualizar,
+        tool_excluir=tool_excluir,
+        tool_conversar=tool_conversar,
+        estado_store=estado_store,
+        repository=repository,
+    )
+
+    # Evolution API client
     evolution_client = EvolutionApiClient(
         base_url=settings.EVOLUTION_API_URL,
         instance=settings.EVOLUTION_INSTANCE,
         api_key=settings.EVOLUTION_API_KEY,
     )
 
-    embedder = Embedder()
-    confirmacao_state = ConfirmacaoState()
-    repository = _SessionFactoryRepository(session_factory, usuario_id)
+    # Fila asyncio (1 worker — invariante: não distribuída)
+    fila: asyncio.Queue = asyncio.Queue()
 
-    cadastrar = CadastrarService(
-        repository=repository,
-        embedder=embedder,
-        extrator=Extrator(),
-        categorizador=Categorizador(),
-        confirmacao_state=confirmacao_state,
-        usuario_id=usuario_id,
-    )
-    alterar = AlterarService(
-        repository=repository,
-        embedder=embedder,
-        extrator_alteracao=ExtratorAlteracao(),
-        confirmacao_state=confirmacao_state,
-    )
-    excluir = ExcluirService(
-        repository=repository,
-        embedder=embedder,
-        confirmacao_state=confirmacao_state,
-    )
-    marcar_pago = MarcarPagoService(
-        repository=repository,
-        embedder=embedder,
-        confirmacao_state=confirmacao_state,
-    )
-    consultar = ConsultarService(
-        repository=repository,
-        filtro_chain=FiltroConsulta(),
-        embedder=embedder,
-    )
-    formatador = Formatador()
-    pipeline = Pipeline(
-        classificador=Classificador(),
-        cadastrar=cadastrar,
-        alterar=alterar,
-        excluir=excluir,
-        marcar_pago=marcar_pago,
-        consultar=consultar,
+    # Worker
+    worker = Worker(
+        classificador=classificador,
+        roteador=roteador,
         formatador=formatador,
-        confirmacao_state=confirmacao_state,
-        confirmacao_chain=ConfirmacaoChain(),
-        extrator_parcelas=ExtratorParcelas(),
-        extrator_exclusao_lote=ExtratorExclusaoLote(),
-        extrator_lista=ExtratorLista(),
+        evolution_client=evolution_client,
+        estado_store=estado_store,
+        debounce_segundos=settings.DEBOUNCE_SEGUNDOS,
     )
 
-    async def _processar_e_responder(numero: str, texto: str) -> None:
-        import logging
-        try:
-            logging.info("processando numero=%s texto=%s", numero, texto)
-            resposta = await pipeline.processar(numero, texto)
-            logging.info("resposta gerada: %s", resposta)
-            await evolution_client.enviar_mensagem(numero, resposta)
-        except Exception as exc:
-            logging.exception("erro ao processar mensagem: %s", exc)
-
-    debouncer = MessageDebouncer()
-
-    app.state.pipeline = pipeline
+    # Expõe em app.state conforme webhook.py e worker.py esperam
+    app.state.fila = fila
+    app.state.worker = worker
+    app.state.estado_store = estado_store
     app.state.evolution_client = evolution_client
-    app.state.debouncer = debouncer
-    app.state.processar_e_responder = _processar_e_responder
+    app.state.usuario_id = usuario_id
+
+    # Loop de consumo da fila em background
+    async def _consumidor():
+        while True:
+            numero, texto = await fila.get()
+            await worker.receber(numero, texto)
+            asyncio.create_task(worker.processar_pendentes())
+            fila.task_done()
+
+    task_consumidor = asyncio.create_task(_consumidor())
 
     yield
 
+    task_consumidor.cancel()
     await evolution_client.fechar()
+    await redis_client.aclose()
     await engine.dispose()
 
 

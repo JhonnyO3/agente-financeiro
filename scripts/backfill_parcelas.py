@@ -22,7 +22,7 @@ from typing import Iterable, Sequence
 from uuid import UUID
 
 from backend.repositories.dtos import TransacaoCreate
-from agent.services.parcelas import adicionar_meses, status_por_data
+from agent.tools._parcelas import adicionar_meses, status_por_data
 
 PERIODO_INICIO = date(2000, 1, 1)
 PERIODO_FIM = date(2035, 12, 31)
@@ -184,10 +184,13 @@ async def main() -> None:
     args = parser.parse_args()
 
     # Imports tardios: exigem settings (.env) e conexão com o banco.
-    from agent.db import AsyncSessionLocal
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from agent.config import settings
     from backend.repositories.transacao_repository import TransacaoRepository
 
-    async with AsyncSessionLocal() as session:
+    _engine = create_async_engine(settings.DATABASE_URL)
+    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+    async with _session_factory() as session:
         async with session.begin():
             repository = TransacaoRepository(session)
             resultados = await executar_backfill(repository, dry_run=args.dry_run)

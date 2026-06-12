@@ -153,3 +153,34 @@ async def test_contar_por_filtros_injeta_usuario_id():
     repo.contar_por_filtros.assert_awaited_once_with(
         date(2026, 1, 1), date(2026, 1, 31), None, usuario_id=USUARIO_ID
     )
+
+
+# ---------------------------------------------------------------------------
+# resolver_usuario_id — fail-fast se email não encontrado
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_lifespan_resolve_usuario_id_por_email():
+    from types import SimpleNamespace
+    from agent.entrypoint.main import resolver_usuario_id
+
+    usuario = SimpleNamespace(id=1, email="test@exemplo.com")
+    usuario_repo = MagicMock()
+    usuario_repo.buscar_por_email = AsyncMock(return_value=usuario)
+
+    resolved = await resolver_usuario_id(usuario_repo, "test@exemplo.com")
+
+    usuario_repo.buscar_por_email.assert_awaited_once_with("test@exemplo.com")
+    assert resolved == 1
+
+
+@pytest.mark.asyncio
+async def test_lifespan_falha_explicita_se_email_nao_existe():
+    import pytest
+    from agent.entrypoint.main import resolver_usuario_id
+
+    usuario_repo = MagicMock()
+    usuario_repo.buscar_por_email = AsyncMock(return_value=None)
+
+    with pytest.raises(RuntimeError, match="test@exemplo.com"):
+        await resolver_usuario_id(usuario_repo, "test@exemplo.com")
