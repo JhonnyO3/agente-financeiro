@@ -32,7 +32,7 @@
 | 10 | Tools Atualizar e Excluir | python | 01,02,03,07 | done | task/10 — integrado | |
 | 11 | Tool Conversar | python | 01,05 | done | task/11 — integrado | |
 | 12 | Formatador (templates Python) | python | 01 | done | task/12 — integrado | |
-| 13 | Roteador (match + guarda de pendência) | python | 06,08,09,10,11,12 | todo | — | |
+| 13 | Roteador (match + guarda de pendência) | python | 06,08,09,10,11,12 | done | task/13 — integrado | |
 | 14 | Webhook + Worker (auth, dedup, fila, debounce) | python | 02,13 | todo | — | |
 | 15 | Evolution client robusto | python | 00 | done | task/15 — integrado | |
 | 16 | Integração (wiring) + limpeza dos módulos antigos | python | 13,14,15 | todo | — | |
