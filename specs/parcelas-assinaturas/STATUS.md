@@ -6,12 +6,12 @@
 
 | ID | Tarefa | Stack | Estado | Worktree/Branch | Nota |
 |----|--------|-------|--------|-----------------|------|
-| 01 | Base: helpers de data, repositório, listar_ativas | python | doing | feature/parcelas-assinaturas | execução sequencial (DAG linear) direto na branch |
-| 02 | Grupos: service + controller (editar/criar) | python | todo | — | depende de 01 |
-| 03 | Gastos fixos: service + controller (CRUD) | python | todo | — | depende de 02 (via `backend/main.py`/CONTROLLERS) |
-| 04 | Proxy Flask + cliente HTTP | python | todo | — | depende de 02 e 03 |
-| 05 | UI parcelas (editar/novo) | python | todo | — | depende de 04; dono de `index.html`/`app.js` |
-| 06 | UI gastos fixos (seção/CRUD) | python | todo | — | depende de 05 (via include do partial + script) |
+| 01 | Base: helpers de data, repositório, listar_ativas | python | done | feature/parcelas-assinaturas | 438/438 verdes; commit e11c610 |
+| 02 | Grupos: service + controller (editar/criar) | python | done | feature/parcelas-assinaturas | 479/479 verdes; commit 4cec95a |
+| 03 | Gastos fixos: service + controller (CRUD) | python | done | worktree agente-financeiro-parcelas | 523/523 verdes; commit d2d7192 |
+| 04 | Proxy Flask + cliente HTTP | python | done | worktree agente-financeiro-parcelas | 548/548 verdes; commit 2abffd8 |
+| 05 | UI parcelas (editar/novo) | python | done | worktree agente-financeiro-parcelas | 548/548; commit c19ec7e (+base.html: block scripts) |
+| 06 | UI gastos fixos (seção/CRUD) | python | doing | worktree agente-financeiro-parcelas | — |
 
 ## Ordem de integração
 
