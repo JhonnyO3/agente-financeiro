@@ -116,6 +116,20 @@ class TransacaoRepository:
         transacao, dist = row
         return (transacao, float(dist))
 
+    async def buscar_semantico_multiplos_com_distancia(
+        self, embedding: list[float], limite: int = 5, usuario_id: int | None = None
+    ) -> list[tuple[Transacao, float]]:
+        distancia = Transacao.embedding.l2_distance(embedding).label("distancia")
+        stmt = (
+            select(Transacao, distancia)
+            .order_by(distancia)
+            .limit(limite)
+        )
+        if usuario_id is not None:
+            stmt = stmt.where(Transacao.usuario_id == usuario_id)
+        result = await self._session.execute(stmt)
+        return [(transacao, float(dist)) for transacao, dist in result.all()]
+
     async def atualizar(
         self, id: int, dados: TransacaoUpdate, usuario_id: int | None = None
     ) -> Transacao:
