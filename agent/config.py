@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     EVOLUTION_API_KEY: str
     WHATSAPP_ALLOWED_NUMBER: str
     AGENTE_USUARIO_EMAIL: str = "jhonatas2004@gmail.com"
+    RESPONSAVEL_PADRAO: str = "Jhonatas"
+    MODELO_PADRAO: str = "gpt-4o-mini"
+    MODELO_FORMATACAO: str = "gpt-4o"
 
 
 settings = Settings()
