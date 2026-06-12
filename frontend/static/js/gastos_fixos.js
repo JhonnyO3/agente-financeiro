@@ -114,8 +114,8 @@
         }
       }
 
-      // Total mensal exibido como string recebida do backend — sem somar no JS.
-      if (totalEl) totalEl.textContent = dados.total_mensal || "0.00";
+      // Total mensal vem somado do backend — aqui só formatação de exibição.
+      if (totalEl) totalEl.textContent = fmtBRL(dados.total_mensal || "0.00");
     } catch (erro) {
       console.error("Falha ao carregar gastos fixos:", erro);
     }

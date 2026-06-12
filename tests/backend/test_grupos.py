@@ -114,6 +114,7 @@ def make_linha(
         responsavel=responsavel,
         usuario_id=1,
         tipo="GASTO",
+        recorrente=False,
     )
 
 

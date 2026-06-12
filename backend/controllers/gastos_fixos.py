@@ -3,18 +3,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import UsuarioToken, get_usuario_atual
+from backend.controllers.util import corpo_json
 from backend.dependencies import get_session, get_session_begin
 from backend.services import gastos_fixos as service
 
 router = APIRouter(prefix="/api")
-
-
-async def _corpo(request: Request) -> dict:
-    try:
-        body = await request.json()
-    except Exception:
-        return {}
-    return body if isinstance(body, dict) else {}
 
 
 @router.get("/gastos-fixos")
@@ -31,7 +24,7 @@ async def criar_gasto_fixo(
     session: AsyncSession = Depends(get_session_begin),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
-    body = await _corpo(request)
+    body = await corpo_json(request)
     try:
         resultado = await service.criar(session, usuario.usuario_id, body)
     except service.ValidacaoError as erro:
@@ -46,7 +39,7 @@ async def atualizar_gasto_fixo(
     session: AsyncSession = Depends(get_session_begin),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
-    body = await _corpo(request)
+    body = await corpo_json(request)
     try:
         resultado = await service.atualizar(session, usuario.usuario_id, id, body)
     except service.ValidacaoError as erro:

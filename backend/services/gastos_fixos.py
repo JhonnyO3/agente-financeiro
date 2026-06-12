@@ -32,7 +32,7 @@ async def listar(session: AsyncSession, usuario_id: int) -> dict:
     repo = TransacaoRepository(session)
     itens = await repo.listar_recorrentes(usuario_id)
     itens_ordenados = sorted(itens, key=lambda t: t.data.day)
-    total = sum(t.valor for t in itens_ordenados)
+    total = sum((t.valor for t in itens_ordenados), Decimal("0"))
     return {
         "itens": [
             {
@@ -48,9 +48,7 @@ async def listar(session: AsyncSession, usuario_id: int) -> dict:
             }
             for t in itens_ordenados
         ],
-        "total_mensal": str(total.quantize(Decimal("0.01")))
-        if itens_ordenados
-        else "0.00",
+        "total_mensal": str(total.quantize(Decimal("0.01"))),
     }
 
 

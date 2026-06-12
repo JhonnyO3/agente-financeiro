@@ -1,20 +1,13 @@
-from fastapi import APIRouter, Depends, Request
+﻿from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import UsuarioToken, get_usuario_atual
+from backend.controllers.util import corpo_json
 from backend.dependencies import get_session_begin
 from backend.services import grupos as service
 
 router = APIRouter(prefix="/api")
-
-
-async def _corpo(request: Request) -> dict:
-    try:
-        body = await request.json()
-    except Exception:
-        return {}
-    return body if isinstance(body, dict) else {}
 
 
 @router.put("/grupos/{grupo_parcela_id}")
@@ -24,7 +17,7 @@ async def editar_grupo(
     session: AsyncSession = Depends(get_session_begin),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
-    body = await _corpo(request)
+    body = await corpo_json(request)
     try:
         resultado = await service.editar_grupo(
             session, usuario.usuario_id, grupo_parcela_id, body
@@ -44,7 +37,7 @@ async def criar_grupo(
     session: AsyncSession = Depends(get_session_begin),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
-    body = await _corpo(request)
+    body = await corpo_json(request)
     try:
         resultado = await service.criar_grupo(session, usuario.usuario_id, body)
     except service.ValidacaoError as erro:

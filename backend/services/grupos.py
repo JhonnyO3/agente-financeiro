@@ -12,7 +12,7 @@ from backend.models.enums import (
 )
 from backend.repositories.dtos import TransacaoCreate
 from backend.repositories.transacao_repository import TransacaoRepository
-from backend.services.datas_parcela import adicionar_meses, datas_do_grupo
+from backend.services.datas_parcela import datas_do_grupo
 
 
 class IdInvalidoError(Exception):
@@ -97,8 +97,10 @@ async def editar_grupo(
     # Referência para cópia de metadados ao aumentar
     ref = linhas[0]
 
-    # Mutar linhas existentes
+    # Mutar linhas existentes; as acima do novo total serão excluídas adiante
     for linha in linhas:
+        if linha.parcela_numero > parcela_total:
+            continue
         linha.descricao = descricao
         linha.parcela_total = parcela_total
         # Status baseado em parcela_atual
@@ -108,43 +110,27 @@ async def editar_grupo(
             linha.status = StatusEnum.PENDENTE
             linha.valor = valor
             # Data da cadeia: índice = parcela_numero - 1
-            idx = linha.parcela_numero - 1
-            if idx < len(todas_datas):
-                linha.data = todas_datas[idx]
+            linha.data = todas_datas[linha.parcela_numero - 1]
 
     if parcela_total > total_original:
         # Aumentar: criar linhas novas
         novos_dtos = []
         for num in range(total_original + 1, parcela_total + 1):
-            idx = num - 1
-            nova_data = (
-                todas_datas[idx]
-                if idx < len(todas_datas)
-                else adicionar_meses(proxima_data, num - parcela_atual)
-            )
             dto = TransacaoCreate(
                 usuario_id=usuario_id,
-                tipo=ref.tipo
-                if hasattr(ref.tipo, "value") or isinstance(ref.tipo, str)
-                else TipoEnum.GASTO,
+                tipo=ref.tipo,
                 valor=valor,
                 descricao=descricao,
-                categoria=ref.categoria
-                if hasattr(ref, "categoria")
-                else CategoriaEnum.COMPRAS,
-                data=nova_data,
+                categoria=ref.categoria,
+                data=todas_datas[num - 1],
                 parcela_numero=num,
                 parcela_total=parcela_total,
                 grupo_parcela_id=gid,
                 embedding=ref.embedding,
                 status=StatusEnum.PENDENTE,
-                forma_pagamento=ref.forma_pagamento
-                if hasattr(ref, "forma_pagamento")
-                else FormaPagamentoEnum.CARTAO_CREDITO,
-                recorrente=getattr(ref, "recorrente", False),
-                responsavel=ref.responsavel
-                if hasattr(ref, "responsavel")
-                else "Jhonatas",
+                forma_pagamento=ref.forma_pagamento,
+                recorrente=ref.recorrente,
+                responsavel=ref.responsavel,
             )
             novos_dtos.append(dto)
         await repo.criar_lote(novos_dtos)
