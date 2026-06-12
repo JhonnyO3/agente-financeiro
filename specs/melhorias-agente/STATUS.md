@@ -33,9 +33,9 @@
 | 11 | Tool Conversar | python | 01,05 | done | task/11 — integrado | |
 | 12 | Formatador (templates Python) | python | 01 | done | task/12 — integrado | |
 | 13 | Roteador (match + guarda de pendência) | python | 06,08,09,10,11,12 | done | task/13 — integrado | |
-| 14 | Webhook + Worker (auth, dedup, fila, debounce) | python | 02,13 | todo | — | |
+| 14 | Webhook + Worker (auth, dedup, fila, debounce) | python | 02,13 | done | task/14 — integrado | 3 falhas legadas previstas → T16 |
 | 15 | Evolution client robusto | python | 00 | done | task/15 — integrado | |
-| 16 | Integração (wiring) + limpeza dos módulos antigos | python | 13,14,15 | todo | — | |
+| 16 | Integração (wiring) + limpeza dos módulos antigos | python | 13,14,15 | done | task/16 — integrado | suíte 614 verde; grep órfãos limpo |
 
 ## Ondas de paralelismo
 
