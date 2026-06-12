@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
 from backend.models.transacao import Transacao
-from backend.repositories.dtos import AgregadoCategoria, TransacaoCreate, TransacaoUpdate
+from backend.repositories.dtos import (
+    AgregadoCategoria,
+    TransacaoCreate,
+    TransacaoUpdate,
+)
 
 
 class TransacaoRepository:
@@ -65,7 +69,9 @@ class TransacaoRepository:
             await self._session.refresh(obj)
         return objetos
 
-    async def buscar_por_id(self, id: int, usuario_id: int | None = None) -> Transacao | None:
+    async def buscar_por_id(
+        self, id: int, usuario_id: int | None = None
+    ) -> Transacao | None:
         stmt = select(Transacao).where(Transacao.id == id)
         if usuario_id is not None:
             stmt = stmt.where(Transacao.usuario_id == usuario_id)
@@ -102,11 +108,7 @@ class TransacaoRepository:
         self, embedding: list[float], limite: int = 1, usuario_id: int | None = None
     ) -> tuple[Transacao, float] | None:
         distancia = Transacao.embedding.l2_distance(embedding).label("distancia")
-        stmt = (
-            select(Transacao, distancia)
-            .order_by(distancia)
-            .limit(limite)
-        )
+        stmt = select(Transacao, distancia).order_by(distancia).limit(limite)
         if usuario_id is not None:
             stmt = stmt.where(Transacao.usuario_id == usuario_id)
         result = await self._session.execute(stmt)
@@ -134,8 +136,12 @@ class TransacaoRepository:
         await self._session.execute(stmt)
         await self._session.flush()
 
-    async def excluir_grupo(self, grupo_parcela_id: UUID, usuario_id: int | None = None) -> int:
-        stmt = delete(Transacao).where(Transacao.grupo_parcela_id == str(grupo_parcela_id))
+    async def excluir_grupo(
+        self, grupo_parcela_id: UUID, usuario_id: int | None = None
+    ) -> int:
+        stmt = delete(Transacao).where(
+            Transacao.grupo_parcela_id == str(grupo_parcela_id)
+        )
         if usuario_id is not None:
             stmt = stmt.where(Transacao.usuario_id == usuario_id)
         result = await self._session.execute(stmt)
@@ -166,7 +172,12 @@ class TransacaoRepository:
         usuario_id: int | None = None,
     ) -> int:
         from sqlalchemy import func as sa_func
-        stmt = select(sa_func.count()).select_from(Transacao).where(Transacao.data.between(inicio, fim))
+
+        stmt = (
+            select(sa_func.count())
+            .select_from(Transacao)
+            .where(Transacao.data.between(inicio, fim))
+        )
         if categoria is not None:
             stmt = stmt.where(Transacao.categoria == categoria)
         if usuario_id is not None:
@@ -200,6 +211,45 @@ class TransacaoRepository:
             stmt = stmt.where(Transacao.usuario_id == usuario_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def buscar_por_grupo_com_embedding(
+        self, grupo_parcela_id: UUID, usuario_id: int | None = None
+    ) -> list[Transacao]:
+        stmt = (
+            select(Transacao)
+            .where(Transacao.grupo_parcela_id == str(grupo_parcela_id))
+            .order_by(Transacao.parcela_numero)
+            .options(undefer(Transacao.embedding))
+        )
+        if usuario_id is not None:
+            stmt = stmt.where(Transacao.usuario_id == usuario_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def listar_recorrentes(self, usuario_id: int) -> list[Transacao]:
+        stmt = (
+            select(Transacao)
+            .where(Transacao.recorrente == True, Transacao.usuario_id == usuario_id)  # noqa: E712
+            .order_by(Transacao.data)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def excluir_por_grupo_e_numeros(
+        self,
+        grupo_parcela_id: UUID,
+        numeros: list[int],
+        usuario_id: int | None = None,
+    ) -> int:
+        stmt = delete(Transacao).where(
+            Transacao.grupo_parcela_id == str(grupo_parcela_id),
+            Transacao.parcela_numero.in_(numeros),
+        )
+        if usuario_id is not None:
+            stmt = stmt.where(Transacao.usuario_id == usuario_id)
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.rowcount
 
     async def agregar_por_categoria(
         self, inicio: date, fim: date, usuario_id: int | None = None

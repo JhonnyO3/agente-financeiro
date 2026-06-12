@@ -6,7 +6,7 @@
 
 | ID | Tarefa | Stack | Estado | Worktree/Branch | Nota |
 |----|--------|-------|--------|-----------------|------|
-| 01 | Base: helpers de data, repositório, listar_ativas | python | todo | — | sem dependências; congela `datas-parcela` e `repositorio-grupos` no código |
+| 01 | Base: helpers de data, repositório, listar_ativas | python | doing | feature/parcelas-assinaturas | execução sequencial (DAG linear) direto na branch |
 | 02 | Grupos: service + controller (editar/criar) | python | todo | — | depende de 01 |
 | 03 | Gastos fixos: service + controller (CRUD) | python | todo | — | depende de 02 (via `backend/main.py`/CONTROLLERS) |
 | 04 | Proxy Flask + cliente HTTP | python | todo | — | depende de 02 e 03 |

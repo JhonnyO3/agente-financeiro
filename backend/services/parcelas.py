@@ -24,7 +24,7 @@ class GrupoNaoEncontradoError(Exception):
 async def listar_ativas(session: AsyncSession, usuario_id: int) -> list[dict]:
     repo = TransacaoRepository(session)
     transacoes = await repo.listar_por_periodo(
-        date.today(), _DATA_TETO, usuario_id=usuario_id
+        date(2000, 1, 1), _DATA_TETO, usuario_id=usuario_id
     )
 
     grupos: dict[str, list] = {}

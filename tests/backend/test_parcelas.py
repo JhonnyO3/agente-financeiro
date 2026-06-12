@@ -172,3 +172,75 @@ def test_excluir_grupo_inexistente_404():
 
     assert resposta.status_code == 404
     assert resposta.json() == {"erro": "Grupo nao encontrado"}
+
+
+# ---------------------------------------------------------------------------
+# RF-01: listar_ativas deve incluir pendentes vencidas (piso = date(2000,1,1))
+# Cenários: specs/parcelas-assinaturas/scenarios/01-base-datas-repositorio.feature
+# ---------------------------------------------------------------------------
+
+
+def test_listar_ativas_inclui_pendente_vencida():
+    """
+    Cenário: listar_ativas inclui grupo com parcela pendente vencida.
+
+    Antes do RF-01 listar_por_periodo era chamada com date.today() como início,
+    o que excluía datas passadas. Após o fix, o piso passa a date(2000, 1, 1),
+    então uma parcela PENDENTE com data no passado deve aparecer.
+    """
+    grupo = "grupo-vencido"
+    # parcela com data no passado e status PENDENTE — deve aparecer
+    transacoes = [
+        make_parcela(grupo, 2, 3, dia=1, mes=5, status="PENDENTE"),   # 2026-05-01 (passado)
+        make_parcela(grupo, 3, 3, dia=1, mes=6, status="PENDENTE"),   # 2026-06-01 (passado)
+    ]
+    repo = SimpleNamespace(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/parcelas-ativas")
+
+    assert resposta.status_code == 200
+    itens = resposta.json()
+    grupos_ids = {i["grupo_parcela_id"] for i in itens}
+    assert grupo in grupos_ids, (
+        "Grupo com parcela PENDENTE vencida deveria aparecer em listar_ativas (RF-01)"
+    )
+
+
+def test_listar_ativas_inicio_janela_e_date_2000_1_1():
+    """
+    Verifica que listar_por_periodo é chamada com date(2000, 1, 1) como início
+    (e não date.today()), conforme exigido pelo RF-01.
+    """
+    repo = SimpleNamespace(listar_por_periodo=AsyncMock(return_value=[]))
+    client, stack = cliente_com(repo)
+    with stack:
+        client.get("/api/parcelas-ativas")
+
+    repo.listar_por_periodo.assert_awaited_once()
+    inicio_usado = repo.listar_por_periodo.call_args[0][0]
+    assert inicio_usado == date(2000, 1, 1), (
+        f"listar_por_periodo deveria ser chamada com date(2000,1,1) mas foi chamada com {inicio_usado}"
+    )
+
+
+def test_listar_ativas_grupo_totalmente_pago_nao_aparece():
+    """
+    Cenário: listar_ativas exclui grupo totalmente pago.
+    Regressão — garante que o comportamento existente não foi quebrado pelo RF-01.
+    """
+    grupo = "grupo-quitado"
+    transacoes = [
+        make_parcela(grupo, 1, 3, dia=1, mes=1, status="PAGO"),
+        make_parcela(grupo, 2, 3, dia=1, mes=2, status="PAGO"),
+        make_parcela(grupo, 3, 3, dia=1, mes=3, status="PAGO"),
+    ]
+    repo = SimpleNamespace(listar_por_periodo=AsyncMock(return_value=transacoes))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.get("/api/parcelas-ativas")
+
+    assert resposta.status_code == 200
+    itens = resposta.json()
+    grupos_ids = {i["grupo_parcela_id"] for i in itens}
+    assert grupo not in grupos_ids, "Grupo totalmente pago não deveria aparecer em listar_ativas"
