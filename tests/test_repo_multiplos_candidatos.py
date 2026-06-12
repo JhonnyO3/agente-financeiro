@@ -101,7 +101,9 @@ async def test_multiplos_usuario_id_none_nao_filtra():
     session.execute.assert_awaited_once()
     stmt = session.execute.call_args[0][0]
     stmt_str = str(stmt.compile(compile_kwargs={"literal_binds": True}))
-    assert "usuario_id" not in stmt_str, "sem usuario_id não deve haver filtro na query"
+    assert "transacoes.usuario_id =" not in stmt_str, (
+        "sem usuario_id não deve haver filtro WHERE na query"
+    )
 
 
 @pytest.mark.asyncio
