@@ -20,6 +20,7 @@ CONTROLLERS = [
     "auth",
     "admin",
     "grupos",
+    "gastos_fixos",
 ]
 
 
