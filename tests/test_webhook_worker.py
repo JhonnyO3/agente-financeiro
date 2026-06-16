@@ -1,24 +1,23 @@
 """
-Testes vermelhos (TDD) — Task 14: Webhook auth/dedup/fila + Worker debounce/pipeline.
+Testes — Webhook auth/dedup/fila + Worker debounce/pipeline.
 
-Descreve o NOVO comportamento esperado:
-- webhook.py: auth por header apikey, dedup por message_id, filtros silenciosos,
-  sem log de payload em INFO.
-- worker.py: debounce agrupa fragmentos por "\n", chama pipeline completo,
-  registra histórico, envia erro amigável em exceção.
+Webhook: auth por header apikey, dedup por message_id, filtros silenciosos,
+resolução de identidade in-process (sem WHATSAPP_ALLOWED_NUMBER), sem log
+de payload em INFO.
+
+Worker: debounce agrupa fragmentos por "\n", chama pipeline completo,
+registra histórico, envia erro amigável em exceção.
 """
 
-import asyncio
 import os
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock
 
 # Todas as env vars obrigatórias ANTES de qualquer import do projeto
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
 os.environ.setdefault("EVOLUTION_API_URL", "http://localhost:8080")
 os.environ.setdefault("EVOLUTION_INSTANCE", "test")
 os.environ.setdefault("EVOLUTION_API_KEY", "test-key")
-os.environ.setdefault("WHATSAPP_ALLOWED_NUMBER", "5511957818539")
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake-key-for-tests")
 os.environ.setdefault("RESPONSAVEL_PADRAO", "Jhonatas")
 os.environ.setdefault("WEBHOOK_APIKEY", "test-apikey")
@@ -29,14 +28,21 @@ os.environ.setdefault("DEBOUNCE_SEGUNDOS", "1")
 from httpx import AsyncClient, ASGITransport
 from agent.entrypoint.main import app
 
-AUTHORIZED_NUMBER = "5511957818539"
+NUMERO = "5511957818539"
+USUARIO_ID = 1
 VALID_APIKEY = "test-apikey"
+
+
+def _make_usuario(id: int = USUARIO_ID):
+    u = MagicMock()
+    u.id = id
+    return u
 
 
 def _make_payload(
     event: str = "messages.upsert",
     from_me: bool = False,
-    number: str = AUTHORIZED_NUMBER,
+    number: str = NUMERO,
     message_id: str = "MSG_TEST_001",
     text: str = "listar gastos",
 ) -> dict:
@@ -56,8 +62,11 @@ def _make_payload(
     return payload
 
 
-def _setup_app_state():
-    """Mocks mínimos: a fila (queue) e o worker não existem ainda → vai falhar."""
+def _setup_app_state(usuario_fake=None):
+    """
+    Mocks mínimos em app.state para os testes de integração que usam o app real.
+    Injeta session_factory mockado + fila + resolver de identidade.
+    """
     mock_queue = AsyncMock()
     mock_queue.put = AsyncMock()
     app.state.fila = mock_queue
@@ -65,7 +74,6 @@ def _setup_app_state():
     mock_worker = AsyncMock()
     app.state.worker = mock_worker
 
-    # Mantém estado_store e evolution_client como mocks para os testes de worker
     mock_estado_store = AsyncMock()
     mock_estado_store.registrar_mensagem = AsyncMock()
     app.state.estado_store = mock_estado_store
@@ -73,6 +81,14 @@ def _setup_app_state():
     mock_evolution = AsyncMock()
     mock_evolution.enviar_mensagem = AsyncMock()
     app.state.evolution_client = mock_evolution
+
+    # session_factory mock para resolver_usuario_por_telefone
+    mock_session = AsyncMock()
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    mock_session_factory = MagicMock(return_value=mock_ctx)
+    app.state.session_factory = mock_session_factory
 
     return mock_queue, mock_estado_store, mock_evolution
 
@@ -82,11 +98,18 @@ def _setup_app_state():
 # ---------------------------------------------------------------------------
 
 
-async def test_apikey_correta_retorna_200_e_enfileira():
+async def test_apikey_correta_usuario_ativo_retorna_200_e_enfileira(monkeypatch):
     mock_queue, _, _ = _setup_app_state()
-    payload = _make_payload()
+    usuario = _make_usuario(USUARIO_ID)
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=usuario),
+    )
+    payload = _make_payload(message_id="MSG_AUTH_OK")
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post(
             "/webhook/mensagem",
             json=payload,
@@ -95,24 +118,40 @@ async def test_apikey_correta_retorna_200_e_enfileira():
 
     assert response.status_code == 200
     mock_queue.put.assert_awaited_once()
+    # Garante que a tupla tem 3 elementos: (usuario_id, numero, texto)
+    args = mock_queue.put.call_args[0][0]
+    assert len(args) == 3
+    assert args[0] == USUARIO_ID
 
 
-async def test_apikey_ausente_retorna_401():
+async def test_apikey_ausente_retorna_401(monkeypatch):
     mock_queue, _, _ = _setup_app_state()
-    payload = _make_payload()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=_make_usuario()),
+    )
+    payload = _make_payload(message_id="MSG_AUTH_AUSENTE")
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post("/webhook/mensagem", json=payload)
 
     assert response.status_code == 401
     mock_queue.put.assert_not_awaited()
 
 
-async def test_apikey_errada_retorna_401():
+async def test_apikey_errada_retorna_401(monkeypatch):
     mock_queue, _, _ = _setup_app_state()
-    payload = _make_payload()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=_make_usuario()),
+    )
+    payload = _make_payload(message_id="MSG_AUTH_ERRADA")
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post(
             "/webhook/mensagem",
             json=payload,
@@ -133,15 +172,23 @@ async def test_apikey_errada_retorna_401():
     [
         ({"event": "messages.update"}, "evento diferente de messages.upsert"),
         ({"from_me": True}, "fromMe=True"),
-        ({"number": "5511000000000"}, "numero nao autorizado"),
         ({"text": ""}, "sem texto"),
     ],
 )
-async def test_filtros_silenciosos_retornam_200_sem_enfileirar(override, description):
+async def test_filtros_silenciosos_retornam_200_sem_enfileirar(
+    override, description, monkeypatch
+):
     mock_queue, _, _ = _setup_app_state()
-    payload = _make_payload(**override)
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=_make_usuario()),
+    )
+    mid = f"MSG_FILTRO_{description[:8].replace(' ', '_')}"
+    payload = _make_payload(message_id=mid, **override)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post(
             "/webhook/mensagem",
             json=payload,
@@ -152,16 +199,67 @@ async def test_filtros_silenciosos_retornam_200_sem_enfileirar(override, descrip
     mock_queue.put.assert_not_awaited()
 
 
+async def test_numero_nao_cadastrado_retorna_200_sem_enfileirar(monkeypatch):
+    """Substitui o antigo filtro WHATSAPP_ALLOWED_NUMBER: numero desconhecido → discard."""
+    mock_queue, _, _ = _setup_app_state()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=None),
+    )
+    payload = _make_payload(number="5511000000000", message_id="MSG_NAO_CADASTRADO_WW")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/webhook/mensagem",
+            json=payload,
+            headers={"apikey": VALID_APIKEY},
+        )
+
+    assert response.status_code == 200
+    mock_queue.put.assert_not_awaited()
+
+
+async def test_usuario_inativo_retorna_200_sem_enfileirar(monkeypatch):
+    """Usuário inativo: buscar_por_telefone retorna None → discard."""
+    mock_queue, _, _ = _setup_app_state()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=None),
+    )
+    payload = _make_payload(number=NUMERO, message_id="MSG_INATIVO_WW")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/webhook/mensagem",
+            json=payload,
+            headers={"apikey": VALID_APIKEY},
+        )
+
+    assert response.status_code == 200
+    mock_queue.put.assert_not_awaited()
+
+
 # ---------------------------------------------------------------------------
 # Dedup por message_id
 # ---------------------------------------------------------------------------
 
 
-async def test_message_id_duplicado_enfileirado_apenas_uma_vez():
+async def test_message_id_duplicado_enfileirado_apenas_uma_vez(monkeypatch):
     mock_queue, _, _ = _setup_app_state()
-    payload = _make_payload(message_id="MSG_DEDUP_001")
+    usuario = _make_usuario()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=usuario),
+    )
+    payload = _make_payload(message_id="MSG_DEDUP_WW_001")
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         r1 = await client.post(
             "/webhook/mensagem",
             json=payload,
@@ -175,22 +273,28 @@ async def test_message_id_duplicado_enfileirado_apenas_uma_vez():
 
     assert r1.status_code == 200
     assert r2.status_code == 200
-    # Apenas UMA vez na fila
     assert mock_queue.put.await_count == 1
 
 
-async def test_message_ids_distintos_sao_ambos_enfileirados():
+async def test_message_ids_distintos_sao_ambos_enfileirados(monkeypatch):
     mock_queue, _, _ = _setup_app_state()
+    usuario = _make_usuario()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=usuario),
+    )
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         r1 = await client.post(
             "/webhook/mensagem",
-            json=_make_payload(message_id="MSG_A"),
+            json=_make_payload(message_id="MSG_WW_A"),
             headers={"apikey": VALID_APIKEY},
         )
         r2 = await client.post(
             "/webhook/mensagem",
-            json=_make_payload(message_id="MSG_B"),
+            json=_make_payload(message_id="MSG_WW_B"),
             headers={"apikey": VALID_APIKEY},
         )
 
@@ -204,9 +308,14 @@ async def test_message_ids_distintos_sao_ambos_enfileirados():
 # ---------------------------------------------------------------------------
 
 
-async def test_payload_completo_nao_logado_em_info(caplog):
+async def test_payload_completo_nao_logado_em_info(caplog, monkeypatch):
     _setup_app_state()
-    payload = _make_payload(text="meu salario secreto", message_id="MSG_PII_001")
+    usuario = _make_usuario()
+    monkeypatch.setattr(
+        "agent.entrypoint.webhook.resolver_usuario_por_telefone",
+        AsyncMock(return_value=usuario),
+    )
+    payload = _make_payload(text="meu salario secreto", message_id="MSG_PII_WW_001")
 
     import logging
 
@@ -220,22 +329,15 @@ async def test_payload_completo_nao_logado_em_info(caplog):
                 headers={"apikey": VALID_APIKEY},
             )
 
-    # Nenhum registro INFO deve conter o texto completo do payload
     payload_str = str(payload)
     for record in caplog.records:
         if record.levelno == logging.INFO:
             assert payload_str not in record.getMessage(), (
                 "Payload completo foi logado em INFO — viola proteção de PII"
             )
-    # Número e texto do usuário não devem aparecer em log de payload bruto
     texto_usuario = "meu salario secreto"
-    numero_usuario = AUTHORIZED_NUMBER
+    numero_usuario = NUMERO
     for record in caplog.records:
         if record.levelno == logging.INFO and "webhook recebido" in record.getMessage():
-            assert texto_usuario not in record.getMessage(), (
-                "Texto do usuário aparece em log de payload bruto (nível INFO)"
-            )
-            assert numero_usuario not in record.getMessage(), (
-                "Número do usuário aparece em log de payload bruto (nível INFO)"
-            )
-
+            assert texto_usuario not in record.getMessage()
+            assert numero_usuario not in record.getMessage()

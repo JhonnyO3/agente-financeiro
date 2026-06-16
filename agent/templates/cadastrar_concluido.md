@@ -10,7 +10,7 @@ _{{ reg.descricao }}_ de *{{ reg.valor_fmt }}* foi salvo.
 {% else %}
 *{{ qtd }} registros salvos:*
 {% for reg in registros %}
-  • {{ reg.descricao }} — {% if reg.parcela_total and reg.parcela_total > 1 %}{{ reg.parcela_total }}x de {{ reg.valor_fmt }}{% else %}{{ reg.valor_fmt }}{% endif %}
+  • {{ reg.descricao }} — {{ reg.parcela_total ~ 'x de ' ~ reg.valor_fmt if reg.parcela_total and reg.parcela_total > 1 else reg.valor_fmt }}
 {% endfor %}
 {% endif %}
 
