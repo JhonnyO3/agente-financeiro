@@ -19,9 +19,10 @@ class Settings(BaseSettings):
     EVOLUTION_API_URL: str
     EVOLUTION_INSTANCE: str
     EVOLUTION_API_KEY: str
-    WHATSAPP_ALLOWED_NUMBER: str
 
     # --- obrigatórios sem default ---
+    # AGENTE_USUARIO_EMAIL: mantido no Settings para não quebrar .env legado;
+    # não é mais usado no fluxo do agente (substituído por resolução in-process no webhook).
     AGENTE_USUARIO_EMAIL: str
     RESPONSAVEL_PADRAO: str
     WEBHOOK_APIKEY: str
@@ -31,6 +32,10 @@ class Settings(BaseSettings):
     TIMEZONE_USUARIO: str = "America/Sao_Paulo"
     DEBOUNCE_SEGUNDOS: int = Field(default=5, ge=1)
     CONFIANCA_MINIMA: float = Field(default=0.7, ge=0.0, le=1.0)
+
+    # Histórico de conversa
+    HISTORICO_MAX_MENSAGENS: int = Field(default=10, ge=1)
+    HISTORICO_TTL_HORAS: int = Field(default=2, ge=1)
 
     # RAG / busca semântica
     RAG_PISO: float = Field(default=1.0, ge=0.0)

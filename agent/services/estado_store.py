@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
 from agent.domain.estado import EstadoConversa, Mensagem
 
-_MAX_HISTORICO = 5
+_MAX_HISTORICO_PADRAO = 10
+_TTL_HISTORICO_HORAS_PADRAO = 2
 _TTL_FISICO_S = 86400  # 24h
 
 
@@ -40,8 +41,14 @@ def _limpar_expirados(estado: EstadoConversa, agora: datetime) -> EstadoConversa
 
 
 class EstadoStoreMemoria:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        max_historico: int = _MAX_HISTORICO_PADRAO,
+        ttl_historico_horas: int = _TTL_HISTORICO_HORAS_PADRAO,
+    ) -> None:
         self._dados: dict[int, EstadoConversa] = {}
+        self._max_historico = max_historico
+        self._ttl_historico_horas = ttl_historico_horas
 
     async def obter(self, usuario_id: int, agora: datetime) -> EstadoConversa:
         estado = self._dados.get(usuario_id)
@@ -71,13 +78,25 @@ class EstadoStoreMemoria:
     ) -> None:
         estado = await self.obter(usuario_id=usuario_id, agora=agora)
         historico = list(estado.historico) + [msg]
-        historico = historico[-_MAX_HISTORICO:]
-        await self.salvar(estado.model_copy(update={"historico": historico}))
+        historico = historico[-self._max_historico :]
+        expira_em = agora + timedelta(hours=self._ttl_historico_horas)
+        await self.salvar(
+            estado.model_copy(
+                update={"historico": historico, "historico_expira_em": expira_em}
+            )
+        )
 
 
 class EstadoStoreRedis:
-    def __init__(self, client: Any) -> None:
+    def __init__(
+        self,
+        client: Any,
+        max_historico: int = _MAX_HISTORICO_PADRAO,
+        ttl_historico_horas: int = _TTL_HISTORICO_HORAS_PADRAO,
+    ) -> None:
         self._client = client
+        self._max_historico = max_historico
+        self._ttl_historico_horas = ttl_historico_horas
 
     def _chave(self, usuario_id: int) -> str:
         return f"estado:{usuario_id}"
@@ -117,8 +136,13 @@ class EstadoStoreRedis:
     ) -> None:
         estado = await self.obter(usuario_id=usuario_id, agora=agora)
         historico = list(estado.historico) + [msg]
-        historico = historico[-_MAX_HISTORICO:]
-        await self.salvar(estado.model_copy(update={"historico": historico}))
+        historico = historico[-self._max_historico :]
+        expira_em = agora + timedelta(hours=self._ttl_historico_horas)
+        await self.salvar(
+            estado.model_copy(
+                update={"historico": historico, "historico_expira_em": expira_em}
+            )
+        )
 
 
 def resumir_pendencia(estado: EstadoConversa) -> str:
