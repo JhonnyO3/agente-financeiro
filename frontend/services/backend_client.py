@@ -93,3 +93,6 @@ class BackendClient:
 
     def excluir_transacao(self, id: int) -> httpx.Response:
         return self._autenticado("DELETE", f"/api/transacoes/{id}")
+
+    def criar_usuario(self, body: dict) -> httpx.Response:
+        return self._autenticado("POST", "/admin/usuarios", json=body)

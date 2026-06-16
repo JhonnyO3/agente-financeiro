@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, redirect, request, url_for
 
-from frontend.blueprints import api_proxy, auth, dashboard
+from frontend.blueprints import admin_usuarios, api_proxy, auth, dashboard
 from frontend.config import Settings
 from frontend.services import sessao
 from frontend.services.backend_client import BackendClient
@@ -26,6 +26,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)
     app.register_blueprint(api_proxy.bp)
+    app.register_blueprint(admin_usuarios.bp)
 
     @app.before_request
     def proteger_rotas():
