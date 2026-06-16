@@ -1,5 +1,4 @@
 import os
-import json
 
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("EVOLUTION_API_URL", "http://localhost")
@@ -14,7 +13,11 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 from agent.domain.estado import EstadoConversa, Mensagem, OpcaoPendente
-from agent.services.estado_store import EstadoStoreMemoria, EstadoStoreRedis, resumir_pendencia
+from agent.services.estado_store import (
+    EstadoStoreMemoria,
+    EstadoStoreRedis,
+    resumir_pendencia,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,13 +61,14 @@ def _redis_mock(stored: dict | None = None) -> AsyncMock:
 # Fixtures parametrizadas: mesma suíte de comportamento para as duas impls
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(params=["memoria", "redis"])
 async def store_vazio(request):
     if request.param == "memoria":
-        yield EstadoStoreMemoria()
+        yield EstadoStoreMemoria(max_historico=10, ttl_historico_horas=2)
     else:
         client = _redis_mock()
-        yield EstadoStoreRedis(client=client)
+        yield EstadoStoreRedis(client=client, max_historico=10, ttl_historico_horas=2)
 
 
 @pytest.fixture(params=["memoria", "redis"])
@@ -90,6 +94,7 @@ async def store_com_estado(request):
 # Cenário: obter estado para usuario inexistente devolve estado limpo
 # ---------------------------------------------------------------------------
 
+
 async def test_obter_inexistente_retorna_estado_limpo(store_vazio):
     estado = await store_vazio.obter(usuario_id=99, agora=AGORA)
 
@@ -108,6 +113,7 @@ async def test_obter_inexistente_retorna_estado_limpo(store_vazio):
 # Cenário: salvar e recuperar estado ativo
 # ---------------------------------------------------------------------------
 
+
 async def test_salvar_e_recuperar_estado(store_com_estado):
     s, _ = store_com_estado
     recuperado = await s.obter(usuario_id=1, agora=AGORA)
@@ -120,15 +126,16 @@ async def test_salvar_e_recuperar_estado(store_com_estado):
 # Cenário: pendência expira sem afetar histórico
 # ---------------------------------------------------------------------------
 
+
 async def test_pendencia_expira_sem_afetar_historico(store_vazio):
     msgs = [_mensagem("usuario", f"msg{i}", delta_s=i * 10) for i in range(2)]
     estado = EstadoConversa(
         usuario_id=1,
         acao_pendente="excluir",
         payload_pendente={"y": 2},
-        expira_em=AGORA - timedelta(seconds=1),          # JÁ EXPIROU
+        expira_em=AGORA - timedelta(seconds=1),  # JÁ EXPIROU
         historico=msgs,
-        historico_expira_em=AGORA + timedelta(hours=24), # ainda válido
+        historico_expira_em=AGORA + timedelta(hours=24),  # ainda válido
     )
     await store_vazio.salvar(estado)
 
@@ -144,15 +151,16 @@ async def test_pendencia_expira_sem_afetar_historico(store_vazio):
 # Cenário: histórico expira sem afetar pendência ativa
 # ---------------------------------------------------------------------------
 
+
 async def test_historico_expira_sem_afetar_pendencia(store_vazio):
     msgs = [_mensagem("assistente", f"resp{i}", delta_s=i * 10) for i in range(2)]
     estado = EstadoConversa(
         usuario_id=1,
         acao_pendente="atualizar",
         payload_pendente={"z": 3},
-        expira_em=AGORA + timedelta(minutes=5),           # ainda válido
+        expira_em=AGORA + timedelta(minutes=5),  # ainda válido
         historico=msgs,
-        historico_expira_em=AGORA - timedelta(seconds=1), # JÁ EXPIROU
+        historico_expira_em=AGORA - timedelta(seconds=1),  # JÁ EXPIROU
     )
     await store_vazio.salvar(estado)
 
@@ -167,6 +175,7 @@ async def test_historico_expira_sem_afetar_pendencia(store_vazio):
 # ---------------------------------------------------------------------------
 # Cenário: limpar_pendencia preserva histórico
 # ---------------------------------------------------------------------------
+
 
 async def test_limpar_pendencia_preserva_historico(store_vazio):
     msgs = [_mensagem("usuario", f"m{i}") for i in range(3)]
@@ -193,31 +202,72 @@ async def test_limpar_pendencia_preserva_historico(store_vazio):
 
 
 # ---------------------------------------------------------------------------
-# Cenário: registrar_mensagem mantém anel de no máximo 5 mensagens
+# Cenário: registrar_mensagem respeita o máximo configurável (anel)
 # ---------------------------------------------------------------------------
 
-async def test_registrar_mensagem_anel_5(store_vazio):
-    msgs_iniciais = [_mensagem("usuario", f"antiga{i}", delta_s=(5 - i) * 60) for i in range(5)]
+
+@pytest.mark.parametrize(
+    "impl,kwargs",
+    [
+        ("memoria", {"max_historico": 5, "ttl_historico_horas": 2}),
+        ("redis", {"max_historico": 5, "ttl_historico_horas": 2}),
+    ],
+)
+async def test_registrar_mensagem_anel_configuravel(impl, kwargs):
+    if impl == "memoria":
+        store = EstadoStoreMemoria(**kwargs)
+    else:
+        store = EstadoStoreRedis(client=_redis_mock(), **kwargs)
+
+    # Salva 5 mensagens iniciais
+    msgs_iniciais = [
+        _mensagem("usuario", f"antiga{i}", delta_s=(5 - i) * 60) for i in range(5)
+    ]
     estado = EstadoConversa(
         usuario_id=1,
         historico=msgs_iniciais,
         historico_expira_em=AGORA + timedelta(hours=24),
     )
-    await store_vazio.salvar(estado)
+    await store.salvar(estado)
 
+    # Registra uma nova mensagem — deve deslocar a mais antiga
     nova = _mensagem("usuario", "nova_mensagem")
-    await store_vazio.registrar_mensagem(usuario_id=1, msg=nova, agora=AGORA)
+    await store.registrar_mensagem(usuario_id=1, msg=nova, agora=AGORA)
 
-    recuperado = await store_vazio.obter(usuario_id=1, agora=AGORA)
+    recuperado = await store.obter(usuario_id=1, agora=AGORA)
 
     assert len(recuperado.historico) == 5
     assert recuperado.historico[-1].texto == "nova_mensagem"
     assert all(m.texto != "antiga0" for m in recuperado.historico)
 
 
+async def test_registrar_mensagem_anel_10_padrao():
+    """Com max_historico=10 (padrão), 12 mensagens → apenas 10 permanecem."""
+    store = EstadoStoreMemoria()  # usa default=10
+
+    msgs_iniciais = [
+        _mensagem("usuario", f"antiga{i}", delta_s=(12 - i) * 60) for i in range(12)
+    ]
+    estado = EstadoConversa(
+        usuario_id=1,
+        historico=msgs_iniciais,
+        historico_expira_em=AGORA + timedelta(hours=24),
+    )
+    await store.salvar(estado)
+
+    nova = _mensagem("usuario", "nova")
+    await store.registrar_mensagem(usuario_id=1, msg=nova, agora=AGORA)
+
+    recuperado = await store.obter(usuario_id=1, agora=AGORA)
+    # 12 + 1 = 13 → trunca para 10
+    assert len(recuperado.historico) == 10
+    assert recuperado.historico[-1].texto == "nova"
+
+
 # ---------------------------------------------------------------------------
 # Cenário: EstadoStoreRedis serializa JSON com TTL físico de 24h
 # ---------------------------------------------------------------------------
+
 
 async def test_redis_serializa_json_com_ttl_24h():
     client = _redis_mock()
@@ -274,6 +324,7 @@ async def test_redis_obter_reconstroi_estado_do_json():
 # Cenário: resumir_pendencia retorna "nenhuma" quando sem pendência
 # ---------------------------------------------------------------------------
 
+
 def test_resumir_pendencia_nenhuma():
     estado = EstadoConversa(usuario_id=1)
     assert resumir_pendencia(estado) == "nenhuma"
@@ -283,52 +334,125 @@ def test_resumir_pendencia_nenhuma():
 # Esquema: resumir_pendencia cobre os formatos do classificador.md
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("estado,fragmento", [
-    # cadastrar com payload pronto → aguardando confirmação
-    (
-        EstadoConversa(
-            usuario_id=1,
-            acao_pendente="cadastrar",
-            payload_pendente={"descricao": "Aluguel", "valor": 1500},
-            campos_faltantes=[],
+
+@pytest.mark.parametrize(
+    "estado,fragmento",
+    [
+        # cadastrar com payload pronto → aguardando confirmação
+        (
+            EstadoConversa(
+                usuario_id=1,
+                acao_pendente="cadastrar",
+                payload_pendente={"descricao": "Aluguel", "valor": 1500},
+                campos_faltantes=[],
+            ),
+            "cadastro aguardando confirmação",
         ),
-        "cadastro aguardando confirmação",
-    ),
-    # cadastrar com campo faltante → aguardando <campo>
-    (
-        EstadoConversa(
-            usuario_id=1,
-            acao_pendente="cadastrar",
-            campos_faltantes=["valor"],
+        # cadastrar com campo faltante → aguardando <campo>
+        (
+            EstadoConversa(
+                usuario_id=1,
+                acao_pendente="cadastrar",
+                campos_faltantes=["valor"],
+            ),
+            "cadastro aguardando valor",
         ),
-        "cadastro aguardando valor",
-    ),
-    # atualizar com lista de 3 opções → lista de 3 opções exibida
-    (
-        EstadoConversa(
-            usuario_id=1,
-            acao_pendente="atualizar",
-            opcoes=[
-                OpcaoPendente(numero=1, rotulo="Internet", ref={"id": 1}),
-                OpcaoPendente(numero=2, rotulo="Zara", ref={"id": 2}),
-                OpcaoPendente(numero=3, rotulo="Batman", ref={"id": 3}),
-            ],
+        # atualizar com lista de 3 opções → lista de 3 opções exibida
+        (
+            EstadoConversa(
+                usuario_id=1,
+                acao_pendente="atualizar",
+                opcoes=[
+                    OpcaoPendente(numero=1, rotulo="Internet", ref={"id": 1}),
+                    OpcaoPendente(numero=2, rotulo="Zara", ref={"id": 2}),
+                    OpcaoPendente(numero=3, rotulo="Batman", ref={"id": 3}),
+                ],
+            ),
+            "lista de 3 opções exibida",
         ),
-        "lista de 3 opções exibida",
-    ),
-    # excluir com escopo → exclusão aguardando escopo
-    (
-        EstadoConversa(
-            usuario_id=1,
-            acao_pendente="excluir",
-            opcoes=[
-                OpcaoPendente(numero=1, rotulo="somente este", ref={"escopo": "um"}),
-                OpcaoPendente(numero=2, rotulo="todos", ref={"escopo": "todos"}),
-            ],
+        # excluir com escopo → exclusão aguardando escopo
+        (
+            EstadoConversa(
+                usuario_id=1,
+                acao_pendente="excluir",
+                opcoes=[
+                    OpcaoPendente(
+                        numero=1, rotulo="somente este", ref={"escopo": "um"}
+                    ),
+                    OpcaoPendente(numero=2, rotulo="todos", ref={"escopo": "todos"}),
+                ],
+            ),
+            "exclusão aguardando escopo",
         ),
-        "exclusão aguardando escopo",
-    ),
-])
+    ],
+)
 def test_resumir_pendencia_formatos(estado, fragmento):
     resultado = resumir_pendencia(estado)
     assert fragmento in resultado
+
+
+# ---------------------------------------------------------------------------
+# Cenário: histórico expira após TTL de inatividade (configurável)
+# ---------------------------------------------------------------------------
+
+
+async def test_historico_expira_apos_ttl_inatividade_memoria():
+    """Com ttl_historico_horas=2, histórico expirado → retorna vazio."""
+    from datetime import timedelta
+
+    store = EstadoStoreMemoria(max_historico=10, ttl_historico_horas=2)
+    agora = AGORA
+
+    # Registra mensagem — expira_em = agora + 2h
+    msg = _mensagem("usuario", "oi")
+    await store.registrar_mensagem(usuario_id=1, msg=msg, agora=agora)
+
+    # Avança o tempo além do TTL (2h + 1s)
+    agora_depois = agora + timedelta(hours=2, seconds=1)
+    recuperado = await store.obter(usuario_id=1, agora=agora_depois)
+
+    assert recuperado.historico == [], "Histórico deve expirar após TTL de inatividade"
+
+
+async def test_historico_ainda_valido_dentro_do_ttl_memoria():
+    """Dentro do TTL, histórico permanece acessível."""
+    from datetime import timedelta
+
+    store = EstadoStoreMemoria(max_historico=10, ttl_historico_horas=2)
+    agora = AGORA
+
+    msg = _mensagem("usuario", "oi")
+    await store.registrar_mensagem(usuario_id=1, msg=msg, agora=agora)
+
+    # Avança 1h59m — dentro do TTL
+    agora_depois = agora + timedelta(hours=1, minutes=59)
+    recuperado = await store.obter(usuario_id=1, agora=agora_depois)
+
+    assert len(recuperado.historico) == 1
+
+
+# ---------------------------------------------------------------------------
+# Cenário: isolamento — histórico de um usuário não vaza para outro
+# ---------------------------------------------------------------------------
+
+
+async def test_historico_isolado_por_usuario_id_memoria():
+    """Históricos de dois usuários não se misturam em EstadoStoreMemoria."""
+    store = EstadoStoreMemoria()
+
+    msg_a = _mensagem("usuario", "mensagem_do_a")
+    msg_b = _mensagem("usuario", "mensagem_do_b")
+
+    await store.registrar_mensagem(usuario_id=1, msg=msg_a, agora=AGORA)
+    await store.registrar_mensagem(usuario_id=2, msg=msg_b, agora=AGORA)
+
+    estado_a = await store.obter(usuario_id=1, agora=AGORA)
+    estado_b = await store.obter(usuario_id=2, agora=AGORA)
+
+    textos_a = [m.texto for m in estado_a.historico]
+    textos_b = [m.texto for m in estado_b.historico]
+
+    assert "mensagem_do_a" in textos_a
+    assert "mensagem_do_b" not in textos_a
+    assert "mensagem_do_b" in textos_b
+    assert "mensagem_do_a" not in textos_b

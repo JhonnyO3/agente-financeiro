@@ -68,7 +68,16 @@ Parâmetros por ação:
 ## Regras de extração
 
 - valor → número, sem símbolo de moeda
-- periodo → "mes_atual", "mes_passado", "YYYY-MM", ou nome do mês
+- periodo → use exatamente um dos valores abaixo (sem variações):
+  - `hoje` — quando a mensagem se refere ao dia corrente ("hoje", "hoje de manhã")
+  - `ontem` — quando a mensagem se refere ao dia anterior ("ontem")
+  - `semana_atual` — esta semana ("essa semana", "esta semana", "semana atual")
+  - `semana_passada` — a semana anterior ("semana passada", "semana que passou")
+  - `mes_atual` — mês corrente sem menção explícita a período, ou "esse mês", "este mês" (também é o fallback quando período não foi informado)
+  - `mes_passado` — mês anterior ("mês passado", "mês que passou")
+  - `YYYY-MM` (ex: `2026-05`) — mês específico por nome ("maio", "de maio", "em junho") ou referência numérica ao mês; substitua pelo ano atual e número do mês correspondente
+  - `YYYY-MM-DD` (ex: `2026-06-10`) — dia específico ("no dia 10", "dia 15 de junho", "03/06"); substitua pelo ano e mês atuais quando omitidos
+  - nome de mês PT (ex: `junho`) — alternativa aceita pelo parser, mas prefira `YYYY-MM` quando o ano for inferível
 - confianca < 0.7 → retornar desconhecida
 - Nunca inferir intenção além do que foi dito
 - Nunca calcular nada (totais, divisão de parcelas) — só extrair o que está na mensagem
@@ -95,3 +104,9 @@ Parâmetros por ação:
 | "em 3x" | cadastro aguardando parcelas | acao=complementar, campo="parcelas", valor=3, confianca=0.97 |
 | "gastei 30 no uber" | exclusão aguardando confirmação | acao=cadastrar, itens=[descricao="Uber" valor=30], confianca=0.95 — intenção nova vence pendência |
 | "me conta uma piada" | nenhuma | acao=desconhecida, confianca=0.99 |
+| "quanto eu gastei hoje?" | nenhuma | acao=listar, periodo="hoje", confianca=0.97 |
+| "o que gastei ontem?" | nenhuma | acao=listar, periodo="ontem", confianca=0.97 |
+| "gastos dessa semana" | nenhuma | acao=listar, periodo="semana_atual", confianca=0.97 |
+| "resumo da semana passada" | nenhuma | acao=listar, periodo="semana_passada", confianca=0.97 |
+| "quanto gastei no dia 10?" | nenhuma | acao=listar, periodo="2026-06-10", confianca=0.96 |
+| "gastos de maio" | nenhuma | acao=listar, periodo="2026-05", confianca=0.96 |

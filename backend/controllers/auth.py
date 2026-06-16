@@ -1,9 +1,10 @@
 import datetime
 
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, Response
 
 from backend.auth import jwt as jwt_module
+from backend.auth.dependencies import UsuarioToken, get_usuario_atual
 from backend.auth.hashing import verificar_senha
 
 router = APIRouter(prefix="/auth")
@@ -104,6 +105,22 @@ async def refresh(request: Request):
         "refresh_token": par["refresh_token"],
         "token_type": "bearer",
     }
+
+
+@router.get("/identidade/por-telefone/{telefone}")
+async def identidade_por_telefone(
+    telefone: str,
+    request: Request,
+    _usuario: UsuarioToken = Depends(get_usuario_atual),
+):
+    from backend.dtos.usuario import UsuarioResponse
+
+    async with _abrir_sessao(request) as session:
+        usuario = await _usuario_repo(session).buscar_por_telefone(telefone)
+
+    if usuario is None:
+        return Response(status_code=204)
+    return UsuarioResponse.de_modelo(usuario).model_dump()
 
 
 @router.post("/logout")

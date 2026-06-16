@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from agent.domain.resultado import ResultadoTool
+from agent.services.template_loader import renderizar
 
 
 def _brl(valor) -> str:
@@ -16,42 +17,6 @@ def _brl(valor) -> str:
 
 def _status_emoji(status: str) -> str:
     return "✅" if status == "PAGO" else "⏳"
-
-
-def _card_registro(reg: dict, numero: int | None = None) -> str:
-    """Monta o bloco de um registro para confirmação de cadastro."""
-    linhas = []
-
-    prefixo = f"*{numero}. {reg['descricao']}*" if numero else f"*{reg['descricao']}*"
-    linhas.append(prefixo)
-
-    parcela_total = reg.get("parcela_total", 1)
-    parcela_numero = reg.get("parcela_numero", 1)
-    valor = reg.get("valor", Decimal("0"))
-    if parcela_total and parcela_total > 1:
-        linhas.append(
-            f"💰 Valor: {parcela_total}x de {_brl(valor)} (total {_brl(valor * parcela_total)})"
-        )
-        linhas.append(
-            f"📅 Data: {reg['data'].strftime('%d/%m/%Y')} (parcela {parcela_numero}/{parcela_total})"
-        )
-    else:
-        linhas.append(f"💰 Valor: {_brl(valor)}")
-        linhas.append(f"📅 Data: {reg['data'].strftime('%d/%m/%Y')}")
-
-    linhas.append(f"🗂 Categoria: {reg['categoria']}")
-
-    forma = reg.get("forma_pagamento", "")
-    detalhes = reg.get("detalhes")
-    if detalhes:
-        linhas.append(f"💳 Pagamento: {forma} _(detalhes: {detalhes})_")
-    else:
-        linhas.append(f"💳 Pagamento: {forma}")
-
-    linhas.append(f"👤 Responsável: {reg['responsavel']}")
-    linhas.append(f"📌 Status: {reg['status']}")
-
-    return "\n".join(linhas)
 
 
 class Formatador:
@@ -81,10 +46,7 @@ class Formatador:
 
             case ("listar", "vazio"):
                 periodo = dados.get("periodo_label", "")
-                return (
-                    f"📭 Nenhum registro encontrado para *{periodo}*.\n\n"
-                    "Digite *cadastrar* para adicionar um gasto."
-                )
+                return renderizar("listar_vazio.md", {"periodo": periodo})
 
             # ------------------------------------------------------------------
             # atualizar
@@ -96,22 +58,19 @@ class Formatador:
                 return self._selecao_opcoes(dados["opcoes"], verbo="atualizar")
 
             case ("atualizar", "concluido"):
-                desc = dados.get("descricao", "")
-                propagou = dados.get("propagou_parcelas", False)
-                linhas = [
-                    "✅ *Registro atualizado!*",
-                    "",
-                    f"_{desc}_ foi atualizado com sucesso.",
-                ]
-                if propagou:
-                    linhas.append(
-                        "_As parcelas futuras vinculadas também foram atualizadas._"
-                    )
-                return "\n".join(linhas)
+                return renderizar(
+                    "atualizar_concluido.md",
+                    {
+                        "descricao": dados.get("descricao", ""),
+                        "propagou": dados.get("propagou_parcelas", False),
+                    },
+                )
 
             case ("atualizar", "nao_encontrado"):
-                ref = dados.get("referencia", "")
-                return f"Nenhum registro encontrado para *{ref}*."
+                return renderizar(
+                    "atualizar_nao_encontrado.md",
+                    {"referencia": dados.get("referencia", "")},
+                )
 
             # ------------------------------------------------------------------
             # excluir
@@ -129,11 +88,13 @@ class Formatador:
                 return self._excluir_concluido(dados)
 
             case ("excluir", "nao_encontrado"):
-                ref = dados.get("referencia", "")
-                return f"Nenhum registro encontrado para *{ref}*."
+                return renderizar(
+                    "excluir_nao_encontrado.md",
+                    {"referencia": dados.get("referencia", "")},
+                )
 
             # ------------------------------------------------------------------
-            # conversar
+            # conversar — passthrough sem template
             # ------------------------------------------------------------------
             case ("conversar", "concluido"):
                 return dados.get("resposta", "")
@@ -142,101 +103,99 @@ class Formatador:
             # menu
             # ------------------------------------------------------------------
             case ("menu", "concluido"):
-                return (
-                    "Olá! Sou seu assistente financeiro pessoal. Posso ajudar com:\n\n"
-                    "• *cadastrar* — registrar gastos e investimentos\n"
-                    "• *extrato* / *listar* — ver o resumo do mês\n"
-                    "• *atualizar* — corrigir um registro\n"
-                    "• *excluir* — remover um registro\n"
-                    "• *ajuda* — ver este menu\n\n"
-                    "Digite o que quiser fazer! 😊"
-                )
+                return renderizar("menu.md", {})
 
             # ------------------------------------------------------------------
             # erro
             # ------------------------------------------------------------------
             case ("erro", "concluido"):
                 mensagem = dados.get("mensagem", "Ocorreu um erro inesperado.")
-                return mensagem
+                return renderizar("erro.md", {"mensagem": mensagem})
 
             # ------------------------------------------------------------------
             # fallback
             # ------------------------------------------------------------------
             case _:
-                return (
-                    f"Não foi possível processar a ação *{acao}* (status: {status}).\n"
-                    "Digite *ajuda* para ver o menu de opções."
+                return renderizar(
+                    "erro.md",
+                    {
+                        "mensagem": (
+                            f"Não foi possível processar a ação *{acao}* (status: {status}).\n"
+                            "Digite *ajuda* para ver o menu de opções."
+                        )
+                    },
                 )
 
     # --------------------------------------------------------------------------
-    # helpers privados
+    # helpers privados — constroem contexto e delegam ao template
     # --------------------------------------------------------------------------
 
     def _cadastrar_confirmacao(self, dados: dict) -> str:
         registros = dados.get("registros", [])
         parcelas_futuras = dados.get("parcelas_futuras", [])
         campos_faltantes = dados.get("campos_faltantes", [])
-
         multiplo = len(registros) > 1
-        cabecalho = (
-            "📋 *Confirme os registros abaixo:*"
-            if multiplo
-            else "📋 *Confirme o registro abaixo:*"
+
+        regs_ctx = []
+        for reg in registros:
+            valor = reg.get("valor", Decimal("0"))
+            parcela_total = reg.get("parcela_total", 1)
+            parcela_numero = reg.get("parcela_numero", 1)
+            data = reg.get("data")
+            regs_ctx.append(
+                {
+                    "descricao": reg.get("descricao", ""),
+                    "valor_fmt": _brl(valor),
+                    "total_fmt": _brl(valor * parcela_total)
+                    if parcela_total and parcela_total > 1
+                    else _brl(valor),
+                    "data_fmt": data.strftime("%d/%m/%Y") if data else "",
+                    "categoria": reg.get("categoria", ""),
+                    "forma_pagamento": reg.get("forma_pagamento", ""),
+                    "detalhes": reg.get("detalhes"),
+                    "responsavel": reg.get("responsavel", ""),
+                    "status": reg.get("status", ""),
+                    "parcela_numero": parcela_numero,
+                    "parcela_total": parcela_total,
+                }
+            )
+
+        return renderizar(
+            "cadastrar_confirmacao.md",
+            {
+                "multiplo": multiplo,
+                "registros": regs_ctx,
+                "campos_faltantes": campos_faltantes,
+                "parcelas_futuras": parcelas_futuras,
+            },
         )
-        linhas = [cabecalho, ""]
-
-        for i, reg in enumerate(registros, start=1):
-            numero = i if multiplo else None
-            linhas.append(_card_registro(reg, numero=numero))
-
-            if campos_faltantes:
-                linhas.append(f"_(faltante: {', '.join(campos_faltantes)})_")
-
-            if parcelas_futuras and not multiplo:
-                linhas.append(f"📅 Parcelas: {' · '.join(parcelas_futuras)}")
-
-            linhas.append("")
-
-        linhas.append(
-            "_Responda *confirmar* para salvar ou *cancelar* para descartar._"
-        )
-        return "\n".join(linhas)
 
     def _cadastrar_concluido(self, dados: dict) -> str:
         registros = dados.get("registros_salvos", [])
         qtd = dados.get("qtd", len(registros))
-        linhas = ["✅ *Registrado com sucesso!*", ""]
 
-        if qtd == 1 and registros:
-            reg = registros[0]
+        # Deduplica por descricao (para parcelados) — lógica de negócio permanece em Python
+        seen: set[str] = set()
+        regs_ctx = []
+        for reg in registros:
             desc = reg.get("descricao", "")
+            if desc in seen:
+                continue
+            seen.add(desc)
             valor = reg.get("valor", Decimal("0"))
             parcela_total = reg.get("parcela_total", 1)
-            if parcela_total and parcela_total > 1:
-                linhas.append(
-                    f"_{desc}_ {parcela_total}x de *{_brl(valor)}* foi salvo."
-                )
-            else:
-                linhas.append(f"_{desc}_ de *{_brl(valor)}* foi salvo.")
-        else:
-            linhas.append(f"*{qtd} registros salvos:*")
-            # Deduplica por descricao para parcelados
-            seen: set[str] = set()
-            for reg in registros:
-                desc = reg.get("descricao", "")
-                if desc in seen:
-                    continue
-                seen.add(desc)
-                valor = reg.get("valor", Decimal("0"))
-                parcela_total = reg.get("parcela_total", 1)
-                if parcela_total and parcela_total > 1:
-                    linhas.append(f"  • {desc} — {parcela_total}x de {_brl(valor)}")
-                else:
-                    linhas.append(f"  • {desc} — {_brl(valor)}")
+            regs_ctx.append(
+                {
+                    "descricao": desc,
+                    "valor_fmt": _brl(valor),
+                    "parcela_total": parcela_total,
+                }
+            )
 
-        linhas.append("")
-        linhas.append("Digite *extrato* para ver o resumo do mês. 📊")
-        return "\n".join(linhas)
+        return renderizar(
+            "cadastrar_concluido.md",
+            {"qtd": qtd, "registros": regs_ctx},
+        )
 
     def _listar_concluido(self, dados: dict) -> str:
         periodo = dados.get("periodo_label", "")
@@ -245,31 +204,41 @@ class Formatador:
         pago = dados.get("pago", Decimal("0"))
         pendente = dados.get("pendente", Decimal("0"))
 
-        linhas = [f"📊 *Gastos de {periodo}*", ""]
-
+        grupos_ctx = []
         for grupo in grupos:
-            titulo = grupo.get("titulo", "")
-            itens = grupo.get("itens", [])
-            subtotal = grupo.get("subtotal", Decimal("0"))
-
-            linhas.append(f"*{titulo}*")
-            for item in itens:
-                desc = item.get("descricao", "")
-                valor = item.get("valor", Decimal("0"))
+            itens_ctx = []
+            for item in grupo.get("itens", []):
                 data = item.get("data")
-                data_str = data.strftime("%d/%m") if data else ""
                 st = item.get("status", "")
-                emoji = _status_emoji(st)
-                linhas.append(f"  • {desc} — {_brl(valor)} — {data_str} — {emoji} {st}")
-            linhas.append(f"_Subtotal: {_brl(subtotal)}_")
-            linhas.append("")
+                itens_ctx.append(
+                    {
+                        "descricao": item.get("descricao", ""),
+                        "valor_fmt": _brl(item.get("valor", Decimal("0"))),
+                        "data_fmt": data.strftime("%d/%m") if data else "",
+                        "emoji": _status_emoji(st),
+                        "status": st,
+                    }
+                )
+            grupos_ctx.append(
+                {
+                    "titulo": grupo.get("titulo", ""),
+                    "itens": itens_ctx,
+                    "subtotal_fmt": _brl(grupo.get("subtotal", Decimal("0"))),
+                }
+            )
 
-        linhas.append(f"💳 *Total do período: {_brl(total)}*")
-        if pendente and Decimal(str(pendente)) > 0:
-            linhas.append(f"⏳ *Pendente: {_brl(pendente)}*")
-        linhas.append(f"✅ *Pago: {_brl(pago)}*")
-
-        return "\n".join(linhas)
+        pendente_dec = Decimal(str(pendente))
+        return renderizar(
+            "listar_concluido.md",
+            {
+                "periodo": periodo,
+                "grupos": grupos_ctx,
+                "total_fmt": _brl(total),
+                "pago_fmt": _brl(pago),
+                "pendente_fmt": _brl(pendente),
+                "pendente_positivo": pendente_dec > 0,
+            },
+        )
 
     def _atualizar_confirmacao(self, dados: dict) -> str:
         reg = dados.get("registro", {})
@@ -279,8 +248,6 @@ class Formatador:
         campo = diff.get("campo", "")
         antigo = diff.get("antigo", "")
         novo = diff.get("novo", "")
-
-        linhas = ["✏️ *Confirme a atualização:*", "", f"*{reg.get('descricao', '')}*"]
 
         valor = reg.get("valor", Decimal("0"))
         data = reg.get("data")
@@ -313,84 +280,99 @@ class Formatador:
         elif campo == "status":
             campos["status"] = f"📌 Status: ~~{antigo}~~ → *{novo}*"
 
-        for v in campos.values():
-            linhas.append(v)
-
-        if parcelas_afetadas:
-            linhas.append(f"📅 Parcelas afetadas: {' · '.join(parcelas_afetadas)}")
-
-        linhas.append("")
-        linhas.append(
-            "_Responda *confirmar* para salvar ou *cancelar* para descartar._"
+        return renderizar(
+            "atualizar_confirmacao.md",
+            {
+                "registro": {"descricao": reg.get("descricao", "")},
+                "campo_valor_fmt": campos["valor"],
+                "campo_data_fmt": campos["data"],
+                "campo_categoria_fmt": campos["categoria"],
+                "campo_forma_fmt": campos["forma_pagamento"],
+                "campo_responsavel_fmt": campos["responsavel"],
+                "campo_status_fmt": campos["status"],
+                "parcelas_afetadas": parcelas_afetadas,
+            },
         )
-        return "\n".join(linhas)
 
     def _selecao_opcoes(self, opcoes: list, verbo: str) -> str:
-        linhas = [f"🔍 Encontrei mais de um registro. Qual você quer {verbo}?", ""]
-        for i, op in enumerate(opcoes, start=1):
-            desc = op.get("descricao", "")
-            valor = op.get("valor", Decimal("0"))
+        opcoes_ctx = []
+        for op in opcoes:
             data = op.get("data")
             data_str = data.strftime("%d/%m") if data else ""
-            # campo extra: forma_pagamento (atualizar) ou status (excluir)
-            extra = op.get("forma_pagamento") or op.get("status") or ""
             status_raw = op.get("status", "")
             emoji = _status_emoji(status_raw) if status_raw else ""
-            if emoji:
-                linhas.append(
-                    f"*{i}.* {desc} — {_brl(valor)} — {data_str} — {emoji} {status_raw}"
-                )
-            else:
-                linhas.append(f"*{i}.* {desc} — {_brl(valor)} — {data_str} — {extra}")
-        linhas.append("")
-        linhas.append("_Responda com o número do registro._")
-        return "\n".join(linhas)
+            extra = op.get("forma_pagamento") or op.get("status") or ""
+            opcoes_ctx.append(
+                {
+                    "descricao": op.get("descricao", ""),
+                    "valor_fmt": _brl(op.get("valor", Decimal("0"))),
+                    "data_fmt": data_str,
+                    "emoji": emoji,
+                    "status": status_raw,
+                    "extra": extra,
+                }
+            )
+        return renderizar("selecao_opcoes.md", {"verbo": verbo, "opcoes": opcoes_ctx})
 
     def _excluir_confirmacao(self, dados: dict) -> str:
-        # Modo lote
-        if dados.get("modo") == "lote":
-            qtd = dados.get("qtd", 0)
-            periodo = dados.get("periodo_label", "")
-            return (
-                f"🗑️ *Confirme a exclusão:*\n\n"
-                f"Você está prestes a excluir *{qtd}* registros de *{periodo}*.\n\n"
-                "_Responda *confirmar* para excluir ou *cancelar* para descartar._"
+        modo = dados.get("modo")
+        if modo == "lote":
+            return renderizar(
+                "excluir_confirmacao.md",
+                {
+                    "modo": "lote",
+                    "qtd": dados.get("qtd", 0),
+                    "periodo": dados.get("periodo_label", ""),
+                    "registro": {},
+                },
             )
 
-        # Individual
         reg = dados.get("registro", {})
-        linhas = ["🗑️ *Confirme a exclusão:*", "", _card_registro(reg)]
-        linhas.append("")
-        linhas.append(
-            "_Responda *confirmar* para excluir ou *cancelar* para descartar._"
+        data = reg.get("data")
+        valor = reg.get("valor", Decimal("0"))
+        reg_ctx = {
+            "descricao": reg.get("descricao", ""),
+            "valor_fmt": _brl(valor),
+            "data_fmt": data.strftime("%d/%m/%Y") if data else "",
+            "categoria": reg.get("categoria", ""),
+            "forma_pagamento": reg.get("forma_pagamento", ""),
+            "detalhes": reg.get("detalhes"),
+            "responsavel": reg.get("responsavel", ""),
+            "status": reg.get("status", ""),
+        }
+        return renderizar(
+            "excluir_confirmacao.md",
+            {"modo": None, "qtd": 0, "periodo": "", "registro": reg_ctx},
         )
-        return "\n".join(linhas)
 
     def _excluir_escopo(self, dados: dict) -> str:
         reg = dados.get("registro", {})
         parcelas_futuras = dados.get("parcelas_futuras", [])
-
-        linhas = ["🗑️ *Confirme a exclusão:*", "", _card_registro(reg), ""]
-        linhas.append(
-            f"⚠️ Este registro possui parcelas futuras: {' · '.join(parcelas_futuras)}"
+        data = reg.get("data")
+        valor = reg.get("valor", Decimal("0"))
+        reg_ctx = {
+            "descricao": reg.get("descricao", ""),
+            "valor_fmt": _brl(valor),
+            "data_fmt": data.strftime("%d/%m/%Y") if data else "",
+            "categoria": reg.get("categoria", ""),
+            "forma_pagamento": reg.get("forma_pagamento", ""),
+            "detalhes": reg.get("detalhes"),
+            "responsavel": reg.get("responsavel", ""),
+            "status": reg.get("status", ""),
+        }
+        return renderizar(
+            "excluir_escopo.md",
+            {"registro": reg_ctx, "parcelas_futuras": parcelas_futuras},
         )
-        linhas.append("*1.* Somente este")
-        linhas.append("*2.* Todos, incluindo as parcelas futuras")
-        linhas.append("_Responda com o número — ou *cancelar*._")
-        return "\n".join(linhas)
 
     def _excluir_concluido(self, dados: dict) -> str:
-        desc = dados.get("descricao", "")
         valor = dados.get("valor", Decimal("0"))
         parcelas_removidas = dados.get("parcelas_removidas", 0)
-
-        linhas = [
-            "🗑️ *Registro excluído!*",
-            "",
-            f"_{desc}_ de *{_brl(valor)}* foi removido.",
-        ]
-        if parcelas_removidas and int(parcelas_removidas) > 0:
-            linhas.append(
-                f"_{parcelas_removidas} parcelas futuras vinculadas também foram removidas._"
-            )
-        return "\n".join(linhas)
+        return renderizar(
+            "excluir_concluido.md",
+            {
+                "descricao": dados.get("descricao", ""),
+                "valor_fmt": _brl(valor),
+                "parcelas_removidas": parcelas_removidas,
+            },
+        )

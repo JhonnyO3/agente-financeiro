@@ -5,6 +5,7 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from agent.config import settings
+from backend.repositories.usuario_repository import UsuarioRepository
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -12,11 +13,6 @@ logger = logging.getLogger(__name__)
 # Dedup em memória: message_id → timestamp de recebimento
 _DEDUP_TTL_S = 600  # 10 minutos
 _seen: dict[str, float] = {}
-
-
-def _allowed_number() -> str:
-    """Lê WHATSAPP_ALLOWED_NUMBER do ambiente em tempo de execução (isolamento em testes)."""
-    return os.environ.get("WHATSAPP_ALLOWED_NUMBER", settings.WHATSAPP_ALLOWED_NUMBER)
 
 
 def _webhook_apikey() -> str:
@@ -44,6 +40,12 @@ def extrair_message_id(payload: dict) -> str:
     return payload.get("data", {}).get("key", {}).get("id", "")
 
 
+async def resolver_usuario_por_telefone(app_state, numero: str):
+    async with app_state.session_factory() as session:
+        repo = UsuarioRepository(session)
+        return await repo.buscar_por_telefone(numero)
+
+
 @router.post("/mensagem")
 async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
     # Auth constant-time
@@ -60,8 +62,6 @@ async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
         return JSONResponse(status_code=200, content={"status": "ok"})
 
     numero = extrair_numero(payload)
-    if numero != _allowed_number():
-        return JSONResponse(status_code=200, content={"status": "ok"})
 
     texto = extrair_texto(payload)
     if not texto:
@@ -76,6 +76,11 @@ async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
     if message_id:
         _seen[message_id] = time.monotonic()
 
-    logger.debug("webhook enfileirando numero=%s", numero)
-    await request.app.state.fila.put((numero, texto))
+    # Resolução de identidade in-process
+    usuario = await resolver_usuario_por_telefone(request.app.state, numero)
+    if usuario is None:
+        return JSONResponse(status_code=200, content={"status": "ok"})
+
+    logger.debug("webhook enfileirando numero=%s usuario_id=%s", numero, usuario.id)
+    await request.app.state.fila.put((usuario.id, numero, texto))
     return JSONResponse(status_code=200, content={"status": "ok"})

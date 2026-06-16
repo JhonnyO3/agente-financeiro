@@ -366,6 +366,39 @@ class TestPeriodoVazio:
 
 
 # ---------------------------------------------------------------------------
+# Cenário: período "hoje" produz range de um único dia (P02 — wiring)
+# ---------------------------------------------------------------------------
+
+class TestPeriodoHoje:
+    async def test_hoje_consulta_range_de_um_dia(self):
+        repo = _repo_mock([])
+        utc_fixo = datetime(2026, 6, 15, 13, 0, 0, tzinfo=timezone.utc)
+        relogio = Relogio("America/Sao_Paulo", _fixed=utc_fixo)
+        tool = ToolListar(repo=repo, relogio=relogio, usuario_id=1)
+
+        await tool.executar(ParamsListar(periodo="hoje"), contexto={})
+
+        repo.listar_por_periodo.assert_called_once()
+        call_args = repo.listar_por_periodo.call_args
+        inicio = call_args.args[0] if call_args.args else call_args.kwargs.get("inicio")
+        fim = call_args.args[1] if len(call_args.args) > 1 else call_args.kwargs.get("fim")
+
+        assert inicio == date(2026, 6, 15), f"início esperado 2026-06-15, got {inicio}"
+        assert fim == date(2026, 6, 15), f"fim esperado 2026-06-15, got {fim}"
+
+    async def test_hoje_label_e_hoje(self):
+        transacoes = [_transacao("Café", "15.00", "ALIMENTACAO", data=date(2026, 6, 15))]
+        repo = _repo_mock(transacoes)
+        utc_fixo = datetime(2026, 6, 15, 13, 0, 0, tzinfo=timezone.utc)
+        relogio = Relogio("America/Sao_Paulo", _fixed=utc_fixo)
+        tool = ToolListar(repo=repo, relogio=relogio, usuario_id=1)
+
+        resultado = await tool.executar(ParamsListar(periodo="hoje"), contexto={})
+
+        assert resultado.dados["periodo_label"] == "hoje"
+
+
+# ---------------------------------------------------------------------------
 # Cenário: filtro de categoria repassa corretamente e reduz listagem
 # ---------------------------------------------------------------------------
 
