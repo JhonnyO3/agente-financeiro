@@ -14,13 +14,14 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from agent.agents_llm import Embedder
+from agent.agents_llm import Embedder, criar_llm
 from agent.config import settings
 from agent.entrypoint.webhook import router as webhook_router
 from agent.entrypoint.worker import Worker
 from agent.integrations.evolution_client import EvolutionApiClient
 from agent.services.classificador import Classificador
 from agent.services.estado_store import EstadoStoreRedis
+from agent.services.extrator import Extrator
 from agent.services.formatador import Formatador
 from agent.services.rag import BuscaRAG
 from agent.services.relogio import Relogio
@@ -174,7 +175,7 @@ def _criar_repo_factory(session_factory) -> Callable[[int], _SessionFactoryRepos
 
 
 def _criar_construir_roteador(
-    *, relogio: Relogio, embedder: Embedder, estado_store: EstadoStoreRedis
+    *, relogio: Relogio, embedder: Embedder, estado_store: EstadoStoreRedis, extrator: Extrator | None = None
 ) -> Callable[[_SessionFactoryRepository], Roteador]:
     def construir(repo: _SessionFactoryRepository) -> Roteador:
         rag = BuscaRAG(embedder=embedder, adapter=repo)
@@ -193,6 +194,7 @@ def _criar_construir_roteador(
             tool_conversar=tool_conversar,
             estado_store=estado_store,
             repository=repo,
+            extrator=extrator,
         )
 
     return construir
@@ -223,8 +225,9 @@ async def lifespan(app: FastAPI):
 
     # Factories por mensagem
     repo_factory = _criar_repo_factory(session_factory)
+    extrator = Extrator(llm=criar_llm())
     construir_roteador = _criar_construir_roteador(
-        relogio=relogio, embedder=embedder, estado_store=estado_store
+        relogio=relogio, embedder=embedder, estado_store=estado_store, extrator=extrator
     )
 
     # Evolution API client
