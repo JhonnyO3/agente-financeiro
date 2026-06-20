@@ -16,21 +16,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from agent.agents_llm import Embedder, criar_llm
 from agent.config import settings
+from agent.entrypoint.consumer import Consumer
 from agent.entrypoint.webhook import router as webhook_router
-from agent.entrypoint.worker import Worker
+from agent.graph.builder import criar_grafo
 from agent.integrations.evolution_client import EvolutionApiClient
 from agent.services.classificador import Classificador
 from agent.services.estado_store import EstadoStoreRedis
 from agent.services.extrator import Extrator
 from agent.services.formatador import Formatador
-from agent.services.rag import BuscaRAG
 from agent.services.relogio import Relogio
-from agent.services.roteador import Roteador
-from agent.tools.atualizar import ToolAtualizar
-from agent.tools.cadastrar import ToolCadastrar
-from agent.tools.conversar import ToolConversar
-from agent.tools.excluir import ToolExcluir
-from agent.tools.listar import ToolListar
 from backend.repositories.transacao_repository import TransacaoRepository
 
 
@@ -174,32 +168,6 @@ def _criar_repo_factory(session_factory) -> Callable[[int], _SessionFactoryRepos
 # ---------------------------------------------------------------------------
 
 
-def _criar_construir_roteador(
-    *, relogio: Relogio, embedder: Embedder, estado_store: EstadoStoreRedis, extrator: Extrator | None = None
-) -> Callable[[_SessionFactoryRepository], Roteador]:
-    def construir(repo: _SessionFactoryRepository) -> Roteador:
-        rag = BuscaRAG(embedder=embedder, adapter=repo)
-        tool_cadastrar = ToolCadastrar(relogio=relogio, repository=repo)
-        tool_listar = ToolListar(
-            repo=repo, relogio=relogio, usuario_id=None
-        )  # usuario_id flui via rotear
-        tool_atualizar = ToolAtualizar(rag=rag, repository=repo, relogio=relogio)
-        tool_excluir = ToolExcluir(rag=rag, repository=repo, relogio=relogio)
-        tool_conversar = ToolConversar()
-        return Roteador(
-            tool_cadastrar=tool_cadastrar,
-            tool_listar=tool_listar,
-            tool_atualizar=tool_atualizar,
-            tool_excluir=tool_excluir,
-            tool_conversar=tool_conversar,
-            estado_store=estado_store,
-            repository=repo,
-            extrator=extrator,
-        )
-
-    return construir
-
-
 # ---------------------------------------------------------------------------
 # Lifespan: wiring completo (1 worker — invariante documentada acima)
 # ---------------------------------------------------------------------------
@@ -226,9 +194,6 @@ async def lifespan(app: FastAPI):
     # Factories por mensagem
     repo_factory = _criar_repo_factory(session_factory)
     extrator = Extrator(llm=criar_llm())
-    construir_roteador = _criar_construir_roteador(
-        relogio=relogio, embedder=embedder, estado_store=estado_store, extrator=extrator
-    )
 
     # Evolution API client
     evolution_client = EvolutionApiClient(
@@ -241,41 +206,42 @@ async def lifespan(app: FastAPI):
     formatador = Formatador()
     classificador = Classificador()
 
+    # Grafo LangGraph (MemorySaver por padrão — substituir por RedisCheckpointer em prod)
+    from langgraph.checkpoint.memory import MemorySaver
+    grafo = criar_grafo(
+        classificador=classificador,
+        formatador=formatador,
+        evolution=evolution_client,
+        relogio=relogio,
+        embedder=embedder,
+        extrator=extrator,
+        repo_factory=repo_factory,
+        checkpointer=MemorySaver(),
+    )
+
     # Fila asyncio (1 worker — invariante: não distribuída)
     fila: asyncio.Queue = asyncio.Queue()
 
-    # Worker multi-usuário
-    worker = Worker(
-        classificador=classificador,
-        formatador=formatador,
-        evolution_client=evolution_client,
-        estado_store=estado_store,
-        construir_roteador=construir_roteador,
-        repo_factory=repo_factory,
+    # Consumer da fila em background
+    consumer = Consumer(
+        fila=fila,
+        graph=grafo,
+        redis_client=redis_client,
         debounce_segundos=settings.DEBOUNCE_SEGUNDOS,
     )
 
-    # Expõe em app.state conforme contratos worker-pipeline.md e resolucao-identidade.md
+    # Expõe em app.state
     app.state.fila = fila
-    app.state.worker = worker
     app.state.estado_store = estado_store
     app.state.evolution_client = evolution_client
     app.state.session_factory = session_factory
     app.state.repo_factory = repo_factory
 
-    # Loop de consumo da fila em background — desempacota tupla (usuario_id, numero, texto)
-    async def _consumidor():
-        while True:
-            usuario_id, numero, texto = await fila.get()
-            await worker.receber(usuario_id, numero, texto)
-            asyncio.create_task(worker.processar_pendentes())
-            fila.task_done()
-
-    task_consumidor = asyncio.create_task(_consumidor())
+    consumer.iniciar()
 
     yield
 
-    task_consumidor.cancel()
+    consumer.parar()
     await evolution_client.fechar()
     await redis_client.aclose()
     await engine.dispose()
