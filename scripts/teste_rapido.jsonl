@@ -1,0 +1,3 @@
+{"cenario": 1, "turno": 1, "msg": "gastei 50 no açougue", "espera": null}
+{"cenario": 2, "turno": 1, "msg": "comprei roupa no crédito em 3x, foi 450 reais", "espera": "confirmar"}
+{"cenario": 3, "turno": 1, "msg": "quanto gastei esse mês?", "espera": null}

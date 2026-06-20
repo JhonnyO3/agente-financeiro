@@ -1,0 +1,7 @@
+{"cenario": 1, "turno": 1, "msg": "Gastei 50 reais no mercado hoje", "espera": "confirm"}
+{"cenario": 1, "turno": 2, "msg": "sim", "espera": null}
+{"cenario": 2, "turno": 1, "msg": "Quais foram meus gastos esse mês?", "espera": null}
+{"cenario": 3, "turno": 1, "msg": "Exclua o gasto do cinema de ontem", "espera": null}
+{"cenario": 4, "turno": 1, "msg": "Recebi 3000 reais de salário", "espera": "confirm"}
+{"cenario": 4, "turno": 2, "msg": "confirmar", "espera": null}
+{"cenario": 5, "turno": 1, "msg": "Olá, tudo bem?", "espera": null}

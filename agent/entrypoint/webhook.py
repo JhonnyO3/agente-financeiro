@@ -1,10 +1,7 @@
-import hmac
 import logging
-import os
 import time
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from agent.config import settings
 from backend.repositories.usuario_repository import UsuarioRepository
 
 router = APIRouter()
@@ -13,11 +10,6 @@ logger = logging.getLogger(__name__)
 # Dedup em memória: message_id → timestamp de recebimento
 _DEDUP_TTL_S = 600  # 10 minutos
 _seen: dict[str, float] = {}
-
-
-def _webhook_apikey() -> str:
-    """Lê WEBHOOK_APIKEY do ambiente em tempo de execução (isolamento em testes)."""
-    return os.environ.get("WEBHOOK_APIKEY", settings.WEBHOOK_APIKEY)
 
 
 def _poda_dedup() -> None:
@@ -48,33 +40,26 @@ async def resolver_usuario_por_telefone(app_state, numero: str):
 
 @router.post("/mensagem")
 async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
-    # Auth constant-time — ignorado quando WEBHOOK_APIKEY não está configurado
-    chave_configurada = _webhook_apikey()
-    if chave_configurada:
-        apikey = request.headers.get("apikey", "")
-        if not hmac.compare_digest(apikey, chave_configurada):
-            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
     # Filtros silenciosos
     if payload.get("event") != "messages.upsert":
         return JSONResponse(status_code=200, content={"status": "ok"})
 
-    key = payload.get("data", {}).get("key", {})
-    if key.get("fromMe"):
-        return JSONResponse(status_code=200, content={"status": "ok"})
-
     numero = extrair_numero(payload)
 
     texto = extrair_texto(payload)
+
     if not texto:
         return JSONResponse(status_code=200, content={"status": "ok"})
 
     # Dedup por message_id
     message_id = extrair_message_id(payload)
+
     _poda_dedup()
     if message_id and message_id in _seen:
         logger.debug("mensagem duplicada ignorada id=%s", message_id)
         return JSONResponse(status_code=200, content={"status": "ok"})
+        
     if message_id:
         _seen[message_id] = time.monotonic()
 
