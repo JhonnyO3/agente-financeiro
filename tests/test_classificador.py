@@ -456,4 +456,4 @@ async def test_chain_usa_structured_output_intencao():
                 estado_pendente="nenhuma",
             )
 
-    llm_mock.with_structured_output.assert_called_once_with(Intencao)
+    llm_mock.with_structured_output.assert_called_once_with(Intencao, method="function_calling")

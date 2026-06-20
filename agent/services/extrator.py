@@ -39,7 +39,7 @@ class Extrator:
             ctx.update(contexto_extra)
 
         prompt = montar_prompt("cadastrar", ctx)
-        chain = self._llm.with_structured_output(ParamsCadastrar)
+        chain = self._llm.with_structured_output(ParamsCadastrar, method="function_calling")
         resultado: ParamsCadastrar = await chain.ainvoke(prompt)
 
         # Mescla: mantém campos já preenchidos pelo classificador, preenche os None

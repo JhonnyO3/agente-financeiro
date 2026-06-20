@@ -118,6 +118,16 @@ class Intencao(BaseModel):
         acao = data.get("acao")
         parametros = data.get("parametros")
         params_cls = _ACAO_PARA_PARAMS.get(acao)  # type: ignore[arg-type]
+
+        # function_calling pode retornar os campos de parametros no nível raiz
+        if parametros is None and params_cls is not None:
+            known = set(params_cls.model_fields.keys())
+            extracted = {k: data[k] for k in known if k in data}
+            if extracted:
+                data = {k: v for k, v in data.items() if k not in known}
+                parametros = extracted
+                data["parametros"] = parametros
+
         if params_cls is not None and isinstance(parametros, dict):
             data = dict(data)
             # Raises ValidationError if shape doesn't match (extra="forbid")

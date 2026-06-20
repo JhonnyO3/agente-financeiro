@@ -8,6 +8,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Força UTF-8 no stdout/stderr para suportar emojis em respostas (Windows)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Setup de env antes de importar o agent (config.py valida env vars ao importar)
 os.environ.setdefault("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "sk-placeholder"))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost/x")
@@ -127,8 +133,13 @@ class _SeedChain:
         )
 
 
+def _criar_llm_extrator():
+    from agent.agents_llm import criar_llm
+    return criar_llm()
+
+
 class HarnessAgente:
-    def __init__(self, seed_path: str | None = None):
+    def __init__(self, seed_path: str | None = None, usuario_id: int = 1):
         self._estado_store = EstadoStoreMemoria(
             max_historico=settings.HISTORICO_MAX_MENSAGENS,
             ttl_historico_horas=settings.HISTORICO_TTL_HORAS,
@@ -146,13 +157,12 @@ class HarnessAgente:
         self._formatador = Formatador()
 
         tool_cadastrar = ToolCadastrar(relogio=relogio, repository=repo)
-        # ToolListar usa parâmetros: repo, relogio, usuario_id
-        tool_listar = ToolListar(repo=repo, relogio=relogio, usuario_id=1)
-        # ToolAtualizar e ToolExcluir usam rag
+        tool_listar = ToolListar(repo=repo, relogio=relogio, usuario_id=usuario_id)
         tool_atualizar = ToolAtualizar(rag=rag, repository=repo, relogio=relogio)
         tool_excluir = ToolExcluir(rag=rag, repository=repo, relogio=relogio)
-        # ToolConversar não aceita llm — cria internamente
         tool_conversar = ToolConversar()
+
+        extrator = Extrator(llm=_criar_llm_extrator()) if _TEM_EXTRATOR else None
 
         self._roteador = Roteador(
             tool_cadastrar=tool_cadastrar,
@@ -162,6 +172,7 @@ class HarnessAgente:
             tool_conversar=tool_conversar,
             estado_store=self._estado_store,
             repository=repo,
+            extrator=extrator,
         )
 
     def _injetar_seed_llm(self, seed_path: str) -> None:
@@ -278,7 +289,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    harness = HarnessAgente(seed_path=args.seed)
+    harness = HarnessAgente(seed_path=args.seed, usuario_id=args.usuario)
 
     if args.batch:
         passou = asyncio.run(modo_batch(harness, args.batch, args.usuario))

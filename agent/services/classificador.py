@@ -28,7 +28,7 @@ class Classificador:
         prompt = montar_prompt("classificador", ctx)
 
         llm = criar_llm()
-        chain = llm.with_structured_output(Intencao)
+        chain = llm.with_structured_output(Intencao, method="function_calling")
         intencao: Intencao = await chain.ainvoke(prompt)
 
         if intencao.confianca < settings.CONFIANCA_MINIMA:
