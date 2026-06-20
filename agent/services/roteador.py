@@ -41,6 +41,7 @@ class Roteador:
         estado_store: EstadoStore,
         repository: Any,
         llm: Any = None,
+        extrator: Any = None,
     ) -> None:
         self.tool_cadastrar = tool_cadastrar
         self.tool_listar = tool_listar
@@ -50,6 +51,7 @@ class Roteador:
         self._store = estado_store
         self._repo = repository
         self._llm = llm
+        self._extrator = extrator
 
     async def rotear(
         self,
@@ -290,6 +292,12 @@ class Roteador:
 
         if acao == "cadastrar":
             itens = params.itens if isinstance(params, ParamsCadastrar) else []
+            if self._extrator is not None and itens:
+                itens = await self._extrator.extrair_cadastro(
+                    itens_parciais=itens,
+                    mensagem_original=contexto.get("mensagem", ""),
+                    historico=[f"{m.papel}: {m.texto}" for m in estado.historico],
+                )
             resultado = await self.tool_cadastrar.executar(itens, contexto)
 
         elif acao == "listar":
