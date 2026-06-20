@@ -198,17 +198,15 @@ class TestSettingsObrigatorios:
     o `_settings_com(env_sem_campo)` deve levantar ValidationError por campo ausente.
     """
 
-    def test_sem_responsavel_padrao_levanta_validacao(self):
+    def test_sem_responsavel_padrao_usa_default_vazio(self):
         env = {k: v for k, v in _OBRIGATORIOS_BASE.items() if k != "RESPONSAVEL_PADRAO"}
+        s = _settings_com(env)
+        assert s.RESPONSAVEL_PADRAO == ""
 
-        with pytest.raises((ValidationError, TypeError)):
-            _settings_com(env)
-
-    def test_sem_webhook_apikey_levanta_validacao(self):
+    def test_sem_webhook_apikey_usa_default_vazio(self):
         env = {k: v for k, v in _OBRIGATORIOS_BASE.items() if k != "WEBHOOK_APIKEY"}
-
-        with pytest.raises((ValidationError, TypeError)):
-            _settings_com(env)
+        s = _settings_com(env)
+        assert s.WEBHOOK_APIKEY == ""
 
     def test_sem_agente_usuario_email_levanta_validacao(self):
         """AGENTE_USUARIO_EMAIL perdeu o default hardcoded — agora é obrigatório."""

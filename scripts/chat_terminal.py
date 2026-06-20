@@ -21,8 +21,6 @@ os.environ.setdefault("EVOLUTION_API_URL", "http://localhost")
 os.environ.setdefault("EVOLUTION_API_KEY", "placeholder")
 os.environ.setdefault("EVOLUTION_INSTANCE", "placeholder")
 os.environ.setdefault("AGENTE_USUARIO_EMAIL", "harness@localhost")
-os.environ.setdefault("RESPONSAVEL_PADRAO", "usuario")
-os.environ.setdefault("WEBHOOK_APIKEY", "placeholder")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 
 from agent.domain.estado import EstadoConversa, Mensagem

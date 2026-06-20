@@ -48,10 +48,12 @@ async def resolver_usuario_por_telefone(app_state, numero: str):
 
 @router.post("/mensagem")
 async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
-    # Auth constant-time
-    apikey = request.headers.get("apikey", "")
-    if not hmac.compare_digest(apikey, _webhook_apikey()):
-        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    # Auth constant-time — ignorado quando WEBHOOK_APIKEY não está configurado
+    chave_configurada = _webhook_apikey()
+    if chave_configurada:
+        apikey = request.headers.get("apikey", "")
+        if not hmac.compare_digest(apikey, chave_configurada):
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
     # Filtros silenciosos
     if payload.get("event") != "messages.upsert":

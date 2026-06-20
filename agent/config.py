@@ -24,9 +24,11 @@ class Settings(BaseSettings):
     # AGENTE_USUARIO_EMAIL: mantido no Settings para não quebrar .env legado;
     # não é mais usado no fluxo do agente (substituído por resolução in-process no webhook).
     AGENTE_USUARIO_EMAIL: str
-    RESPONSAVEL_PADRAO: str
-    WEBHOOK_APIKEY: str
     REDIS_URL: str
+
+    # --- opcionais sem default obrigatório ---
+    RESPONSAVEL_PADRAO: str = ""
+    WEBHOOK_APIKEY: str = ""
 
     # --- opcionais com defaults ---
     TIMEZONE_USUARIO: str = "America/Sao_Paulo"
