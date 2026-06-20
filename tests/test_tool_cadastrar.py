@@ -33,8 +33,8 @@ def _relogio_fixo(hoje_date: date):
     return Relogio(tz="America/Sao_Paulo", _fixed=dt_fixed)
 
 
-def _item_pix(descricao="Claude Code", valor=Decimal("472.00"), forma_pagamento=None):
-    """ItemCadastro simples sem parcelas (PIX inferido)."""
+def _item_pix(descricao="Claude Code", valor=Decimal("472.00"), forma_pagamento="PIX"):
+    """ItemCadastro simples sem parcelas com forma PIX explícita."""
     from agent.domain.intencao import ItemCadastro
 
     return ItemCadastro(
@@ -384,8 +384,8 @@ async def test_multiplos_itens_geram_todos_registros():
     repository.criar_lote = AsyncMock()
 
     tool = ToolCadastrar(relogio=relogio, repository=repository)
-    item1 = ItemCadastro(descricao="Flores Natasha", valor=Decimal("140"))
-    item2 = ItemCadastro(descricao="Internet", valor=Decimal("190"))
+    item1 = ItemCadastro(descricao="Flores Natasha", valor=Decimal("140"), forma_pagamento="PIX")
+    item2 = ItemCadastro(descricao="Internet", valor=Decimal("190"), forma_pagamento="PIX")
     resultado = await tool.executar([item1, item2], _contexto_basico())
 
     assert resultado.status == "aguardando_confirmacao"
@@ -411,8 +411,8 @@ async def test_multiplos_itens_valores_sao_decimal():
     repository.criar_lote = AsyncMock()
 
     tool = ToolCadastrar(relogio=relogio, repository=repository)
-    item1 = ItemCadastro(descricao="Flores Natasha", valor=Decimal("140"))
-    item2 = ItemCadastro(descricao="Internet", valor=Decimal("190"))
+    item1 = ItemCadastro(descricao="Flores Natasha", valor=Decimal("140"), forma_pagamento="PIX")
+    item2 = ItemCadastro(descricao="Internet", valor=Decimal("190"), forma_pagamento="PIX")
     resultado = await tool.executar([item1, item2], _contexto_basico())
 
     for reg in resultado.dados["registros"]:
@@ -513,6 +513,7 @@ async def test_matematica_parcelas_decimal_sem_float():
 
 @pytest.mark.asyncio
 async def test_forma_pagamento_ausente_inferida_pix():
+    """Sem forma e sem pistas de parcelamento/vencimento → pede forma_pagamento."""
     from agent.tools.cadastrar import ToolCadastrar
     from agent.domain.intencao import ItemCadastro
 
@@ -525,9 +526,8 @@ async def test_forma_pagamento_ausente_inferida_pix():
     item = ItemCadastro(descricao="Uber", valor=Decimal("25.00"), forma_pagamento=None)
     resultado = await tool.executar([item], _contexto_basico())
 
-    reg = resultado.dados["registros"][0]
-    assert reg["forma_pagamento"] == "PIX"
-    assert reg["status"] == "PAGO"
+    assert resultado.status == "aguardando_complemento"
+    assert "forma_pagamento" in resultado.dados["campos_faltantes"]
 
 
 # ---------------------------------------------------------------------------

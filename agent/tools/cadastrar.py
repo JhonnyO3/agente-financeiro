@@ -55,6 +55,15 @@ def _inferir_forma(item: ItemCadastro) -> str:
     return item.forma_pagamento
 
 
+def _tem_pista_clara(item: ItemCadastro) -> bool:
+    """Retorna True se há pista suficiente para inferir forma sem perguntar ao usuário."""
+    return (
+        item.parcela_atual is not None
+        or item.total_parcelas is not None
+        or item.dia_vencimento is not None
+    )
+
+
 def _label_mes(d: date) -> str:
     return f"{_MESES_PT[d.month - 1]}/{str(d.year)[2:]}"
 
@@ -190,6 +199,9 @@ class ToolCadastrar:
             if item.valor is None:
                 if "valor" not in campos_faltantes:
                     campos_faltantes.append("valor")
+            if item.forma_pagamento is None and not _tem_pista_clara(item):
+                if "forma_pagamento" not in campos_faltantes:
+                    campos_faltantes.append("forma_pagamento")
 
         if campos_faltantes:
             return ResultadoTool(
