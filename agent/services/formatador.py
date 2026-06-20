@@ -149,7 +149,15 @@ class Formatador:
                     "total_fmt": _brl(valor * parcela_total)
                     if parcela_total and parcela_total > 1
                     else _brl(valor),
-                    "data_fmt": data.strftime("%d/%m/%Y") if data else "",
+                    "data_fmt": (
+                        data.strftime("%d/%m/%Y")
+                        if hasattr(data, "strftime")
+                        else (
+                            __import__("datetime").date.fromisoformat(data).strftime("%d/%m/%Y")
+                            if data
+                            else ""
+                        )
+                    ),
                     "categoria": reg.get("categoria", ""),
                     "forma_pagamento": reg.get("forma_pagamento", ""),
                     "detalhes": reg.get("detalhes"),
