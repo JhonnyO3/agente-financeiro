@@ -550,3 +550,50 @@ async def test_retorno_e_resultado_tool():
 
     assert isinstance(resultado, ResultadoTool)
     assert resultado.acao == "cadastrar"
+
+
+# ---------------------------------------------------------------------------
+# Fixture compartilhada para novos testes de forma_pagamento
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def tool_cadastrar():
+    from agent.tools.cadastrar import ToolCadastrar
+
+    relogio = _relogio_fixo(date(2026, 6, 11))
+    repository = MagicMock()
+    repository.criar = AsyncMock()
+    repository.criar_lote = AsyncMock()
+    return ToolCadastrar(relogio=relogio, repository=repository)
+
+
+# ---------------------------------------------------------------------------
+# Cenário 11: forma_pagamento ausente sem pista → entra em campos_faltantes
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_forma_pagamento_ausente_sem_pista_entra_em_campos_faltantes(tool_cadastrar):
+    from agent.domain.intencao import ItemCadastro
+
+    item = ItemCadastro(descricao="açougue", valor=Decimal("50"))
+    resultado = await tool_cadastrar.executar([item], {})
+    assert resultado.status == "aguardando_complemento"
+    assert "forma_pagamento" in resultado.dados["campos_faltantes"]
+
+
+# ---------------------------------------------------------------------------
+# Cenário 12: forma_pagamento ausente com parcelas → NÃO entra em campos_faltantes
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_forma_pagamento_ausente_com_parcelas_nao_pergunta(tool_cadastrar):
+    from agent.domain.intencao import ItemCadastro
+
+    item = ItemCadastro(
+        descricao="notebook",
+        valor=Decimal("3000"),
+        total_parcelas=12,
+        parcela_atual=1,
+    )
+    resultado = await tool_cadastrar.executar([item], {})
+    assert "forma_pagamento" not in resultado.dados.get("campos_faltantes", [])
