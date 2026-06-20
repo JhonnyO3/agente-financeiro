@@ -21,7 +21,6 @@ from agent.entrypoint.webhook import router as webhook_router
 from agent.graph.builder import criar_grafo
 from agent.integrations.evolution_client import EvolutionApiClient
 from agent.services.classificador import Classificador
-from agent.services.estado_store import EstadoStoreRedis
 from agent.services.extrator import Extrator
 from agent.services.formatador import Formatador
 from agent.services.relogio import Relogio
@@ -183,13 +182,8 @@ async def lifespan(app: FastAPI):
     relogio = Relogio(settings.TIMEZONE_USUARIO)
     embedder = Embedder()
 
-    # Redis + EstadoStore com limites configuráveis
+    # Redis (buffer de mensagens do debounce)
     redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-    estado_store = EstadoStoreRedis(
-        redis_client,
-        max_historico=settings.HISTORICO_MAX_MENSAGENS,
-        ttl_historico_horas=settings.HISTORICO_TTL_HORAS,
-    )
 
     # Factories por mensagem
     repo_factory = _criar_repo_factory(session_factory)
@@ -232,7 +226,6 @@ async def lifespan(app: FastAPI):
 
     # Expõe em app.state
     app.state.fila = fila
-    app.state.estado_store = estado_store
     app.state.evolution_client = evolution_client
     app.state.session_factory = session_factory
     app.state.repo_factory = repo_factory
