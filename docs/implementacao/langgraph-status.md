@@ -32,43 +32,35 @@
 
 ---
 
-### Onda 3 — Nós e Roteamento 🔄
-
-> Onda 2 concluída — Onda 3 iniciando.
+### Onda 3 — Nós e Roteamento ✅
 
 | Tarefa | Arquivo(s) | Status | Branch/Worktree |
 |---|---|---|---|
-| T3 — Nodes + Edges | `agent/graph/nodes.py`, `agent/graph/edges.py` | 🔄 Em andamento | — |
+| T3 — Nodes + Edges | `agent/graph/nodes.py`, `agent/graph/edges.py` | ✅ Concluído | master (768f4c0) |
 
 ---
 
-### Onda 4 — Factory do Grafo ⏳
-
-> Inicia após merge da Onda 3.
+### Onda 4 — Factory do Grafo ✅
 
 | Tarefa | Arquivo(s) | Status | Branch/Worktree |
 |---|---|---|---|
-| T4 — Builder | `agent/graph/builder.py` | ⏳ A iniciar | — |
+| T4 — Builder | `agent/graph/builder.py` | ✅ Concluído | master (c3c616b) |
 
 ---
 
-### Onda 5 — Entrypoint ⏳
-
-> Inicia após merge da Onda 4.
+### Onda 5 — Entrypoint ✅
 
 | Tarefa | Arquivo(s) | Status | Branch/Worktree |
 |---|---|---|---|
-| T5 — Consumer + main.py | `agent/entrypoint/consumer.py`, `agent/entrypoint/main.py` | ⏳ A iniciar | — |
+| T5 — Consumer + main.py | `agent/entrypoint/consumer.py`, `agent/entrypoint/main.py` | ✅ Concluído | master (628f358) |
 
 ---
 
-### Onda 6 — Remoção do Legado ⏳
-
-> Inicia após merge da Onda 5.
+### Onda 6 — Remoção do Legado ✅
 
 | Tarefa | Arquivo(s) | Status | Branch/Worktree |
 |---|---|---|---|
-| T6 — Delete legado | `worker.py`, `roteador.py`, `estado_store.py`, `domain/estado.py` | ⏳ A iniciar | — |
+| T6 — Delete legado | `worker.py`, `roteador.py`, `estado_store.py`, `domain/estado.py` | ✅ Concluído | master (b0df918) |
 
 ---
 
@@ -93,3 +85,7 @@
 | 2c | worktree-agent-acf061d36b7cc16ea | 1538116 | Atualizar (3 fases) |
 | 2d | worktree-agent-ad010e6a345563838 | e757c7c | Excluir (4 fases) |
 | 2e | worktree-agent-a9409d09259b44e47 | e88c096 | Conversar (1 fase) |
+| 3 | master | 768f4c0 | nodes (factories) + edges (rotear) |
+| 4 | master | c3c616b | builder (criar_grafo) |
+| 5 | master | 628f358 | Consumer usa graph.ainvoke, main.py wira grafo |
+| 6 | master | b0df918 | remove worker, roteador, estado_store, domain/estado |
