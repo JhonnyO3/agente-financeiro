@@ -1,0 +1,67 @@
+{"cenario": 1, "turno": 1, "msg": "paguei 50 reais no açougue via pix", "espera": "confirmar"}
+{"cenario": 2, "turno": 1, "msg": "gastei 120 no supermercado no cartão de crédito", "espera": "confirmar"}
+{"cenario": 3, "turno": 1, "msg": "comprei roupa no crédito em 3x, foi 450 reais", "espera": "3x"}
+{"cenario": 4, "turno": 1, "msg": "gastei 80 reais no restaurante", "espera": null}
+{"cenario": 5, "turno": 1, "msg": "comprei remédio na farmácia", "espera": null}
+{"cenario": 5, "turno": 2, "msg": "foi 35 reais no pix", "espera": "confirmar"}
+{"cenario": 6, "turno": 1, "msg": "gastei na academia esse mês", "espera": null}
+{"cenario": 6, "turno": 2, "msg": "foi 150 reais no crédito", "espera": "crédit"}
+{"cenario": 7, "turno": 1, "msg": "paguei fatura do cartão, vence dia 10, 600 reais", "espera": "confirmar"}
+{"cenario": 8, "turno": 1, "msg": "almoço no restaurante 25 reais no pix", "espera": "aliment"}
+{"cenario": 9, "turno": 1, "msg": "corrida de uber 18 reais pix", "espera": "transport"}
+{"cenario": 10, "turno": 1, "msg": "ingresso no cinema 40 reais débito", "espera": "lazer"}
+{"cenario": 11, "turno": 1, "msg": "comprei camiseta 89 reais no cartão de crédito", "espera": "confirmar"}
+{"cenario": 12, "turno": 1, "msg": "paguei netflix 45 reais no crédito", "espera": "confirmar"}
+{"cenario": 13, "turno": 1, "msg": "paguei 30 de estacionamento e 15 de lanche, ambos no pix", "espera": "confirmar"}
+{"cenario": 14, "turno": 1, "msg": "paguei padaria 12 reais em dinheiro", "espera": "confirmar"}
+{"cenario": 15, "turno": 1, "msg": "comprei notebook em 12x de 450 reais no crédito vencimento dia 5", "espera": "12x"}
+{"cenario": 16, "turno": 1, "msg": "passei no mercadinho 55 reais no débito", "espera": "confirmar"}
+{"cenario": 17, "turno": 1, "msg": "paguei curso de programação 800 reais no crédito", "espera": "confirmar"}
+{"cenario": 18, "turno": 1, "msg": "consertei o carro 350 reais pix", "espera": "confirmar"}
+{"cenario": 19, "turno": 1, "msg": "paguei plano de internet 99 reais débito", "espera": "confirmar"}
+{"cenario": 19, "turno": 2, "msg": "cancelar", "espera": null}
+{"cenario": 20, "turno": 1, "msg": "comprei livros 75 reais pix", "espera": "confirmar"}
+{"cenario": 20, "turno": 2, "msg": "confirmar", "espera": "salvo"}
+{"cenario": 21, "turno": 1, "msg": "aportei 1000 reais em fundo de renda fixa", "espera": "confirmar"}
+{"cenario": 22, "turno": 1, "msg": "investi 2000 reais em CDB", "espera": "confirmar"}
+{"cenario": 23, "turno": 1, "msg": "coloquei 500 reais na poupança", "espera": "confirmar"}
+{"cenario": 24, "turno": 1, "msg": "comprei ações da Petrobras por 1500 reais", "espera": "confirmar"}
+{"cenario": 25, "turno": 1, "msg": "recebi meu salário de 5000 reais hoje", "espera": "confirmar"}
+{"cenario": 26, "turno": 1, "msg": "recebi 800 reais de freelance de design", "espera": "confirmar"}
+{"cenario": 27, "turno": 1, "msg": "recebi 250 reais de dividendos da carteira", "espera": "confirmar"}
+{"cenario": 28, "turno": 1, "msg": "vendi ações e recebi 3200 reais", "espera": "confirmar"}
+{"cenario": 29, "turno": 1, "msg": "comprei tesouro direto prefixado por 1000 reais", "espera": "confirmar"}
+{"cenario": 30, "turno": 1, "msg": "aportei 600 reais em ETF de S&P500", "espera": "confirmar"}
+{"cenario": 31, "turno": 1, "msg": "resgatei LCI de 1500 reais hoje", "espera": "confirmar"}
+{"cenario": 32, "turno": 1, "msg": "quero registrar um aporte em fundo imobiliário", "espera": null}
+{"cenario": 32, "turno": 2, "msg": "foi 800 reais", "espera": "confirmar"}
+{"cenario": 33, "turno": 1, "msg": "comprei cotas de FII XPML11 por 900 reais", "espera": "confirmar"}
+{"cenario": 34, "turno": 1, "msg": "recebi bônus de performance de 2000 reais da empresa", "espera": "confirmar"}
+{"cenario": 35, "turno": 1, "msg": "recebi estorno de 150 reais da loja", "espera": "confirmar"}
+{"cenario": 36, "turno": 1, "msg": "paguei parcela do financiamento imobiliário 1200 reais débito", "espera": "confirmar"}
+{"cenario": 37, "turno": 1, "msg": "aportei 3000 reais em renda fixa no banco", "espera": "confirmar"}
+{"cenario": 37, "turno": 2, "msg": "confirmar", "espera": "salvo"}
+{"cenario": 38, "turno": 1, "msg": "recebi 1800 reais de aluguel do imóvel hoje", "espera": "confirmar"}
+{"cenario": 38, "turno": 2, "msg": "confirmar", "espera": "salvo"}
+{"cenario": 39, "turno": 1, "msg": "comprei 0.001 bitcoin, paguei 350 reais", "espera": "confirmar"}
+{"cenario": 40, "turno": 1, "msg": "recebi pensão de 600 reais esse mês", "espera": "confirmar"}
+{"cenario": 41, "turno": 1, "msg": "quanto gastei esse mês?", "espera": "R$"}
+{"cenario": 42, "turno": 1, "msg": "me mostra os parcelamentos", "espera": null}
+{"cenario": 43, "turno": 1, "msg": "estou no azul?", "espera": null}
+{"cenario": 44, "turno": 1, "msg": "gastos de alimentação esse mês", "espera": null}
+{"cenario": 45, "turno": 1, "msg": "gastos dessa semana", "espera": null}
+{"cenario": 46, "turno": 1, "msg": "quanto gastei ontem?", "espera": null}
+{"cenario": 47, "turno": 1, "msg": "extrato do mês", "espera": "R$"}
+{"cenario": 48, "turno": 1, "msg": "qual meu maior gasto esse mês?", "espera": null}
+{"cenario": 49, "turno": 1, "msg": "me mostra gastos de transporte", "espera": null}
+{"cenario": 50, "turno": 1, "msg": "quais gastos estão pendentes?", "espera": null}
+{"cenario": 51, "turno": 1, "msg": "gastei hoje?", "espera": null}
+{"cenario": 52, "turno": 1, "msg": "me dá um resumo financeiro", "espera": null}
+{"cenario": 53, "turno": 1, "msg": "gastos pagos esse mês", "espera": null}
+{"cenario": 54, "turno": 1, "msg": "quanto investi esse mês?", "espera": null}
+{"cenario": 55, "turno": 1, "msg": "qual minha receita esse mês?", "espera": null}
+{"cenario": 56, "turno": 1, "msg": "mostra meus gastos de maio", "espera": null}
+{"cenario": 57, "turno": 1, "msg": "o que gastei no dia 10?", "espera": null}
+{"cenario": 58, "turno": 1, "msg": "me mostra tudo que gastei", "espera": "R$"}
+{"cenario": 59, "turno": 1, "msg": "vale a pena parcelar compras no cartão?", "espera": "parcel"}
+{"cenario": 60, "turno": 1, "msg": "me dá uma dica para economizar mais", "espera": null}
