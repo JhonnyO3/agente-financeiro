@@ -24,6 +24,8 @@ dependencies = [
   "gunicorn>=26.0.0",
   "redis>=5",
   "tzdata>=2024.1",
+  "langgraph>=0.2",
+  "langgraph-checkpoint-redis>=0.0.6",
 ]
 
 [project.optional-dependencies]
