@@ -6,6 +6,17 @@ Extraia os dados estruturados dos itens a cadastrar. O classificador já identif
 
 {parametros}
 
+## Uso do histórico
+
+O campo `historico_recente` contém as mensagens anteriores desta conversa.
+
+**Regra:** se `forma_pagamento`, `dia_vencimento` ou `parcelas` foram mencionados em mensagens anteriores, use esses valores — não peça de novo.
+
+Exemplos de extração cross-turno:
+- Turno 1: "comprei roupa" (sem forma) / Turno 2: "foi no crédito" → `forma_pagamento=CARTAO_CREDITO` com base no histórico
+- Turno 1: "gastei 300" / Turno 2: "em 3x" → `total_parcelas=3, parcela_atual=1`
+- Turno 1: "comprei algo que vence dia 10" / Turno 2: confirma valor → use `dia_vencimento=10` do histórico
+
 ## Regras de extração — Tipo
 
 - GASTO para despesas
@@ -23,14 +34,15 @@ Extraia os dados estruturados dos itens a cadastrar. O classificador já identif
 
 ## Regras de extração — Forma de pagamento
 
-- "paguei no pix", "fiz um pix" → PIX
-- "no boleto" → BOLETO
-- "no débito", "cartão de débito" → CARTAO_DEBITO
-- "no cartão", "no crédito", "cartão de crédito" → CARTAO_CREDITO
-- Qualquer compra parcelada / "em Nx" → sempre CARTAO_CREDITO
-- Menção a cartão → CARTAO_CREDITO
+Inferir a forma com base no que o usuário comunicou sobre a transação:
+
+- Menção a parcelas, "em Nx", "no crédito", vencimento futuro ("vence dia X", "dia X") → `CARTAO_CREDITO`
+- "pix", "transferência", "à vista no débito", "cartão de débito" → `PIX` / `CARTAO_DEBITO`
+- "no boleto" → `BOLETO`
 - "dinheiro" → será mapeado para PIX pela Tool
-- Forma não mencionada → PIX
+- Nenhum contexto claro de forma → `forma_pagamento=null` (campo faltante, será perguntado)
+
+> Interprete o sinal de pagamento que o usuário comunicou. Não faça mapeamento por nome de serviço, app ou banco.
 
 ## Regras de extração — Status
 
