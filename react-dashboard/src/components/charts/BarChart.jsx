@@ -5,27 +5,45 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const CAT_COLORS = [
-  '#3B72FF','#22D3EE','#A78BFA','#22C55E','#F59E0B','#F472B6','#FB923C','#9CA3AF',
-];
+const CAT_COLORS = {
+  ALIMENTACAO:    '#3B72FF',
+  TRANSPORTE:     '#22D3EE',
+  LAZER:          '#F59E0B',
+  EDUCACAO:       '#F472B6',
+  GASTOS_FIXOS:   '#A78BFA',
+  COMPRAS:        '#FB923C',
+  GASTOS_PONTUAIS:'#22C55E',
+};
+const COLOR_LIST = Object.values(CAT_COLORS);
 
-export default function BarChart({ data }) {
-  if (!data) return null;
-
-  const labels   = data.meses  || [];
-  const datasets = (data.series || []).map((s, i) => ({
-    label: s.categoria,
-    data: s.valores,
-    backgroundColor: CAT_COLORS[i % CAT_COLORS.length] + 'CC',
+/* API retorna [{mes, ALIMENTACAO, TRANSPORTE, ...}, ...]  */
+function transform(raw) {
+  if (!raw || !raw.length) return { labels: [], datasets: [] };
+  const labels = raw.map(r => r.mes);
+  const cats = Object.keys(raw[0]).filter(k => k !== 'mes');
+  const datasets = cats.map((cat, i) => ({
+    label: cat,
+    data: raw.map(r => Number(r[cat]) || 0),
+    backgroundColor: (CAT_COLORS[cat] || COLOR_LIST[i % COLOR_LIST.length]) + 'CC',
     borderRadius: 4,
     borderSkipped: false,
   }));
+  return { labels, datasets };
+}
 
+export default function BarChart({ data }) {
+  if (!data || !data.length) return (
+    <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', textAlign: 'center', padding: '40px 0' }}>
+      Sem dados no período
+    </div>
+  );
+
+  const { labels, datasets } = transform(data);
   const cfg  = { labels, datasets };
   const opts = {
     responsive: true,
     plugins: {
-      legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 12 }, padding: 16 } },
+      legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },
       tooltip: {
         callbacks: {
           label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}`,

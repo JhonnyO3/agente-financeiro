@@ -5,32 +5,44 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-const SERIES_COLORS = { gastos:'#EF4444', investimentos:'#22D3EE', receitas:'#22C55E' };
-const LABELS_MAP    = { gastos:'Gastos', investimentos:'Investimentos', receitas:'Receitas' };
+const SERIES = {
+  gastos:        { label: 'Gastos',        color: '#EF4444' },
+  receitas:      { label: 'Receitas',       color: '#22C55E' },
+  investimentos: { label: 'Investimentos',  color: '#22D3EE' },
+};
+
+/* API retorna [{mes, gastos, receitas, investimentos}, ...] */
+function transform(raw) {
+  if (!raw || !raw.length) return { labels: [], datasets: [] };
+  const labels = raw.map(r => r.mes);
+  const datasets = Object.entries(SERIES).map(([key, { label, color }]) => ({
+    label,
+    data: raw.map(r => Number(r[key]) || 0),
+    borderColor: color,
+    backgroundColor: color + '18',
+    fill: true,
+    tension: 0.4,
+    pointRadius: 3,
+    pointHoverRadius: 6,
+    borderWidth: 2,
+  }));
+  return { labels, datasets };
+}
 
 export default function LineChart({ data }) {
-  if (!data) return null;
+  if (!data || !data.length) return (
+    <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', textAlign: 'center', padding: '60px 0' }}>
+      Sem dados no período
+    </div>
+  );
 
-  const labels   = data.labels || [];
-  const datasets = Object.entries(data)
-    .filter(([k]) => k !== 'labels')
-    .map(([key, values]) => ({
-      label: LABELS_MAP[key] || key,
-      data: values,
-      borderColor: SERIES_COLORS[key] || '#3B72FF',
-      backgroundColor: (SERIES_COLORS[key] || '#3B72FF') + '22',
-      fill: true,
-      tension: 0.4,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-    }));
-
+  const { labels, datasets } = transform(data);
   const cfg  = { labels, datasets };
   const opts = {
     responsive: true,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 12 }, padding: 16 } },
+      legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },
       tooltip: {
         callbacks: {
           label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}`,

@@ -31,9 +31,9 @@ const PERIODOS = [
   { value:'tudo',            label:'Tudo' },
 ];
 const TIPOS  = ['','GASTO','RECEITA','INVESTIMENTO'];
-const CATS   = ['','Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Vestuário','Outros','Investimento'];
-const STATUS = ['','PAGO','PENDENTE','CANCELADO'];
-const FORMAS = ['','PIX','CREDITO','DEBITO','DINHEIRO','TRANSFERENCIA'];
+const CATS   = ['','ALIMENTACAO','TRANSPORTE','LAZER','EDUCACAO','GASTOS_FIXOS','COMPRAS','GASTOS_PONTUAIS','INVESTIMENTO','RECEITA'];
+const STATUS = ['','PAGO','PENDENTE'];
+const FORMAS = ['','PIX','CARTAO_CREDITO','CARTAO_DEBITO','BOLETO'];
 
 /* ── table state reducer ── */
 const INIT_TABLE = { pagina: 1, tipo: '', categoria: '', status: '', forma: '', ordenar: 'data', direcao: 'desc' };
@@ -54,8 +54,8 @@ export default function Dashboard() {
   const [evolucao,setEvolucao]    = useState(null);
   const [projecao,setProjecao]    = useState(null);
   const [parcelas,setParcelas]    = useState([]);
-  const [transacoes,setTransacoes]= useState({ items:[], total:0, paginas:1 });
-  const [investimentos,setInvest] = useState({ items:[], total:0, totalValor:0 });
+  const [transacoes,setTransacoes]= useState({ itens:[], total:0, paginas:1 });
+  const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
 
@@ -99,9 +99,9 @@ export default function Dashboard() {
     if (i.status === 'fulfilled') {
       const d = i.value.data;
       setInvest({
-        items: d.items || [],
+        itens: d.itens || [],
         total: d.total || 0,
-        totalValor: (d.items || []).reduce((s, x) => s + Number(x.valor), 0),
+        totalValor: (d.itens || []).reduce((s, x) => s + Number(x.valor), 0),
       });
     }
   }, [periodo, tableState, filterCat]);
@@ -327,7 +327,7 @@ export default function Dashboard() {
                 <th style={{width:80}}>Ações</th>
               </tr></thead>
               <tbody>
-                {(transacoes.items || []).map(t=>(
+                {(transacoes.itens || []).map(t=>(
                   <tr key={t.id}>
                     <td>{fmtDate(t.data)}</td>
                     <td>{t.descricao}</td>
@@ -344,7 +344,7 @@ export default function Dashboard() {
                     </td>
                   </tr>
                 ))}
-                {!(transacoes.items?.length) && (
+                {!(transacoes.itens?.length) && (
                   <tr><td colSpan={8} className={styles.empty}>Nenhuma transação encontrada</td></tr>
                 )}
               </tbody>
@@ -383,7 +383,7 @@ export default function Dashboard() {
                 <th>Valor</th><th>Status</th><th style={{width:80}}>Ações</th>
               </tr></thead>
               <tbody>
-                {investimentos.items.map(t=>(
+                {investimentos.itens.map(t=>(
                   <tr key={t.id}>
                     <td>{fmtDate(t.data)}</td>
                     <td>{t.descricao}</td>
@@ -398,7 +398,7 @@ export default function Dashboard() {
                     </td>
                   </tr>
                 ))}
-                {!investimentos.items.length && (
+                {!investimentos.itens.length && (
                   <tr><td colSpan={6} className={styles.empty}>Nenhum investimento encontrado</td></tr>
                 )}
               </tbody>
