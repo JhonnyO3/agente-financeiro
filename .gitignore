@@ -1,12 +1,30 @@
+# Python
 .env
 __pycache__/
 .venv/
 *.pyc
 *.pyo
 *.egg-info/
-dist/
-build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 DEPLOY.md
+
+# Node / npm
+node_modules/
+dist/
+build/
+.npm/
+
+# Design system (gerado localmente)
+src/
+index.html
+charts.html
+_research/node_modules/
+_research/package.json
+_research/package-lock.json
+_research/analysis.md
+_research/screenshots/
+
+# React dashboard (tem worktree próprio)
+react-dashboard/
