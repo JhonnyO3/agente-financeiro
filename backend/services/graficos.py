@@ -52,6 +52,29 @@ class GraficosService:
             resultado.append(item)
         return resultado
 
+    async def heatmap_mes(self, mes_ref: date, usuario_id: int) -> list[dict]:
+        from calendar import monthrange
+        inicio = mes_ref.replace(day=1)
+        _, dias_no_mes = monthrange(mes_ref.year, mes_ref.month)
+        fim = mes_ref.replace(day=dias_no_mes)
+
+        transacoes = await self._repo.listar_por_periodo(inicio, fim, usuario_id=usuario_id)
+
+        somas: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+        for t in transacoes:
+            if _como_str(t.tipo) == "GASTO":
+                somas[t.data.day] += t.valor
+
+        result = []
+        for dia in range(1, dias_no_mes + 1):
+            d = mes_ref.replace(day=dia)
+            result.append({
+                "dia": dia,
+                "dia_semana": d.weekday(),  # 0=seg … 6=dom
+                "total": _valor_str(somas[dia]),
+            })
+        return result
+
     async def evolucao(self, hoje: date, usuario_id: int) -> list[EvolucaoMes]:
         meses = janela_meses(hoje)
         transacoes = await self._repo.listar_por_periodo(

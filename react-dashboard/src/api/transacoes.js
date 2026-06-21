@@ -4,6 +4,7 @@ export const getResumo        = (periodo) => api.get('/api/resumo', { params: { 
 export const getGraficoCats   = (periodo) => api.get('/api/grafico/categorias', { params: { periodo } });
 export const getGraficoMensal = ()        => api.get('/api/grafico/mensal');
 export const getGraficoEvolucao = ()      => api.get('/api/grafico/evolucao');
+export const getHeatmap         = ()      => api.get('/api/grafico/heatmap');
 export const getProjecao      = ()        => api.get('/api/projecao');
 export const getParcelasAtivas = ()       => api.get('/api/parcelas-ativas');
 

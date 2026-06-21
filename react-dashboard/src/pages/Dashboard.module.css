@@ -52,7 +52,8 @@
 .cardHeader { display: flex; align-items: center; justify-content: space-between; }
 .cardTitle  { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
 
-/* ── Evolução / Projeção cards com margem própria ── */
+/* ── Cards com margem própria ── */
+.heatmapCard  { margin-bottom: var(--space-10); }
 .evolucaoCard { margin-bottom: var(--space-10); }
 .projecaoCard { margin-bottom: var(--space-10); }
 

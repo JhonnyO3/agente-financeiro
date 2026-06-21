@@ -12,6 +12,15 @@ from backend.services.graficos import GraficosService
 router = APIRouter(prefix="/api/grafico")
 
 
+@router.get("/heatmap")
+async def heatmap(
+    session: AsyncSession = Depends(get_session),
+    usuario: UsuarioToken = Depends(get_usuario_atual),
+) -> list[dict]:
+    service = GraficosService(TransacaoRepository(session))
+    return await service.heatmap_mes(date.today(), usuario.usuario_id)
+
+
 @router.get("/mensal")
 async def mensal(
     session: AsyncSession = Depends(get_session),

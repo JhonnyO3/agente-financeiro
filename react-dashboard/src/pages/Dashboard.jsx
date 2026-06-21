@@ -9,9 +9,10 @@ import Field, { Input, Select } from '../components/ui/Field';
 import PieChart from '../components/charts/PieChart';
 import BarChart from '../components/charts/BarChart';
 import LineChart from '../components/charts/LineChart';
+import HeatMap from '../components/charts/HeatMap';
 import {
   getResumo, getGraficoCats, getGraficoMensal, getGraficoEvolucao,
-  getProjecao, getParcelasAtivas, getTransacoes,
+  getProjecao, getParcelasAtivas, getTransacoes, getHeatmap,
   criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
 } from '../api/transacoes';
 import styles from './Dashboard.module.css';
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const [projecao,setProjecao]    = useState(null);
   const [parcelas,setParcelas]    = useState([]);
   const [assinaturas,setAssins]   = useState([]);
+  const [heatmap,    setHeatmap]  = useState([]);
   const [transacoes,setTransacoes]= useState({ itens:[], total:0, paginas:1 });
   const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
@@ -77,7 +79,7 @@ export default function Dashboard() {
 
   /* ── data fetchers ── */
   const loadResumoCharts = useCallback(async () => {
-    const [r, c, m, e, p, pa, ass] = await Promise.allSettled([
+    const [r, c, m, e, p, pa, ass, hm] = await Promise.allSettled([
       getResumo(periodo),
       getGraficoCats(periodo),
       getGraficoMensal(),
@@ -85,6 +87,7 @@ export default function Dashboard() {
       getProjecao(),
       getParcelasAtivas(),
       getTransacoes({ categoria: 'GASTOS_FIXOS', periodo: 'mes_atual', ordenar: 'valor', direcao: 'desc' }),
+      getHeatmap(),
     ]);
     if (r.status   === 'fulfilled') setResumo(r.value.data);
     if (c.status   === 'fulfilled') setCats(c.value.data);
@@ -93,6 +96,7 @@ export default function Dashboard() {
     if (p.status   === 'fulfilled') setProjecao(p.value.data);
     if (pa.status  === 'fulfilled') setParcelas(pa.value.data || []);
     if (ass.status === 'fulfilled') setAssins(ass.value.data?.itens || []);
+    if (hm.status  === 'fulfilled') setHeatmap(hm.value.data || []);
   }, [periodo]);
 
   const loadTransacoes = useCallback(async () => {
@@ -285,6 +289,14 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* ── HeatMap ── */}
+      <Card className={styles.heatmapCard}>
+        <div className={styles.cardHeader}>
+          <span className={styles.cardTitle}>Gastos por Dia — Mês Atual</span>
+        </div>
+        <HeatMap data={heatmap} />
+      </Card>
 
       {/* ── Evolution chart ── */}
       <Card className={styles.evolucaoCard}>
