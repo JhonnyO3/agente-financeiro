@@ -28,9 +28,14 @@ async def listar_transacoes(
     ordenar: str | None = None,
     direcao: str = "desc",
     pagina: int = 1,
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
     session: AsyncSession = Depends(get_session),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
+    from datetime import date as date_type
+    di = date_type.fromisoformat(data_inicio) if data_inicio else None
+    df = date_type.fromisoformat(data_fim)    if data_fim    else None
     return await service.listar(
         session,
         usuario.usuario_id,
@@ -42,6 +47,8 @@ async def listar_transacoes(
         forma_pagamento,
         ordenar,
         direcao,
+        data_inicio=di,
+        data_fim=df,
     )
 
 

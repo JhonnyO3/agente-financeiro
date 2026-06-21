@@ -35,7 +35,7 @@ const STATUS = ['','PAGO','PENDENTE'];
 const FORMAS = ['','PIX','CARTAO_CREDITO','CARTAO_DEBITO','BOLETO'];
 
 /* ── table state reducer ── */
-const INIT_TABLE = { pagina: 1, tipo: '', categoria: '', status: '', forma: '', ordenar: 'data', direcao: 'desc' };
+const INIT_TABLE = { pagina: 1, tipo: '', categoria: '', status: '', forma: '', ordenar: 'data', direcao: 'desc', dataInicio: '', dataFim: '' };
 function tableReducer(s, a) {
   if (a.type === 'set')   return { ...s, [a.key]: a.val, pagina: a.key === 'pagina' ? a.val : 1 };
   if (a.type === 'sort')  return { ...s, ordenar: a.col, direcao: s.ordenar === a.col && s.direcao === 'desc' ? 'asc' : 'desc', pagina: 1 };
@@ -104,6 +104,8 @@ export default function Dashboard() {
       forma_pagamento: tableState.forma || undefined,
       ordenar: tableState.ordenar,
       direcao: tableState.direcao,
+      data_inicio: tableState.dataInicio || undefined,
+      data_fim:    tableState.dataFim    || undefined,
     };
     const [t, i] = await Promise.allSettled([
       getTransacoes({ ...params }),
@@ -285,7 +287,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Evolution chart ── */}
-      <Card style={{marginBottom:'var(--space-8)'}}>
+      <Card className={styles.evolucaoCard}>
         <div className={styles.cardHeader}><span className={styles.cardTitle}>Evolução Financeira</span></div>
         <div className={styles.chartWrapLine}>
           <LineChart data={evolucao} />
@@ -294,7 +296,7 @@ export default function Dashboard() {
 
       {/* ── Projeção ── */}
       {projecao && projecao.length > 0 && (
-        <Card style={{marginBottom:'var(--space-8)'}}>
+        <Card className={styles.projecaoCard}>
           <div className={styles.cardHeader}><span className={styles.cardTitle}>Projeção 6 Meses</span></div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -367,6 +369,8 @@ export default function Dashboard() {
       <div style={{marginBottom:'var(--space-8)'}}>
         <div className={styles.tableToolbar}>
           <h2 className={styles.sectionTitle}>Transações</h2>
+        </div>
+        <div className={styles.filtersBar}>
           <div className={styles.filters}>
             <Select value={tableState.tipo}      onChange={e=>dispatch({type:'set',key:'tipo',val:e.target.value})} style={{width:'auto'}}>
               <option value="">Todos tipos</option>
@@ -384,6 +388,15 @@ export default function Dashboard() {
               <option value="">Todas formas</option>
               {FORMAS.filter(Boolean).map(f=><option key={f}>{f}</option>)}
             </Select>
+          </div>
+          <div className={styles.dateRange}>
+            <span className={styles.dateRangeLabel}>Período</span>
+            <Input type="date" value={tableState.dataInicio} onChange={e=>dispatch({type:'set',key:'dataInicio',val:e.target.value})} className={styles.dateInput} title="Data inicial" />
+            <span className={styles.dateRangeSep}>–</span>
+            <Input type="date" value={tableState.dataFim} onChange={e=>dispatch({type:'set',key:'dataFim',val:e.target.value})} className={styles.dateInput} title="Data final" />
+            {(tableState.dataInicio || tableState.dataFim) && (
+              <button className={styles.clearDates} onClick={()=>{dispatch({type:'set',key:'dataInicio',val:''});dispatch({type:'set',key:'dataFim',val:''});}}>✕</button>
+            )}
           </div>
         </div>
 

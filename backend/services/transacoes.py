@@ -71,8 +71,14 @@ async def listar(
     forma_pagamento: str | None = None,
     ordenar: str | None = None,
     direcao: str = "desc",
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
 ) -> dict:
-    inicio, fim = resolver_periodo(periodo)
+    if data_inicio or data_fim:
+        inicio = data_inicio or date(2000, 1, 1)
+        fim    = data_fim    or date(2099, 12, 31)
+    else:
+        inicio, fim = resolver_periodo(periodo)
     repo = TransacaoRepository(session)
     transacoes = await repo.listar_por_periodo(inicio, fim, usuario_id=usuario_id)
 
