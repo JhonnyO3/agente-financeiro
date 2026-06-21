@@ -45,9 +45,8 @@ class _SessionFactoryRepository:
             return await self._repo(session).criar(transacao)
 
     async def criar_lote(self, transacoes, usuario_id: int | None = None):
-        uid = usuario_id if usuario_id is not None else self._usuario_id
         async with self._session_factory.begin() as session:
-            return await self._repo(session).criar_lote(transacoes, usuario_id=uid)
+            return await self._repo(session).criar_lote(transacoes)
 
     async def buscar_por_id(self, id):
         async with self._session_factory() as session:

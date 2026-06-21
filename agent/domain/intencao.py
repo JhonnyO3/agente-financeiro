@@ -28,6 +28,13 @@ class ItemCadastro(BaseModel):
     dia_vencimento: int | None = None
     data: str | None = None
     tipo: Literal["GASTO", "INVESTIMENTO", "RECEITA"] | None = None
+    categoria: (
+        Literal[
+            "ALIMENTACAO", "TRANSPORTE", "LAZER", "EDUCACAO",
+            "GASTOS_FIXOS", "COMPRAS", "GASTOS_PONTUAIS", "INVESTIMENTO", "RECEITA",
+        ]
+        | None
+    ) = None
 
 
 class ParamsCadastrar(BaseModel):

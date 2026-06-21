@@ -12,7 +12,7 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 | Intenção | Quando usar |
 |---|---|
-| cadastrar | Usuário informa gasto(s), despesa(s), investimento ou receita — um ou vários na mesma mensagem (itens viram lista em parametros.itens) |
+| cadastrar | Usuário relata ou informa um gasto, compra, despesa, investimento ou receita — com ou sem verbo explícito de ação. Qualquer frase com valor + ocasião de gasto ("gastei X em Y", "comprei X por Y", "paguei X no Y", "X custou Y") é cadastrar. |
 | listar | Usuário quer ver, consultar, somar ou resumir registros — qualquer pergunta que exija números do banco: "listar gastos", "quanto gastei esse mês?", "qual meu maior gasto?", "estou no azul?", "extrato" |
 | atualizar | Corrigir/editar campo de registro existente — inclui marcar como pago/quitado (atualização de status): "muda a zara pra 200", "paguei a internet" |
 | excluir | Apagar registro(s) — individual ("apaga o gasto das flores") ou em massa por filtro ("apaga tudo de maio", "remove todos de transporte") |
@@ -32,6 +32,12 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 | Intenção | Quando usar |
 |---|---|
 | desconhecida | Fora do escopo financeiro ("me conta uma piada") ou confiança < 0.7 |
+
+## Regra crítica — cadastrar vs conversar
+
+Verbos como "gastei", "comprei", "paguei", "adquiri" + valor → **sempre cadastrar**, mesmo que o usuário não peça explicitamente o registro. É o fluxo principal do agente.
+
+Só vai para conversar se não houver nenhum dado financeiro concreto (valor, item, transação) na mensagem.
 
 ## Regra de fronteira — listar × conversar
 

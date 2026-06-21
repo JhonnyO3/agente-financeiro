@@ -121,6 +121,9 @@ def _processar_item(
         grupo_id = str(uuid4())
 
         registros: list[dict[str, Any]] = []
+        tipo = item.tipo or "GASTO"
+        categoria = item.categoria or ("INVESTIMENTO" if tipo == "INVESTIMENTO" else "RECEITA" if tipo == "RECEITA" else "GASTOS_PONTUAIS")
+
         for idx, d in enumerate(datas_restantes):
             if idx == 0:
                 # parcela atual: status por vencimento
@@ -139,6 +142,8 @@ def _processar_item(
                 "grupo_parcela_id": grupo_id,
                 "parcela_numero": parcela_atual + idx,
                 "parcela_total": total_parcelas,
+                "tipo": tipo,
+                "categoria": categoria,
             }
             if detalhes is not None:
                 reg["detalhes"] = detalhes
@@ -162,6 +167,9 @@ def _processar_item(
         else:
             status = "PENDENTE"
 
+        tipo = item.tipo or "GASTO"
+        categoria = item.categoria or ("INVESTIMENTO" if tipo == "INVESTIMENTO" else "RECEITA" if tipo == "RECEITA" else "GASTOS_PONTUAIS")
+
         reg = {
             "descricao": item.descricao,
             "valor": item.valor,
@@ -172,6 +180,8 @@ def _processar_item(
             "grupo_parcela_id": str(uuid4()),
             "parcela_numero": 1,
             "parcela_total": 1,
+            "tipo": tipo,
+            "categoria": categoria,
         }
         if detalhes is not None:
             reg["detalhes"] = detalhes

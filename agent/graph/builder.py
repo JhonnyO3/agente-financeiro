@@ -40,7 +40,7 @@ def criar_grafo(
     repo_factory: Callable,
     checkpointer=None,
 ) -> CompiledStateGraph:
-    cadastrar = Cadastrar(relogio=relogio, repo_factory=repo_factory, extrator=extrator)
+    cadastrar = Cadastrar(relogio=relogio, repo_factory=repo_factory, extrator=extrator, embedder=embedder)
     listar = Listar(relogio=relogio, repo_factory=repo_factory)
     atualizar = Atualizar(relogio=relogio, repo_factory=repo_factory, embedder=embedder)
     excluir = Excluir(relogio=relogio, repo_factory=repo_factory, embedder=embedder)

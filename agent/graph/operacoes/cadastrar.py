@@ -7,6 +7,7 @@ from agent.graph.state import AgentState
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from agent.agents_llm import Embedder
     from agent.services.relogio import Relogio
     from agent.services.extrator import Extrator
     from backend.repositories.transacao_repository import TransacaoRepository
@@ -48,10 +49,12 @@ class Cadastrar:
         relogio: Relogio,
         repo_factory: Callable[[int], TransacaoRepository],
         extrator: Extrator,
+        embedder: Embedder,
     ) -> None:
         self._relogio = relogio
         self._repo_factory = repo_factory
         self._extrator = extrator
+        self._embedder = embedder
 
     async def executar(self, state: AgentState) -> dict:
         fase = state.get("fase_pendente")
@@ -193,12 +196,52 @@ class Cadastrar:
         return updates
 
     async def _confirmar(self, state: AgentState) -> dict:
+        from datetime import date as _date
+        from decimal import Decimal
+        from uuid import UUID
+        from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+        from backend.repositories.dtos import TransacaoCreate
+
         payload = state.get("payload_pendente") or {}
         registros = payload.get("registros", [])
         usuario_id = state["usuario_id"]
 
+        transacoes: list[TransacaoCreate] = []
+        for reg in registros:
+            tipo_str = reg.get("tipo") or "GASTO"
+            categoria_str = reg.get("categoria") or "GASTOS_PONTUAIS"
+            descricao = reg.get("descricao") or ""
+            data = reg.get("data")
+            if isinstance(data, str):
+                data = _date.fromisoformat(data)
+            elif not isinstance(data, _date):
+                data = _date.today()
+
+            texto = f"{tipo_str} {categoria_str} {descricao} {data.strftime('%d/%m/%Y')}"
+            embedding = await self._embedder.gerar(texto)
+
+            grupo_raw = reg.get("grupo_parcela_id") or str(__import__("uuid").uuid4())
+            grupo_id = UUID(grupo_raw) if isinstance(grupo_raw, str) else grupo_raw
+
+            transacoes.append(TransacaoCreate(
+                usuario_id=usuario_id,
+                tipo=TipoEnum(tipo_str),
+                valor=Decimal(str(reg.get("valor") or 0)),
+                descricao=descricao or None,
+                categoria=CategoriaEnum(categoria_str),
+                data=data,
+                parcela_numero=reg.get("parcela_numero") or 1,
+                parcela_total=reg.get("parcela_total") or 1,
+                grupo_parcela_id=grupo_id,
+                embedding=embedding,
+                status=StatusEnum(reg.get("status") or "PENDENTE"),
+                forma_pagamento=FormaPagamentoEnum(reg.get("forma_pagamento") or "PIX"),
+                responsavel=reg.get("responsavel") or "",
+                detalhes=reg.get("detalhes"),
+            ))
+
         repo = self._repo_factory(usuario_id)
-        await repo.criar_lote(registros, usuario_id=usuario_id)
+        await repo.criar_lote(transacoes)
 
         return {
             "resultado": {"acao": "cadastrar", "status": "concluido", "dados": payload},
