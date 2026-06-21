@@ -513,7 +513,7 @@ async def test_matematica_parcelas_decimal_sem_float():
 
 @pytest.mark.asyncio
 async def test_forma_pagamento_ausente_inferida_pix():
-    """Sem forma e sem pistas de parcelamento/vencimento → pede forma_pagamento."""
+    """Sem forma e sem pistas de parcelamento/vencimento → infere PIX como default."""
     from agent.tools.cadastrar import ToolCadastrar
     from agent.domain.intencao import ItemCadastro
 
@@ -526,8 +526,9 @@ async def test_forma_pagamento_ausente_inferida_pix():
     item = ItemCadastro(descricao="Uber", valor=Decimal("25.00"), forma_pagamento=None)
     resultado = await tool.executar([item], _contexto_basico())
 
-    assert resultado.status == "aguardando_complemento"
-    assert "forma_pagamento" in resultado.dados["campos_faltantes"]
+    assert resultado.status == "aguardando_confirmacao"
+    registros = resultado.dados.get("registros", [])
+    assert registros[0]["forma_pagamento"] == "PIX"
 
 
 # ---------------------------------------------------------------------------
@@ -572,13 +573,13 @@ def tool_cadastrar():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_forma_pagamento_ausente_sem_pista_entra_em_campos_faltantes(tool_cadastrar):
+async def test_forma_pagamento_ausente_sem_pista_infere_pix(tool_cadastrar):
     from agent.domain.intencao import ItemCadastro
 
     item = ItemCadastro(descricao="açougue", valor=Decimal("50"))
     resultado = await tool_cadastrar.executar([item], {})
-    assert resultado.status == "aguardando_complemento"
-    assert "forma_pagamento" in resultado.dados["campos_faltantes"]
+    assert resultado.status == "aguardando_confirmacao"
+    assert resultado.dados["registros"][0]["forma_pagamento"] == "PIX"
 
 
 # ---------------------------------------------------------------------------

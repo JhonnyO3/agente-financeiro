@@ -2,7 +2,11 @@
 
 Extraia os dados estruturados dos itens a cadastrar. O classificador já identificou a intenção; sua tarefa é preencher os campos com precisão.
 
-## Parâmetros recebidos
+## Mensagem do usuário
+
+{mensagem}
+
+## Parâmetros parciais (pode estar vazio se for a primeira extração)
 
 {parametros}
 
@@ -29,12 +33,14 @@ O campo `tipo` aceita EXATAMENTE um destes três valores — nunca use nomes de 
 
 ## Regras de extração — Valores e parcelas
 
-- parcela_atual: se o usuário indicar a parcela atual ("parcela 2/4", "2 de 4"), extraia o número. Ausente → parcela_atual=1
-- Quando o usuário informa o valor DA PARCELA (ex.: "R$ 200, parcela 2/4"): valor_por_parcela=200, parcela_total=4, parcela_atual=2 e valor_total = valor_por_parcela × parcela_total
-- Quando o usuário informa o valor TOTAL (ex.: "900 em 6x"): valor_total=900, parcela_total=6, valor_por_parcela=null, parcela_atual=1
-- data_referencia é a data da parcela atual informada na mensagem
-- Sem data informada → assumir hoje ({data_atual})
-- Parcelas futuras: avançar o mesmo dia do mês, mês a mês
+- **valor** = sempre o valor TOTAL da compra (número puro, sem moeda, sem símbolo, sem cálculos).
+  - "5x de 300" → valor=1500 (300×5), total_parcelas=5, parcela_atual=1
+  - "900 em 6x" → valor=900, total_parcelas=6, parcela_atual=1
+  - "parcela 2/4 de 200" → valor=800 (200×4), total_parcelas=4, parcela_atual=2
+- **parcela_atual**: só preencha se o usuário mencionar a parcela atual explicitamente ("parcela 2/4", "2ª de 5x"). Se não mencionar → null (não coloque 1 como default).
+- **total_parcelas**: número total de parcelas quando o usuário mencionar parcelamento ("3x", "em 5 vezes"). Se não houver parcelamento → null.
+- **dia_vencimento**: dia do mês de vencimento quando mencionado ("vence dia 10", "todo dia 5"). Ausente → null.
+- Sem data informada → assumir hoje ({data_atual}).
 
 ## Regras de extração — Forma de pagamento
 

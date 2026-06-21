@@ -1,3 +1,8 @@
+{% if campos_faltantes and not registros %}
+⚠️ *Informação necessária*
+
+Para concluir o cadastro, por favor informe: *{{ campos_faltantes | join(', ') }}*.
+{% else %}
 {% if multiplo %}
 📋 *Confirme os registros abaixo:*
 {% else %}
@@ -34,3 +39,4 @@ _(faltante: {{ campos_faltantes | join(', ') }})_
 
 {% endfor %}
 _Responda *confirmar* para salvar ou *cancelar* para descartar._
+{% endif %}

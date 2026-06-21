@@ -30,6 +30,7 @@ def _ctx_classificador(**overrides):
         "responsavel_padrao": "Jhon",
         "historico_recente": "Nenhum histórico.",
         "estado_pendente": "nenhuma",
+        "mensagem": "teste",
     }
     base.update(overrides)
     return base
@@ -135,6 +136,7 @@ def test_responsavel_padrao_vem_de_settings_quando_ausente_no_ctx():
         "data_atual": "12/06/2026",
         "historico_recente": "Nenhum histórico.",
         "estado_pendente": "nenhuma",
+        "mensagem": "teste",
     }
 
     # Mocka Settings para garantir o valor esperado

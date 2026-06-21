@@ -143,16 +143,20 @@ class Formatador:
 
         regs_ctx = []
         for reg in registros:
-            valor = reg.get("valor", Decimal("0"))
-            parcela_total = reg.get("parcela_total", 1)
-            parcela_numero = reg.get("parcela_numero", 1)
+            valor_raw = reg.get("valor", 0)
+            try:
+                valor = Decimal(str(valor_raw)) if not isinstance(valor_raw, Decimal) else valor_raw
+            except Exception:
+                valor = Decimal("0")
+            parcela_total = int(reg.get("parcela_total") or 1)
+            parcela_numero = int(reg.get("parcela_numero") or 1)
             data = reg.get("data")
             regs_ctx.append(
                 {
                     "descricao": reg.get("descricao", ""),
                     "valor_fmt": _brl(valor),
                     "total_fmt": _brl(valor * parcela_total)
-                    if parcela_total and parcela_total > 1
+                    if parcela_total > 1
                     else _brl(valor),
                     "data_fmt": (
                         data.strftime("%d/%m/%Y")
@@ -227,7 +231,13 @@ class Formatador:
                     {
                         "descricao": item.get("descricao", ""),
                         "valor_fmt": _brl(item.get("valor", Decimal("0"))),
-                        "data_fmt": data.strftime("%d/%m") if data else "",
+                        "data_fmt": (
+                    data.strftime("%d/%m")
+                    if hasattr(data, "strftime")
+                    else "/".join(str(data).split("-")[1:3][::-1])
+                    if data
+                    else ""
+                ),
                         "emoji": _status_emoji(st),
                         "status": st,
                     }

@@ -373,12 +373,9 @@ async def test_intencao_nova_durante_pendencia_nao_forca_confirmar():
             estado_pendente="exclusão aguardando confirmação",
         )
 
+    # Classificador agora só roteia — itens são extraídos downstream pelo Extrator
     assert resultado.acao == "cadastrar"
     assert isinstance(resultado.parametros, ParamsCadastrar)
-    assert len(resultado.parametros.itens) == 1
-    item = resultado.parametros.itens[0]
-    assert "uber" in (item.descricao or "").lower()
-    assert item.valor == Decimal("30")
 
 
 # ---------------------------------------------------------------------------
@@ -456,4 +453,8 @@ async def test_chain_usa_structured_output_intencao():
                 estado_pendente="nenhuma",
             )
 
-    llm_mock.with_structured_output.assert_called_once_with(Intencao, method="function_calling")
+    from agent.domain.intencao import IntencaoClassificacao
+    first_call_args = llm_mock.with_structured_output.call_args_list[0]
+    assert first_call_args[0][0] is IntencaoClassificacao, (
+        f"Passo 1 deve usar IntencaoClassificacao, obteve {first_call_args[0][0]}"
+    )

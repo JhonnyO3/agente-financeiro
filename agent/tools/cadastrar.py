@@ -45,9 +45,11 @@ _FORMAS_PAGO = {"PIX", "CARTAO_DEBITO"}
 
 
 def _inferir_forma(item: ItemCadastro) -> str:
-    """Regras 1–3 do fluxo: ausente → PIX; parcela/cartão → CARTAO_CREDITO."""
+    """Regras 1–3 do fluxo: ausente → PIX; parcelas reais ou vencimento → CARTAO_CREDITO."""
     if item.forma_pagamento is None:
-        if item.parcela_atual is not None or item.total_parcelas is not None:
+        eh_parcelado = (item.total_parcelas is not None and item.total_parcelas > 1)
+        tem_vencimento = item.dia_vencimento is not None
+        if eh_parcelado or tem_vencimento:
             return _FORMA_CARTAO
         return _FORMA_PIX
     if item.forma_pagamento == "DINHEIRO":
@@ -57,11 +59,8 @@ def _inferir_forma(item: ItemCadastro) -> str:
 
 def _tem_pista_clara(item: ItemCadastro) -> bool:
     """Retorna True se há pista suficiente para inferir forma sem perguntar ao usuário."""
-    return (
-        item.parcela_atual is not None
-        or item.total_parcelas is not None
-        or item.dia_vencimento is not None
-    )
+    eh_parcelado = item.total_parcelas is not None and item.total_parcelas > 1
+    return eh_parcelado or item.dia_vencimento is not None
 
 
 def _label_mes(d: date) -> str:
@@ -209,9 +208,6 @@ class ToolCadastrar:
             if item.valor is None:
                 if "valor" not in campos_faltantes:
                     campos_faltantes.append("valor")
-            if item.forma_pagamento is None and not _tem_pista_clara(item):
-                if "forma_pagamento" not in campos_faltantes:
-                    campos_faltantes.append("forma_pagamento")
 
         if campos_faltantes:
             return ResultadoTool(

@@ -112,6 +112,13 @@ _ACAO_PARA_PARAMS: dict[str, type[BaseModel]] = {
 }
 
 
+class IntencaoClassificacao(BaseModel):
+    """Schema mínimo para o primeiro passo — apenas roteamento."""
+
+    acao: Acao
+    confianca: float
+
+
 class Intencao(BaseModel):
     acao: Acao
     parametros: Any
@@ -135,8 +142,32 @@ class Intencao(BaseModel):
                 parametros = extracted
                 data["parametros"] = parametros
 
+        # Caso especial: LLM retorna campos de ItemCadastro na raiz (flattening)
+        # em vez de aninhados em parametros.itens — monta itens automaticamente.
+        if parametros is None and acao == "cadastrar":
+            item_fields = set(ItemCadastro.model_fields.keys())
+            flat = {k: data[k] for k in item_fields if k in data}
+            if flat:
+                data = {k: v for k, v in data.items() if k not in item_fields}
+                parametros = {"itens": [flat]}
+                data["parametros"] = parametros
+
         if params_cls is not None and isinstance(parametros, dict):
             data = dict(data)
-            # Raises ValidationError if shape doesn't match (extra="forbid")
-            data["parametros"] = params_cls.model_validate(parametros)
+            try:
+                data["parametros"] = params_cls.model_validate(parametros)
+            except Exception:
+                if acao == "cadastrar":
+                    # LLM pode ter colocado campos de ItemCadastro diretamente em parametros
+                    # (sem wrapper itens) — tenta reconstruir
+                    item_fields = set(ItemCadastro.model_fields.keys())
+                    flat = {k: parametros[k] for k in item_fields if k in parametros}
+                    try:
+                        data["parametros"] = ParamsCadastrar(
+                            itens=[ItemCadastro.model_validate(flat)] if flat else []
+                        )
+                    except Exception:
+                        data["parametros"] = ParamsCadastrar(itens=[])
+                else:
+                    raise
         return data

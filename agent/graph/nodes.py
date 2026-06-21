@@ -34,9 +34,10 @@ def criar_no_classificar(
 ) -> Callable[[AgentState], Awaitable[dict]]:
     async def no_classificar(state: AgentState) -> dict:
         mensagem = state["messages"][-1].content if state.get("messages") else ""
+        msgs_prev = (state.get("messages") or [])[:-1]
         historico = [
             f"{m.type}: {m.content}"
-            for m in (state.get("messages") or [])[:-1]
+            for m in msgs_prev[-2:]  # apenas as 2 últimas para contexto de pendência sem contaminar
         ]
         intencao = await classificador.classificar(
             mensagem=str(mensagem),

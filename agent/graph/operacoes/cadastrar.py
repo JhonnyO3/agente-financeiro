@@ -57,14 +57,28 @@ class Cadastrar:
         self._embedder = embedder
 
     async def executar(self, state: AgentState) -> dict:
+        acao_atual = (state.get("intencao") or {}).get("acao")
         fase = state.get("fase_pendente")
-        match fase:
-            case "aguardando_confirmacao":
-                return await self._confirmar(state)
-            case "aguardando_complemento":
-                return await self._complementar(state)
-            case _:
-                return await self._novo(state)
+
+        # Só processa pendência se a intenção atual for uma resposta à pendência.
+        # Uma nova intenção "cadastrar" sempre inicia _novo(), limpando estado stale.
+        if acao_atual == "confirmar" and fase == "aguardando_confirmacao":
+            return await self._confirmar(state)
+        if acao_atual == "complementar" and fase == "aguardando_complemento":
+            return await self._complementar(state)
+        # User said "confirmar" but we're still waiting for missing fields — re-ask.
+        if acao_atual == "confirmar" and fase == "aguardando_complemento":
+            payload = state.get("payload_pendente") or {}
+            campos = list(state.get("campos_faltantes") or [])
+            return {
+                "resultado": {
+                    "acao": "cadastrar",
+                    "status": "aguardando_complemento",
+                    "dados": {**payload, "campos_faltantes": campos},
+                },
+                **_salvar_pendencia("aguardando_complemento", payload, campos_faltantes=campos),
+            }
+        return await self._novo(state)
 
     async def _novo(self, state: AgentState) -> dict:
         from agent.domain.intencao import ParamsCadastrar, ItemCadastro
@@ -75,11 +89,14 @@ class Cadastrar:
 
         intencao = state.get("intencao") or {}
         params_raw = intencao.get("parametros") or {}
-        params = (
-            ParamsCadastrar.model_validate(params_raw)
-            if isinstance(params_raw, dict)
-            else params_raw
-        )
+        try:
+            params = (
+                ParamsCadastrar.model_validate(params_raw)
+                if isinstance(params_raw, dict)
+                else params_raw
+            )
+        except Exception:
+            params = ParamsCadastrar(itens=[])
 
         itens: list[ItemCadastro] = (
             params.itens if isinstance(params, ParamsCadastrar) else []
@@ -94,11 +111,26 @@ class Cadastrar:
             if state.get("messages")
             else []
         )
+        # Classificador retorna itens=[] intencionalmente — Extrator lidera a extração completa
         itens = await self._extrator.extrair_cadastro(
             itens_parciais=itens,
             mensagem_original=mensagem,
             historico=historico,
         )
+
+        if not itens:
+            updates["resultado"] = {
+                "acao": "conversar",
+                "status": "concluido",
+                "dados": {
+                    "resposta": (
+                        "Não consegui identificar o que você quer registrar. "
+                        "Informe o que gastou e o valor — por exemplo: "
+                        "_'gastei R$ 50 no mercado'_ ou _'paguei 120 reais de internet'_."
+                    )
+                },
+            }
+            return updates
 
         repo = self._repo_factory(state["usuario_id"])
         nome_usuario = await repo.buscar_nome_usuario() if hasattr(repo, "buscar_nome_usuario") else ""
@@ -224,10 +256,18 @@ class Cadastrar:
             grupo_raw = reg.get("grupo_parcela_id") or str(__import__("uuid").uuid4())
             grupo_id = UUID(grupo_raw) if isinstance(grupo_raw, str) else grupo_raw
 
+            valor_raw = reg.get("valor") or 0
+            try:
+                valor_dec = Decimal(str(valor_raw))
+            except Exception:
+                import re as _re
+                nums = _re.sub(r"[^\d.,]", "", str(valor_raw)).replace(",", ".")
+                valor_dec = Decimal(nums) if nums else Decimal("0")
+
             transacoes.append(TransacaoCreate(
                 usuario_id=usuario_id,
                 tipo=TipoEnum(tipo_str),
-                valor=Decimal(str(reg.get("valor") or 0)),
+                valor=valor_dec,
                 descricao=descricao or None,
                 categoria=CategoriaEnum(categoria_str),
                 data=data,
