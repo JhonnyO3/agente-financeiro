@@ -131,6 +131,12 @@ class _SessionFactoryRepository:
                 inicio, fim, usuario_id=self._usuario_id
             )
 
+    async def buscar_nome_usuario(self) -> str:
+        from backend.repositories.usuario_repository import UsuarioRepository
+        async with self._session_factory() as session:
+            usuario = await UsuarioRepository(session).buscar_por_id(self._usuario_id)
+            return usuario.nome if usuario else ""
+
 
 # ---------------------------------------------------------------------------
 # Legado: resolver_usuario_id (não mais usado no lifespan — substituído por

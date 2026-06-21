@@ -201,7 +201,7 @@ class ToolCadastrar:
         # Usa a data UTC do instante fixado no relógio para que testes com
         # _fixed=datetime(..., tzinfo=UTC) obtenham a data correta.
         hoje = self._relogio.agora().astimezone(timezone.utc).date()
-        responsavel: str = settings.RESPONSAVEL_PADRAO
+        responsavel: str = contexto.get("responsavel") or settings.RESPONSAVEL_PADRAO
 
         # Verifica campos obrigatórios faltantes
         campos_faltantes: list[str] = []
@@ -260,6 +260,13 @@ class ToolCadastrar:
                     label = _label_mes(d)
                     if label not in parcelas_futuras:
                         parcelas_futuras.append(label)
+
+        if not todos_registros:
+            return ResultadoTool(
+                acao="cadastrar",
+                status="aguardando_complemento",
+                dados={"campos_faltantes": ["descricao", "valor"]},
+            )
 
         dados: dict[str, Any] = {"registros": todos_registros}
         if parcelas_futuras:

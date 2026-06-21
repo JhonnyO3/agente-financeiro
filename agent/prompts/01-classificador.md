@@ -35,9 +35,17 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 ## Regra crítica — cadastrar vs conversar
 
-Verbos como "gastei", "comprei", "paguei", "adquiri" + valor → **sempre cadastrar**, mesmo que o usuário não peça explicitamente o registro. É o fluxo principal do agente.
+Verbos como "gastei", "comprei", "paguei", "adquiri", "fiz", "tomei" + qualquer valor ou item → **sempre cadastrar**, mesmo que o usuário não use a palavra "registrar" ou "cadastrar". É o fluxo principal do agente.
 
-Só vai para conversar se não houver nenhum dado financeiro concreto (valor, item, transação) na mensagem.
+**Exemplos que são SEMPRE cadastrar:**
+- "gastei 100 reais com a pizza hoje" → cadastrar
+- "gastei 100 com pizza" → cadastrar
+- "comprei capinha por 50 reais" → cadastrar
+- "paguei 30 de uber" → cadastrar
+- "tomei um café, foi 8 reais" → cadastrar
+- "200 reais na farmácia" → cadastrar
+
+Só vai para conversar se NÃO houver NENHUM dado financeiro concreto (valor, item, transação) na mensagem.
 
 ## Regra de fronteira — listar × conversar
 
@@ -93,6 +101,9 @@ Parâmetros por ação:
 | Mensagem | Estado pendente | Saída esperada |
 |---|---|---|
 | "Gastei 472 reais com Claude code" | nenhuma | acao=cadastrar, itens=[descricao="Claude Code", valor=472], confianca=0.98 |
+| "gastei 100 reais com a pizza hoje" | nenhuma | acao=cadastrar, itens=[descricao="Pizza", valor=100], confianca=0.98 |
+| "gastei 200 reais com capinha para celular" | nenhuma | acao=cadastrar, itens=[descricao="Capinha celular", valor=200], confianca=0.97 |
+| "paguei 30 de uber" | nenhuma | acao=cadastrar, itens=[descricao="Uber", valor=30], confianca=0.97 |
 | "140 das flores e 190 de internet ontem" | nenhuma | acao=cadastrar, itens=[descricao="Flores" valor=140, descricao="Internet" valor=190 data="ontem"], confianca=0.96 |
 | "Comprei luminária para minha mesa, foi 284 no cartão mercado pago que vence dia 5" | nenhuma | acao=cadastrar, itens=[descricao="Luminária", valor=284, forma_pagamento="CARTAO_CREDITO", dia_vencimento=5], confianca=0.97 |
 | "comprei um tênis de 350 reais" | nenhuma | acao=cadastrar, itens=[descricao="Tênis", valor=350], confianca=0.97 |

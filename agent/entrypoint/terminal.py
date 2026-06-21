@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -98,7 +99,19 @@ async def _chat(usuario_id: int) -> None:
                     },
                     config={"configurable": {"thread_id": thread_id}},
                 )
+                if os.getenv("AGENT_DEBUG"):
+                    snap = await grafo.aget_state({"configurable": {"thread_id": thread_id}})
+                    v = snap.values
+                    print(
+                        f"[DEBUG] intencao={v.get('intencao', {}).get('acao')} "
+                        f"acao_pendente={v.get('acao_pendente')} "
+                        f"fase_pendente={v.get('fase_pendente')}",
+                        flush=True,
+                    )
             except Exception as exc:
+                import traceback
+                if os.getenv("AGENT_DEBUG"):
+                    traceback.print_exc()
                 print(f"\nagente: [erro interno: {exc}]\n")
     finally:
         await engine.dispose()

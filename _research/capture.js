@@ -1,5 +1,5 @@
 // Script de captura visual do site Baseflow
-const { chromium } = require('playwright');
+const { chromium } = require('playwright-chromium');
 const path = require('path');
 const fs = require('fs');
 

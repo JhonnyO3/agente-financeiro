@@ -6,6 +6,7 @@ from langgraph.graph import END, StateGraph
 
 from agent.graph.edges import rotear
 from agent.graph.nodes import (
+    criar_no_cancelar,
     criar_no_classificar,
     criar_no_enviar,
     criar_no_formatar,
@@ -54,6 +55,7 @@ def criar_grafo(
     graph.add_node("no_atualizar", criar_no_operacao(atualizar))
     graph.add_node("no_excluir", criar_no_operacao(excluir))
     graph.add_node("no_conversar", criar_no_operacao(conversar))
+    graph.add_node("no_cancelar", criar_no_cancelar())
     graph.add_node("no_formatar", criar_no_formatar(formatador))
     graph.add_node("no_enviar", criar_no_enviar(evolution))
 
@@ -68,10 +70,11 @@ def criar_grafo(
             "no_atualizar": "no_atualizar",
             "no_excluir": "no_excluir",
             "no_conversar": "no_conversar",
+            "no_cancelar": "no_cancelar",
         },
     )
 
-    for no_op in ("no_cadastrar", "no_listar", "no_atualizar", "no_excluir", "no_conversar"):
+    for no_op in ("no_cadastrar", "no_listar", "no_atualizar", "no_excluir", "no_conversar", "no_cancelar"):
         graph.add_edge(no_op, "no_formatar")
 
     graph.add_edge("no_formatar", "no_enviar")

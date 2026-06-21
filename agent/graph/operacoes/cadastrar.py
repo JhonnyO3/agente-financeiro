@@ -94,16 +94,16 @@ class Cadastrar:
             if state.get("messages")
             else []
         )
-        if itens:
-            itens = await self._extrator.extrair_cadastro(
-                itens_parciais=itens,
-                mensagem_original=mensagem,
-                historico=historico,
-            )
+        itens = await self._extrator.extrair_cadastro(
+            itens_parciais=itens,
+            mensagem_original=mensagem,
+            historico=historico,
+        )
 
         repo = self._repo_factory(state["usuario_id"])
+        nome_usuario = await repo.buscar_nome_usuario() if hasattr(repo, "buscar_nome_usuario") else ""
         tool = ToolCadastrar(relogio=self._relogio, repository=repo)
-        resultado = await tool.executar(itens, {"mensagem": mensagem})
+        resultado = await tool.executar(itens, {"mensagem": mensagem, "responsavel": nome_usuario})
 
         updates["resultado"] = resultado.model_dump(mode="json")
 
@@ -183,8 +183,9 @@ class Cadastrar:
             state["messages"][-1].content if state.get("messages") else ""
         )
         repo = self._repo_factory(state["usuario_id"])
+        nome_usuario = await repo.buscar_nome_usuario() if hasattr(repo, "buscar_nome_usuario") else ""
         tool = ToolCadastrar(relogio=self._relogio, repository=repo)
-        resultado = await tool.executar(itens, {"mensagem": mensagem})
+        resultado = await tool.executar(itens, {"mensagem": mensagem, "responsavel": nome_usuario})
 
         updates: dict = {"resultado": resultado.model_dump(mode="json")}
         if resultado.status == "aguardando_confirmacao":
@@ -244,6 +245,13 @@ class Cadastrar:
         await repo.criar_lote(transacoes)
 
         return {
-            "resultado": {"acao": "cadastrar", "status": "concluido", "dados": payload},
+            "resultado": {
+                "acao": "cadastrar",
+                "status": "concluido",
+                "dados": {
+                    "registros_salvos": registros,
+                    "qtd": len(transacoes),
+                },
+            },
             **_limpar_pendencia(),
         }
