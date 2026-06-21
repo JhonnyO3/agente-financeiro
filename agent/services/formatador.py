@@ -94,6 +94,11 @@ class Formatador:
                 )
 
             # ------------------------------------------------------------------
+            # cancelar — limpa pendência e confirma ao usuário
+            # ------------------------------------------------------------------
+            case ("cancelar", "concluido"):
+                return "✅ Operação cancelada."
+
             # conversar — passthrough sem template
             # ------------------------------------------------------------------
             case ("conversar", "concluido"):

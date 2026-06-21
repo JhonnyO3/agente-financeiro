@@ -20,9 +20,9 @@ def rotear(state: AgentState) -> str:
     acao = intencao.get("acao", "desconhecida")
     acao_pendente = state.get("acao_pendente")
 
-    # Resposta do usuário a uma pendência ativa → encaminha para a operação pendente.
-    # "cancelar" também cai aqui: Conversar._limpar_pendencia() descarta o estado.
     if acao_pendente and acao in _ACOES_RESPOSTA:
+        if acao == "cancelar":
+            return "no_cancelar"
         return _MAPA_OPERACOES.get(acao_pendente, "no_conversar")
 
     return _MAPA_OPERACOES.get(acao, "no_conversar")

@@ -71,6 +71,21 @@ def criar_no_formatar(
     return no_formatar
 
 
+def criar_no_cancelar() -> Callable[[AgentState], Awaitable[dict]]:
+    async def no_cancelar(state: AgentState) -> dict:
+        return {
+            "resultado": {"acao": "cancelar", "status": "concluido", "dados": {}},
+            "acao_pendente": None,
+            "fase_pendente": None,
+            "payload_pendente": None,
+            "campos_faltantes": [],
+            "opcoes": None,
+            "expira_em": None,
+        }
+
+    return no_cancelar
+
+
 def criar_no_enviar(
     evolution: EvolutionApiClient,
 ) -> Callable[[AgentState], Awaitable[dict]]:
