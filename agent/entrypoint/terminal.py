@@ -1,18 +1,18 @@
 """
 Modo terminal — roda o agente financeiro como chat no console.
 
-Não requer WhatsApp nem Evolution API. Ideal para desenvolvimento e testes manuais.
+Usa o fluxo completo (DB real, OpenAI real, Redis real). A única diferença
+é que as respostas são impressas no terminal em vez de enviadas via WhatsApp.
 
 Uso:
     uv run python -m agent.entrypoint.terminal
-    uv run python -m agent.entrypoint.terminal --usuario 2
+    uv run python -m agent.entrypoint.terminal --usuario 1
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -20,21 +20,17 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# Env mínimo antes de importar o agent
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost/x")
-os.environ.setdefault("EVOLUTION_API_URL", "http://localhost")
-os.environ.setdefault("EVOLUTION_API_KEY", "placeholder")
-os.environ.setdefault("EVOLUTION_INSTANCE", "placeholder")
-os.environ.setdefault("AGENTE_USUARIO_EMAIL", "terminal@localhost")
-os.environ.setdefault("REDIS_URL", os.environ.get("REDIS_URL", "redis://localhost:6379"))
+from dotenv import load_dotenv
 
-from unittest.mock import AsyncMock
+load_dotenv()
 
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from agent.agents_llm import Embedder, criar_llm
 from agent.config import settings
+from agent.entrypoint.main import _criar_repo_factory
 from agent.graph.builder import criar_grafo
 from agent.services.classificador import Classificador
 from agent.services.extrator import Extrator
@@ -42,56 +38,25 @@ from agent.services.formatador import Formatador
 from agent.services.relogio import Relogio
 
 
-class _RepoMock:
-    """Repositório em memória — sem banco de dados."""
+class _TerminalEvolution:
+    """Substitui Evolution API: imprime a resposta no terminal."""
 
     def __init__(self) -> None:
-        self._registros: list[dict] = []
+        self._ultima_resposta: str = ""
 
-    async def criar_lote(self, registros: list[dict], usuario_id: int | None = None) -> None:
-        self._registros.extend(registros)
+    async def enviar_mensagem(self, numero: str, mensagem: str) -> None:
+        self._ultima_resposta = mensagem
+        print(f"\nagente: {mensagem}\n")
 
-    async def listar_por_periodo(self, inicio, fim, usuario_id=None) -> list:
-        return []
-
-    async def listar_por_periodo_com_embedding(self, inicio, fim, usuario_id=None) -> list:
-        return []
-
-    async def agregar_por_categoria(self, inicio, fim, usuario_id=None) -> list:
-        return []
-
-    async def contar_por_filtros(self, inicio, fim, categoria=None, usuario_id=None) -> int:
-        return 0
-
-    async def buscar_semantico(self, embedding, limite=5, usuario_id=None) -> list:
-        return []
-
-    async def buscar_semantico_com_distancia(self, embedding, limite=1, usuario_id=None) -> list:
-        return []
-
-    async def buscar_semantico_multiplos_com_distancia(self, embedding, limite=5, usuario_id=None) -> list:
-        return []
-
-    async def atualizar(self, registro, diff, usuario_id=None) -> None:
+    async def fechar(self) -> None:
         pass
 
-    async def excluir(self, id, usuario_id=None) -> None:
-        pass
 
-    async def excluir_grupo(self, grupo_parcela_id, usuario_id=None) -> None:
-        pass
-
-    async def excluir_por_filtros(self, inicio, fim, categoria=None, usuario_id=None) -> None:
-        pass
-
-    async def buscar_por_grupo(self, grupo_parcela_id, usuario_id=None) -> list:
-        return []
-
-
-def _montar_grafo(repo: _RepoMock):
-    """Monta o grafo com Evolution mockada e repositório em memória."""
-    evolution = AsyncMock()
-    evolution.enviar_mensagem = AsyncMock()
+async def _chat(usuario_id: int) -> None:
+    engine = create_async_engine(settings.DATABASE_URL)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    repo_factory = _criar_repo_factory(session_factory)
+    evolution = _TerminalEvolution()
 
     grafo = criar_grafo(
         classificador=Classificador(),
@@ -100,50 +65,41 @@ def _montar_grafo(repo: _RepoMock):
         relogio=Relogio(settings.TIMEZONE_USUARIO),
         embedder=Embedder(),
         extrator=Extrator(llm=criar_llm()),
-        repo_factory=lambda _: repo,
+        repo_factory=repo_factory,
         checkpointer=MemorySaver(),
     )
-    return grafo, evolution
 
-
-async def _chat(usuario_id: int) -> None:
-    repo = _RepoMock()
-    grafo, evolution = _montar_grafo(repo)
     thread_id = f"terminal-{usuario_id}"
 
     print("\n" + "─" * 50)
     print("  Agente Financeiro — modo terminal")
-    print("  (sem WhatsApp | Ctrl+C para sair)")
+    print("  (Ctrl+C para sair)")
     print("─" * 50 + "\n")
 
-    while True:
-        try:
-            entrada = input("você: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nAté logo!")
-            break
+    try:
+        while True:
+            try:
+                entrada = input("você: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nAté logo!")
+                break
 
-        if not entrada:
-            continue
+            if not entrada:
+                continue
 
-        evolution.enviar_mensagem.reset_mock()
-
-        try:
-            await grafo.ainvoke(
-                {
-                    "messages": [HumanMessage(content=entrada)],
-                    "usuario_id": usuario_id,
-                    "numero": thread_id,
-                },
-                config={"configurable": {"thread_id": thread_id}},
-            )
-        except Exception as exc:
-            print(f"agente: [erro interno: {exc}]\n")
-            continue
-
-        calls = evolution.enviar_mensagem.call_args_list
-        resposta = calls[-1][0][1] if calls else "(sem resposta)"
-        print(f"\nagente: {resposta}\n")
+            try:
+                await grafo.ainvoke(
+                    {
+                        "messages": [HumanMessage(content=entrada)],
+                        "usuario_id": usuario_id,
+                        "numero": thread_id,
+                    },
+                    config={"configurable": {"thread_id": thread_id}},
+                )
+            except Exception as exc:
+                print(f"\nagente: [erro interno: {exc}]\n")
+    finally:
+        await engine.dispose()
 
 
 def main() -> None:
