@@ -16,7 +16,7 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 | listar | Usuário quer ver, consultar, somar ou resumir registros — qualquer pergunta que exija números do banco: "listar gastos", "quanto gastei esse mês?", "qual meu maior gasto?", "estou no azul?", "extrato" |
 | atualizar | Corrigir/editar campo de registro existente — inclui marcar como pago/quitado (atualização de status): "muda a zara pra 200", "paguei a internet" |
 | excluir | Apagar registro(s) — individual ("apaga o gasto das flores") ou em massa por filtro ("apaga tudo de maio", "remove todos de transporte") |
-| conversar | Diálogo financeiro sem cálculo nem consulta ao banco: orientação, explicação, conceito, conversa sobre finanças. Ex: "vale a pena parcelar?", "como funciona o cadastro?", "me dá uma dica pra economizar" |
+| conversar | Qualquer mensagem que não seja operação financeira direta: saudações ("oi", "olá", "tudo bem?"), small talk, orientação, conceito, dúvidas sobre o sistema, agradecimentos. Ex: "vale a pena parcelar?", "oi!", "obrigado", "o que você faz?" |
 
 ### Respostas a pendência (só válidas quando estado_pendente ≠ "nenhuma")
 
@@ -35,9 +35,9 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 ## Regra de fronteira — listar × conversar
 
-- Precisa de números, registros ou cálculo? → listar (rota determinística: SQL + template).
-- É conversa pura (conceito, opinião, orientação, small talk financeiro)? → conversar.
-- Na dúvida entre as duas → listar.
+- Precisa de números, registros ou cálculo do banco? → listar.
+- Saudação, small talk, agradecimento, dúvida sobre o sistema, qualquer coisa que não exija dados do banco? → conversar.
+- Na dúvida entre as duas → conversar.
 
 ## Regras de pendência
 
@@ -103,6 +103,10 @@ Parâmetros por ação:
 | "foi 350" | cadastro aguardando valor | acao=complementar, campo="valor", valor=350, confianca=0.97 |
 | "em 3x" | cadastro aguardando parcelas | acao=complementar, campo="parcelas", valor=3, confianca=0.97 |
 | "gastei 30 no uber" | exclusão aguardando confirmação | acao=cadastrar, itens=[descricao="Uber" valor=30], confianca=0.95 — intenção nova vence pendência |
+| "oi" | nenhuma | acao=conversar, confianca=0.99 |
+| "olá, tudo bem?" | nenhuma | acao=conversar, confianca=0.99 |
+| "obrigado!" | nenhuma | acao=conversar, confianca=0.99 |
+| "o que você faz?" | nenhuma | acao=conversar, confianca=0.95 |
 | "me conta uma piada" | nenhuma | acao=desconhecida, confianca=0.99 |
 | "quanto eu gastei hoje?" | nenhuma | acao=listar, periodo="hoje", confianca=0.97 |
 | "o que gastei ontem?" | nenhuma | acao=listar, periodo="ontem", confianca=0.97 |
