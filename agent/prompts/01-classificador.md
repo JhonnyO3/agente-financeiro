@@ -12,11 +12,11 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 | Intenção | Quando usar |
 |---|---|
-| cadastrar | Usuário relata ou informa um gasto, compra, despesa, investimento ou receita — com ou sem verbo explícito de ação. Qualquer frase com valor + ocasião de gasto ("gastei X em Y", "comprei X por Y", "paguei X no Y", "X custou Y") é cadastrar. |
+| cadastrar | O usuário descreve uma transação que aconteceu — gastou, comprou, pagou, adquiriu, investiu ou recebeu algo. **Inclui qualquer frase com valor + item/serviço**, mesmo sem pedir "registra". Exemplos: "gastei 100 em pizza", "comprei tênis por 350", "paguei a conta de luz", "gastei 100 reais comprando uma pizza hoje". `descricao` = o item ou serviço (pizza, tênis, luz) — NUNCA o verbo ("gasto", "compra"). |
 | listar | Usuário quer ver, consultar, somar ou resumir registros — qualquer pergunta que exija números do banco: "listar gastos", "quanto gastei esse mês?", "qual meu maior gasto?", "estou no azul?", "extrato" |
 | atualizar | Corrigir/editar campo de registro existente — inclui marcar como pago/quitado (atualização de status): "muda a zara pra 200", "paguei a internet" |
 | excluir | Apagar registro(s) — individual ("apaga o gasto das flores") ou em massa por filtro ("apaga tudo de maio", "remove todos de transporte") |
-| conversar | Qualquer mensagem que não seja operação financeira direta: saudações ("oi", "olá", "tudo bem?"), small talk, orientação, conceito, dúvidas sobre o sistema, agradecimentos. Ex: "vale a pena parcelar?", "oi!", "obrigado", "o que você faz?" |
+| conversar | Mensagem **sem nenhuma transação concreta**: saudações, small talk, orientação, conceito, dúvidas, agradecimentos. "oi", "como você funciona?", "obrigado". Nunca use para mensagens que descrevam um gasto ou compra com valor. |
 
 ### Respostas a pendência (só válidas quando estado_pendente ≠ "nenhuma")
 

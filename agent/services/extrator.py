@@ -42,11 +42,12 @@ class Extrator:
         chain = self._llm.with_structured_output(ParamsCadastrar, method="function_calling")
         resultado: ParamsCadastrar = await chain.ainvoke(prompt)
 
-        # Mescla: mantém campos já preenchidos pelo classificador, preenche os None
+        # O extrator tem o prompt completo e é mais preciso que o classificador.
+        # Prioridade: extrator lidera; classificador preenche apenas o que o extrator deixou None.
         itens_completos: list[ItemCadastro] = []
         for parcial, completo in zip(itens_parciais, resultado.itens):
-            merged = parcial.model_dump()
-            for campo, valor in completo.model_dump().items():
+            merged = completo.model_dump()
+            for campo, valor in parcial.model_dump().items():
                 if merged.get(campo) is None and valor is not None:
                     merged[campo] = valor
             itens_completos.append(ItemCadastro.model_validate(merged))
