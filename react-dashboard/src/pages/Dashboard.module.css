@@ -43,10 +43,13 @@
   height: 300px;
   overflow: hidden;
 }
-@media (max-width: 600px) {
-  .chartWrap     { height: 200px; }
-  .chartWrapPie  { height: 240px; }
-  .chartWrapLine { height: 220px; }
+@media (max-width: 768px) {
+  .chartWrap     { height: 360px; }
+}
+@media (max-width: 480px) {
+  .chartWrap     { height: 320px; }
+  .chartWrapPie  { height: 260px; }
+  .chartWrapLine { height: 260px; }
 }
 
 .cardHeader { display: flex; align-items: center; justify-content: space-between; }
