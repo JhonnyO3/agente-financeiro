@@ -81,7 +81,7 @@ class ParamsComplementar(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     campo: str
-    valor: str
+    valor: str | int | float
 
 
 class ParamsVazio(BaseModel):

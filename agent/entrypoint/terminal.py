@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import os
 import sys
+import time
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -72,11 +73,11 @@ async def _chat(usuario_id: int) -> None:
         checkpointer=MemorySaver(),
     )
 
-    thread_id = f"terminal-{usuario_id}"
+    thread_id = f"terminal-{usuario_id}-{int(time.time())}"
 
     print("\n" + "─" * 50)
     print("  Agente Financeiro — modo terminal")
-    print("  (Ctrl+C para sair)")
+    print(f"  usuario_id={usuario_id} | Ctrl+C para sair")
     print("─" * 50 + "\n")
 
     try:

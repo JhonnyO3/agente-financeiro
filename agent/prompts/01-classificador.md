@@ -12,11 +12,11 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 | Intenção | Quando usar |
 |---|---|
-| cadastrar | O usuário descreve uma transação que aconteceu — gastou, comprou, pagou, adquiriu, investiu ou recebeu algo. **Inclui qualquer frase com valor + item/serviço**, mesmo sem pedir "registra". Exemplos: "gastei 100 em pizza", "comprei tênis por 350", "paguei a conta de luz", "gastei 100 reais comprando uma pizza hoje". `descricao` = o item ou serviço (pizza, tênis, luz) — NUNCA o verbo ("gasto", "compra"). |
+| cadastrar | Usuário relata ou informa um gasto, compra, despesa, investimento ou receita — com ou sem verbo explícito de ação. Qualquer frase com valor + ocasião de gasto ("gastei X em Y", "comprei X por Y", "paguei X no Y", "X custou Y") é cadastrar. |
 | listar | Usuário quer ver, consultar, somar ou resumir registros — qualquer pergunta que exija números do banco: "listar gastos", "quanto gastei esse mês?", "qual meu maior gasto?", "estou no azul?", "extrato" |
 | atualizar | Corrigir/editar campo de registro existente — inclui marcar como pago/quitado (atualização de status): "muda a zara pra 200", "paguei a internet" |
 | excluir | Apagar registro(s) — individual ("apaga o gasto das flores") ou em massa por filtro ("apaga tudo de maio", "remove todos de transporte") |
-| conversar | Mensagem **sem nenhuma transação concreta**: saudações, small talk, orientação, conceito, dúvidas, agradecimentos. "oi", "como você funciona?", "obrigado". Nunca use para mensagens que descrevam um gasto ou compra com valor. |
+| conversar | Qualquer mensagem que não seja operação financeira direta: saudações ("oi", "olá", "tudo bem?"), small talk, orientação, conceito, dúvidas sobre o sistema, agradecimentos. Ex: "vale a pena parcelar?", "oi!", "obrigado", "o que você faz?" |
 
 ### Respostas a pendência (só válidas quando estado_pendente ≠ "nenhuma")
 
@@ -35,17 +35,9 @@ Identificar a intenção da mensagem e extrair os parâmetros básicos.
 
 ## Regra crítica — cadastrar vs conversar
 
-Verbos como "gastei", "comprei", "paguei", "adquiri", "fiz", "tomei" + qualquer valor ou item → **sempre cadastrar**, mesmo que o usuário não use a palavra "registrar" ou "cadastrar". É o fluxo principal do agente.
+Verbos como "gastei", "comprei", "paguei", "adquiri" + valor → **sempre cadastrar**, mesmo que o usuário não peça explicitamente o registro. É o fluxo principal do agente.
 
-**Exemplos que são SEMPRE cadastrar:**
-- "gastei 100 reais com a pizza hoje" → cadastrar
-- "gastei 100 com pizza" → cadastrar
-- "comprei capinha por 50 reais" → cadastrar
-- "paguei 30 de uber" → cadastrar
-- "tomei um café, foi 8 reais" → cadastrar
-- "200 reais na farmácia" → cadastrar
-
-Só vai para conversar se NÃO houver NENHUM dado financeiro concreto (valor, item, transação) na mensagem.
+Só vai para conversar se não houver nenhum dado financeiro concreto (valor, item, transação) na mensagem.
 
 ## Regra de fronteira — listar × conversar
 
@@ -70,7 +62,7 @@ Parâmetros por ação:
 
 | Ação | Parâmetros |
 |---|---|
-| cadastrar | itens: lista com descricao, valor, forma_pagamento, parcela_atual, total_parcelas, dia_vencimento, data, tipo |
+| cadastrar | itens: lista com descricao (o QUE foi comprado/gasto — nunca o verbo), valor (número), forma_pagamento, parcela_atual, total_parcelas, dia_vencimento, data, tipo, categoria |
 | listar | periodo, categoria, responsavel, status |
 | atualizar | referencia (descricao/data/valor que identifica o registro), campo, novo_valor |
 | excluir | referencia (registro específico) ou periodo/categoria (lote) |
@@ -100,13 +92,11 @@ Parâmetros por ação:
 
 | Mensagem | Estado pendente | Saída esperada |
 |---|---|---|
-| "Gastei 472 reais com Claude code" | nenhuma | acao=cadastrar, itens=[descricao="Claude Code", valor=472], confianca=0.98 |
-| "gastei 100 reais com a pizza hoje" | nenhuma | acao=cadastrar, itens=[descricao="Pizza", valor=100], confianca=0.98 |
-| "gastei 200 reais com capinha para celular" | nenhuma | acao=cadastrar, itens=[descricao="Capinha celular", valor=200], confianca=0.97 |
-| "paguei 30 de uber" | nenhuma | acao=cadastrar, itens=[descricao="Uber", valor=30], confianca=0.97 |
+| "Gastei 472 reais com Claude code" | nenhuma | acao=cadastrar, itens=[descricao="Claude Code", valor=472, tipo="GASTO"], confianca=0.98 |
+| "gastei 100 reais em uma pizza hoje" | nenhuma | acao=cadastrar, itens=[descricao="Pizza", valor=100, tipo="GASTO", categoria="ALIMENTACAO"], confianca=0.97 |
 | "140 das flores e 190 de internet ontem" | nenhuma | acao=cadastrar, itens=[descricao="Flores" valor=140, descricao="Internet" valor=190 data="ontem"], confianca=0.96 |
 | "Comprei luminária para minha mesa, foi 284 no cartão mercado pago que vence dia 5" | nenhuma | acao=cadastrar, itens=[descricao="Luminária", valor=284, forma_pagamento="CARTAO_CREDITO", dia_vencimento=5], confianca=0.97 |
-| "comprei um tênis de 350 reais" | nenhuma | acao=cadastrar, itens=[descricao="Tênis", valor=350], confianca=0.97 |
+| "comprei um tênis de 350 reais" | nenhuma | acao=cadastrar, itens=[descricao="Tênis", valor=350, tipo="GASTO", categoria="COMPRAS"], confianca=0.97 |
 | "listar gastos" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.99 |
 | "quanto gastei esse mês?" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.97 |
 | "estou no azul esse mês?" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.92 |
