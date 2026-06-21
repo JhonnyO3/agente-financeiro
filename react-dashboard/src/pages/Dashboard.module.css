@@ -20,31 +20,54 @@
   display: grid; grid-template-columns: 1fr 1.5fr;
   gap: var(--space-5); margin-bottom: var(--space-8);
 }
-@media (max-width: 900px) { .chartsRow { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .chartsRow { grid-template-columns: 1fr; } }
 
-.chartCard { display: flex; flex-direction: column; gap: var(--space-4); }
+.chartCard { display: flex; flex-direction: column; gap: var(--space-4); overflow: hidden; }
 
-/* Wrapper que força altura fixa para o canvas — evita loop de resize no mobile */
+/* Wrappers de canvas com altura fixa — evita loop de resize no mobile */
 .chartWrap {
   position: relative;
   width: 100%;
   height: 260px;
+  overflow: hidden;
 }
 .chartWrapPie {
   position: relative;
   width: 100%;
+  height: 280px;
+  overflow: hidden;
+}
+.chartWrapLine {
+  position: relative;
+  width: 100%;
   height: 300px;
+  overflow: hidden;
 }
 @media (max-width: 600px) {
-  .chartWrap    { height: 200px; }
-  .chartWrapPie { height: 260px; }
+  .chartWrap     { height: 200px; }
+  .chartWrapPie  { height: 240px; }
+  .chartWrapLine { height: 220px; }
 }
 
 .cardHeader { display: flex; align-items: center; justify-content: space-between; }
 .cardTitle  { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* ── Section titles ── */
-.sectionTitle { font-size: var(--text-h3); font-weight: var(--weight-bold); }
+.sectionTitle  { font-size: var(--text-h3); font-weight: var(--weight-bold); }
+.sectionHeader { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.sectionMeta   { font-size: var(--text-sm); color: var(--color-text-muted); }
+
+/* ── Assinaturas ── */
+.assinsGrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.assinCard { display: flex; flex-direction: column; gap: var(--space-2); }
+.assinTop  { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.assinNome { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.assinValor{ font-size: var(--text-base); font-weight: var(--weight-bold); color: var(--color-danger); white-space: nowrap; }
+.assinMeta { display: flex; align-items: center; justify-content: space-between; }
+.assinData { font-size: var(--text-xs); color: var(--color-text-muted); }
 
 /* ── Table toolbar / filters ── */
 .tableToolbar { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-4); }
@@ -55,7 +78,7 @@
 .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table {
   width: 100%; border-collapse: collapse; font-size: var(--text-sm);
-  min-width: 560px; /* garante scroll horizontal no mobile */
+  min-width: 560px;
 }
 .table th {
   text-align: left; padding: var(--space-3) var(--space-4);
@@ -99,13 +122,34 @@
 /* ── Parcelas ── */
 .parcelasGrid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-4); margin-bottom: var(--space-8);
+  gap: var(--space-4); margin-top: var(--space-4);
 }
+.parcelaCard { transition: border-color var(--transition-fast); }
+.parcelaCard:hover { border-color: var(--color-primary) !important; }
 .parcelaHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
 .parcelaDesc   { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .parcelaInfo   { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-muted); margin: var(--space-2) 0; }
+.parcelaFaltam { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-2); }
+.parcelaTotal  { color: var(--color-danger); font-weight: var(--weight-semibold); }
 .progressTrack { height: 6px; background: var(--color-surface-3); border-radius: var(--radius-full); overflow: hidden; }
 .progressFill  { height: 100%; background: var(--color-primary); border-radius: var(--radius-full); transition: width var(--transition-slow); }
+
+/* ── Edit parcela modal ── */
+.parcelaEditInfo {
+  display: flex; gap: var(--space-6);
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+}
+.parcelaEditCalc {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+}
 
 /* ── Mini KPI cards (investimentos header) ── */
 .miniLabel { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }

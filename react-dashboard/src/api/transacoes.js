@@ -11,6 +11,7 @@ export const getTransacoes = (params)     => api.get('/api/transacoes', { params
 export const criarTransacao = (body)      => api.post('/api/transacoes', body);
 export const editarTransacao = (id, body) => api.put(`/api/transacoes/${id}`, body);
 export const deletarTransacao = (id)      => api.delete(`/api/transacoes/${id}`);
+export const editarGrupo  = (grupo, body)  => api.put(`/api/grupos/${grupo}`, body);
 export const deletarGrupo = (grupo)       => api.delete(`/api/grupos/${grupo}`);
 
 export const criarUsuario = (body)        => api.post('/admin/usuarios', body);

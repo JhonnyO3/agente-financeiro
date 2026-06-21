@@ -25,8 +25,6 @@ function transform(raw) {
     label: cat,
     data: raw.map(r => Number(r[cat]) || 0),
     backgroundColor: (CAT_COLORS[cat] || COLOR_LIST[i % COLOR_LIST.length]) + 'CC',
-    borderRadius: 4,
-    borderSkipped: false,
   }));
   return { labels, datasets };
 }

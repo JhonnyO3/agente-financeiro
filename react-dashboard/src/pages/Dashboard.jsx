@@ -12,14 +12,13 @@ import LineChart from '../components/charts/LineChart';
 import {
   getResumo, getGraficoCats, getGraficoMensal, getGraficoEvolucao,
   getProjecao, getParcelasAtivas, getTransacoes,
-  criarTransacao, editarTransacao, deletarTransacao, deletarGrupo,
+  criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
 } from '../api/transacoes';
 import styles from './Dashboard.module.css';
 
 /* ── helpers ── */
 const BRL = v => Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = iso => iso ? iso.split('T')[0].split('-').reverse().join('/') : '';
-const toISO   = br  => { const [d,m,y] = br.split('/'); return `${y}-${m}-${d}`; };
 const todayISO = () => new Date().toISOString().split('T')[0];
 
 const PERIODOS = [
@@ -45,6 +44,7 @@ function tableReducer(s, a) {
 }
 
 const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '' };
+const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
 
 export default function Dashboard() {
   const [periodo, setPeriodo]     = useState('mes_atual');
@@ -54,12 +54,13 @@ export default function Dashboard() {
   const [evolucao,setEvolucao]    = useState(null);
   const [projecao,setProjecao]    = useState(null);
   const [parcelas,setParcelas]    = useState([]);
+  const [assinaturas,setAssins]   = useState([]);
   const [transacoes,setTransacoes]= useState({ itens:[], total:0, paginas:1 });
   const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
 
-  /* modals */
+  /* modals — transação */
   const [addOpen,  setAddOpen]  = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editId,   setEditId]   = useState(null);
@@ -67,18 +68,31 @@ export default function Dashboard() {
   const [formErr,  setFormErr]  = useState('');
   const [saving,   setSaving]   = useState(false);
 
+  /* modal — editar parcela */
+  const [parcelaEditOpen, setParcelaEditOpen] = useState(false);
+  const [parcelaEditGrupo, setParcelaEditGrupo] = useState(null);
+  const [parcelaForm, setParcelaForm] = useState(BLANK_PARCELA_FORM);
+  const [parcelaErr, setParcelaErr]   = useState('');
+  const [parcelaSaving, setParcelaSaving] = useState(false);
+
   /* ── data fetchers ── */
   const loadResumoCharts = useCallback(async () => {
-    const [r, c, m, e, p, pa] = await Promise.allSettled([
-      getResumo(periodo), getGraficoCats(periodo), getGraficoMensal(),
-      getGraficoEvolucao(), getProjecao(), getParcelasAtivas(),
+    const [r, c, m, e, p, pa, ass] = await Promise.allSettled([
+      getResumo(periodo),
+      getGraficoCats(periodo),
+      getGraficoMensal(),
+      getGraficoEvolucao(),
+      getProjecao(),
+      getParcelasAtivas(),
+      getTransacoes({ categoria: 'GASTOS_FIXOS', periodo: 'mes_atual', ordenar: 'valor', direcao: 'desc' }),
     ]);
-    if (r.status  === 'fulfilled') setResumo(r.value.data);
-    if (c.status  === 'fulfilled') setCats(c.value.data);
-    if (m.status  === 'fulfilled') setMensal(m.value.data);
-    if (e.status  === 'fulfilled') setEvolucao(e.value.data);
-    if (p.status  === 'fulfilled') setProjecao(p.value.data);
-    if (pa.status === 'fulfilled') setParcelas(pa.value.data || []);
+    if (r.status   === 'fulfilled') setResumo(r.value.data);
+    if (c.status   === 'fulfilled') setCats(c.value.data);
+    if (m.status   === 'fulfilled') setMensal(m.value.data);
+    if (e.status   === 'fulfilled') setEvolucao(e.value.data);
+    if (p.status   === 'fulfilled') setProjecao(p.value.data);
+    if (pa.status  === 'fulfilled') setParcelas(pa.value.data || []);
+    if (ass.status === 'fulfilled') setAssins(ass.value.data?.itens || []);
   }, [periodo]);
 
   const loadTransacoes = useCallback(async () => {
@@ -92,8 +106,8 @@ export default function Dashboard() {
       direcao: tableState.direcao,
     };
     const [t, i] = await Promise.allSettled([
-      getTransacoes({ ...params, tipo: params.tipo || undefined }),
-      getTransacoes({ ...params, tipo: 'INVESTIMENTO' }),
+      getTransacoes({ ...params }),
+      getTransacoes({ periodo: 'tudo', tipo: 'INVESTIMENTO', ordenar: 'data', direcao: 'desc' }),
     ]);
     if (t.status === 'fulfilled') setTransacoes(t.value.data);
     if (i.status === 'fulfilled') {
@@ -113,6 +127,7 @@ export default function Dashboard() {
 
   /* ── form helpers ── */
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setPF = (k, v) => setParcelaForm(f => ({ ...f, [k]: v }));
 
   function openAdd()  { setForm(BLANK_FORM); setFormErr(''); setAddOpen(true); }
   function openEdit(t) {
@@ -130,6 +145,17 @@ export default function Dashboard() {
     setEditId(t.id);
     setFormErr('');
     setEditOpen(true);
+  }
+
+  function openParcelaEdit(p) {
+    setParcelaForm({
+      descricao: p.descricao || '',
+      valor_parcela: String(p.valor_parcela || ''),
+      pagas: String(p.pagas ?? ''),
+    });
+    setParcelaEditGrupo(p);
+    setParcelaErr('');
+    setParcelaEditOpen(true);
   }
 
   async function handleAdd(e) {
@@ -152,6 +178,20 @@ export default function Dashboard() {
       setEditOpen(false); reload();
     } catch (err) { setFormErr(err.response?.data?.detail || 'Erro ao salvar.'); }
     finally { setSaving(false); }
+  }
+
+  async function handleParcelaEdit(e) {
+    e.preventDefault();
+    setParcelaSaving(true); setParcelaErr('');
+    try {
+      const body = {};
+      if (parcelaForm.descricao)    body.descricao    = parcelaForm.descricao;
+      if (parcelaForm.valor_parcela) body.valor_parcela = parseFloat(parcelaForm.valor_parcela.replace(',','.'));
+      if (parcelaForm.pagas !== '')  body.pagas         = parseInt(parcelaForm.pagas, 10);
+      await editarGrupo(parcelaEditGrupo.grupo_parcela_id, body);
+      setParcelaEditOpen(false); reload();
+    } catch (err) { setParcelaErr(err.response?.data?.detail || 'Erro ao salvar.'); }
+    finally { setParcelaSaving(false); }
   }
 
   async function handleDelete(id) {
@@ -247,7 +287,7 @@ export default function Dashboard() {
       {/* ── Evolution chart ── */}
       <Card style={{marginBottom:'var(--space-8)'}}>
         <div className={styles.cardHeader}><span className={styles.cardTitle}>Evolução Financeira</span></div>
-        <div className={styles.chartWrap}>
+        <div className={styles.chartWrapLine}>
           <LineChart data={evolucao} />
         </div>
       </Card>
@@ -271,23 +311,51 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* ── Assinaturas ── */}
+      {assinaturas.length > 0 && (
+        <div style={{marginBottom:'var(--space-8)'}}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Assinaturas & Gastos Fixos</h2>
+            <span className={styles.sectionMeta}>{assinaturas.length} item{assinaturas.length !== 1 ? 's' : ''} · {BRL(assinaturas.reduce((s,a)=>s+Number(a.valor),0))}/mês</span>
+          </div>
+          <div className={styles.assinsGrid}>
+            {assinaturas.map(a => (
+              <Card key={a.id} className={styles.assinCard}>
+                <div className={styles.assinTop}>
+                  <span className={styles.assinNome}>{a.descricao}</span>
+                  <span className={styles.assinValor}>{BRL(a.valor)}</span>
+                </div>
+                <div className={styles.assinMeta}>
+                  <Badge label={a.status} />
+                  <span className={styles.assinData}>{fmtDate(a.data)}</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Parcelas ativas ── */}
       {parcelas.length > 0 && (
         <div style={{marginBottom:'var(--space-8)'}}>
           <h2 className={styles.sectionTitle}>Parcelas Ativas</h2>
           <div className={styles.parcelasGrid}>
             {parcelas.map(p=>(
-              <Card key={p.grupo_parcela_id}>
+              <Card key={p.grupo_parcela_id} className={styles.parcelaCard} onClick={()=>openParcelaEdit(p)} style={{cursor:'pointer'}}>
                 <div className={styles.parcelaHeader}>
                   <span className={styles.parcelaDesc}>{p.descricao}</span>
-                  <button className={styles.deleteBtn} onClick={()=>handleDeleteGrupo(p.grupo_parcela_id)}>🗑</button>
+                  <button className={styles.deleteBtn} onClick={ev=>{ev.stopPropagation();handleDeleteGrupo(p.grupo_parcela_id);}}>🗑</button>
                 </div>
                 <div className={styles.parcelaInfo}>
-                  <span>{p.pagas}/{p.total} pagas</span>
+                  <span>{p.pagas}/{p.parcela_total} pagas</span>
                   <span>{BRL(p.valor_parcela)}/parcela</span>
                 </div>
                 <div className={styles.progressTrack}>
-                  <div className={styles.progressFill} style={{width:`${(p.pagas/p.total)*100}%`}} />
+                  <div className={styles.progressFill} style={{width:`${p.parcela_total > 0 ? (p.pagas/p.parcela_total)*100 : 0}%`}} />
+                </div>
+                <div className={styles.parcelaFaltam}>
+                  <span>Faltam {p.parcela_total - p.pagas} parcela{(p.parcela_total - p.pagas) !== 1 ? 's' : ''}</span>
+                  <span className={styles.parcelaTotal}>{BRL((p.parcela_total - p.pagas) * Number(p.valor_parcela))} restantes</span>
                 </div>
               </Card>
             ))}
@@ -367,13 +435,13 @@ export default function Dashboard() {
       </div>
 
       {/* ── Investimentos ── */}
-      <div>
+      <div style={{marginBottom:'var(--space-8)'}}>
         <div className={styles.tableToolbar}>
           <h2 className={styles.sectionTitle}>Investimentos</h2>
-          <div style={{display:'flex',gap:'var(--space-4)'}}>
-            <Card style={{padding:'var(--space-3) var(--space-4)',minWidth:160}}>
-              <div className={styles.miniLabel}>Período</div>
-              <div className={styles.miniValue}>{PERIODOS.find(p=>p.value===periodo)?.label}</div>
+          <div style={{display:'flex',gap:'var(--space-4)',flexWrap:'wrap'}}>
+            <Card style={{padding:'var(--space-3) var(--space-4)',minWidth:140}}>
+              <div className={styles.miniLabel}>Total registros</div>
+              <div className={styles.miniValue}>{investimentos.total}</div>
             </Card>
             <Card style={{padding:'var(--space-3) var(--space-4)',minWidth:160}}>
               <div className={styles.miniLabel}>Total Investido</div>
@@ -423,6 +491,37 @@ export default function Dashboard() {
       <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Editar Transação"
         footer={<><Button variant="ghost" onClick={()=>setEditOpen(false)}>Cancelar</Button><Button onClick={handleEdit} disabled={saving}>{saving?'Salvando…':'Salvar'}</Button></>}>
         <form onSubmit={handleEdit}>{FormBody}</form>
+      </Modal>
+
+      {/* ── Edit Parcela Modal ── */}
+      <Modal open={parcelaEditOpen} onClose={()=>setParcelaEditOpen(false)} title="Editar Parcelamento"
+        footer={<><Button variant="ghost" onClick={()=>setParcelaEditOpen(false)}>Cancelar</Button><Button onClick={handleParcelaEdit} disabled={parcelaSaving}>{parcelaSaving?'Salvando…':'Salvar'}</Button></>}>
+        <form onSubmit={handleParcelaEdit}>
+          {parcelaErr && <div className={styles.formAlert}>{parcelaErr}</div>}
+          {parcelaEditGrupo && (
+            <div className={styles.parcelaEditInfo}>
+              <span>Total: <strong>{parcelaEditGrupo.parcela_total}</strong> parcelas</span>
+              <span>Próxima: <strong>#{parcelaEditGrupo.parcela_numero}</strong></span>
+            </div>
+          )}
+          <Field label="Nome / Descrição">
+            <Input value={parcelaForm.descricao} onChange={e=>setPF('descricao',e.target.value)} placeholder="Nome do parcelamento" />
+          </Field>
+          <div className={styles.formGrid}>
+            <Field label="Valor por parcela (R$)">
+              <Input type="number" step="0.01" value={parcelaForm.valor_parcela} onChange={e=>setPF('valor_parcela',e.target.value)} placeholder="0.00" />
+            </Field>
+            <Field label={`Parcelas pagas (de ${parcelaEditGrupo?.parcela_total ?? '?'})`}>
+              <Input type="number" min="0" max={parcelaEditGrupo?.parcela_total} value={parcelaForm.pagas} onChange={e=>setPF('pagas',e.target.value)} placeholder="0" />
+            </Field>
+          </div>
+          {parcelaForm.valor_parcela && parcelaEditGrupo && (
+            <div className={styles.parcelaEditCalc}>
+              Total do parcelamento: <strong>{BRL(parseFloat(parcelaForm.valor_parcela||0) * parcelaEditGrupo.parcela_total)}</strong>
+              {' · '}Restante: <strong>{BRL(parseFloat(parcelaForm.valor_parcela||0) * (parcelaEditGrupo.parcela_total - parseInt(parcelaForm.pagas||0,10)))}</strong>
+            </div>
+          )}
+        </form>
       </Modal>
     </Layout>
   );

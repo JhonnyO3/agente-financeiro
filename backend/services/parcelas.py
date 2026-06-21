@@ -54,6 +54,42 @@ async def listar_ativas(session: AsyncSession, usuario_id: int) -> list[dict]:
     return itens
 
 
+class DadosInvalidosError(Exception):
+    pass
+
+
+async def editar_grupo(
+    session: AsyncSession,
+    usuario_id: int,
+    grupo_parcela_id: str,
+    descricao: str | None = None,
+    valor_parcela: Decimal | None = None,
+    pagas: int | None = None,
+) -> dict:
+    try:
+        gid = UUID(grupo_parcela_id)
+    except ValueError:
+        raise IdInvalidoError("ID inválido")
+
+    repo = TransacaoRepository(session)
+    transacoes = await repo.buscar_por_grupo(gid, usuario_id=usuario_id)
+    if not transacoes:
+        raise GrupoNaoEncontradoError("Grupo nao encontrado")
+
+    transacoes_ord = sorted(transacoes, key=lambda t: t.parcela_numero)
+
+    for i, t in enumerate(transacoes_ord):
+        if descricao is not None:
+            t.descricao = descricao
+        if valor_parcela is not None:
+            t.valor = valor_parcela
+        if pagas is not None:
+            from backend.models.enums import StatusEnum
+            t.status = StatusEnum.PAGO if i < pagas else StatusEnum.PENDENTE
+
+    return {"ok": True, "atualizados": len(transacoes_ord)}
+
+
 async def excluir_grupo(
     session: AsyncSession, usuario_id: int, grupo_parcela_id: str
 ) -> dict:

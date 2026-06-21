@@ -16,15 +16,16 @@ dist/
 build/
 .npm/
 
-# Design system (gerado localmente)
-src/
-index.html
-charts.html
+# Design system (gerado localmente — apenas na raiz)
+/src/
+/index.html
+/charts.html
 _research/node_modules/
 _research/package.json
 _research/package-lock.json
 _research/analysis.md
 _research/screenshots/
 
-# React dashboard (tem worktree próprio)
-react-dashboard/
+# React dashboard — node_modules ignorado, código versionado
+react-dashboard/node_modules/
+react-dashboard/dist/
