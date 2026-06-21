@@ -6,6 +6,7 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import Field, { Input, Select } from '../components/ui/Field';
+import DateRangePicker from '../components/ui/DateRangePicker';
 import PieChart from '../components/charts/PieChart';
 import BarChart from '../components/charts/BarChart';
 import LineChart from '../components/charts/LineChart';
@@ -317,7 +318,9 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>
                 {projecao.map((row,i)=>(
-                  <tr key={i}>{Object.values(row).map((v,j)=><td key={j}>{typeof v==='number'?BRL(v):v}</td>)}</tr>
+                  <tr key={i}>{Object.entries(row).map(([k,v],j)=>(
+                    <td key={j}>{k==='qtd_parcelas'?v:typeof v==='number'?BRL(v):v}</td>
+                  ))}</tr>
                 ))}
               </tbody>
             </table>
@@ -401,15 +404,18 @@ export default function Dashboard() {
               {FORMAS.filter(Boolean).map(f=><option key={f}>{f}</option>)}
             </Select>
           </div>
-          <div className={styles.dateRange}>
-            <span className={styles.dateRangeLabel}>Período</span>
-            <Input type="date" value={tableState.dataInicio} onChange={e=>dispatch({type:'set',key:'dataInicio',val:e.target.value})} className={styles.dateInput} title="Data inicial" />
-            <span className={styles.dateRangeSep}>–</span>
-            <Input type="date" value={tableState.dataFim} onChange={e=>dispatch({type:'set',key:'dataFim',val:e.target.value})} className={styles.dateInput} title="Data final" />
-            {(tableState.dataInicio || tableState.dataFim) && (
-              <button className={styles.clearDates} onClick={()=>{dispatch({type:'set',key:'dataInicio',val:''});dispatch({type:'set',key:'dataFim',val:''});}}>✕</button>
-            )}
-          </div>
+          <DateRangePicker
+            startDate={tableState.dataInicio}
+            endDate={tableState.dataFim}
+            onChange={(ini, fim) => {
+              dispatch({type:'set',key:'dataInicio',val:ini||''});
+              dispatch({type:'set',key:'dataFim',   val:fim||''});
+            }}
+            onClear={() => {
+              dispatch({type:'set',key:'dataInicio',val:''});
+              dispatch({type:'set',key:'dataFim',   val:''});
+            }}
+          />
         </div>
 
         <Card>

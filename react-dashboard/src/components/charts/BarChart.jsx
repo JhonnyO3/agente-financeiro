@@ -16,7 +16,6 @@ const CAT_COLORS = {
 };
 const COLOR_LIST = Object.values(CAT_COLORS);
 
-/* API retorna [{mes, ALIMENTACAO, TRANSPORTE, ...}, ...]  */
 function transform(raw) {
   if (!raw || !raw.length) return { labels: [], datasets: [] };
   const labels = raw.map(r => r.mes);
@@ -29,6 +28,11 @@ function transform(raw) {
   return { labels, datasets };
 }
 
+function fmtBRL(v) {
+  if (v >= 1000) return `R$${(v/1000).toFixed(0)}k`;
+  return `R$${v.toFixed(0)}`;
+}
+
 export default function BarChart({ data }) {
   if (!data || !data.length) return (
     <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', textAlign: 'center', padding: '40px 0' }}>
@@ -36,13 +40,22 @@ export default function BarChart({ data }) {
     </div>
   );
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
   const { labels, datasets } = transform(data);
   const cfg  = { labels, datasets };
   const opts = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#9CA3AF',
+          font: { size: isMobile ? 10 : 11 },
+          padding: isMobile ? 8 : 12,
+          boxWidth: isMobile ? 16 : 20,
+        },
+      },
       tooltip: {
         callbacks: {
           label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}`,
@@ -50,8 +63,25 @@ export default function BarChart({ data }) {
       },
     },
     scales: {
-      x: { stacked: true, ticks: { color: '#6B7280' }, grid: { color: 'rgba(255,255,255,0.04)' } },
-      y: { stacked: true, ticks: { color: '#6B7280', callback: v => `R$ ${(v/1000).toFixed(0)}k` }, grid: { color: 'rgba(255,255,255,0.06)' } },
+      x: {
+        stacked: true,
+        ticks: {
+          color: '#6B7280',
+          font: { size: isMobile ? 9 : 11 },
+          maxRotation: isMobile ? 45 : 0,
+        },
+        grid: { color: 'rgba(255,255,255,0.04)' },
+      },
+      y: {
+        stacked: true,
+        ticks: {
+          color: '#6B7280',
+          font: { size: isMobile ? 9 : 11 },
+          maxTicksLimit: isMobile ? 4 : 6,
+          callback: fmtBRL,
+        },
+        grid: { color: 'rgba(255,255,255,0.06)' },
+      },
     },
   };
 
