@@ -88,6 +88,8 @@ Parâmetros por ação:
 |---|---|---|
 | "Gastei 472 reais com Claude code" | nenhuma | acao=cadastrar, itens=[descricao="Claude Code", valor=472], confianca=0.98 |
 | "140 das flores e 190 de internet ontem" | nenhuma | acao=cadastrar, itens=[descricao="Flores" valor=140, descricao="Internet" valor=190 data="ontem"], confianca=0.96 |
+| "Comprei luminária para minha mesa, foi 284 no cartão mercado pago que vence dia 5" | nenhuma | acao=cadastrar, itens=[descricao="Luminária", valor=284, forma_pagamento="CARTAO_CREDITO", dia_vencimento=5], confianca=0.97 |
+| "comprei um tênis de 350 reais" | nenhuma | acao=cadastrar, itens=[descricao="Tênis", valor=350], confianca=0.97 |
 | "listar gastos" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.99 |
 | "quanto gastei esse mês?" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.97 |
 | "estou no azul esse mês?" | nenhuma | acao=listar, periodo="mes_atual", confianca=0.92 |

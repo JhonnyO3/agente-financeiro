@@ -19,9 +19,13 @@ Exemplos de extração cross-turno:
 
 ## Regras de extração — Tipo
 
-- GASTO para despesas
-- INVESTIMENTO para aportes/aplicações
-- RECEITA quando o usuário recebeu dinheiro: "recebi", "salário", "me pagaram", "caiu na conta"
+O campo `tipo` aceita EXATAMENTE um destes três valores — nunca use nomes de categoria aqui:
+
+- `GASTO` — qualquer despesa, compra, pagamento ou gasto (inclui luminária, roupa, mercado, conserto…)
+- `INVESTIMENTO` — aportes e aplicações financeiras
+- `RECEITA` — quando o usuário recebeu dinheiro: "recebi", "salário", "me pagaram", "caiu na conta"
+
+> ⚠️ `GASTOS_PONTUAIS`, `GASTOS_FIXOS`, `COMPRAS` etc. são valores de **categoria**, nunca de **tipo**.
 
 ## Regras de extração — Valores e parcelas
 
