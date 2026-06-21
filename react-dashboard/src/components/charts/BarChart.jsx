@@ -42,6 +42,7 @@ export default function BarChart({ data }) {
   const cfg  = { labels, datasets };
   const opts = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },
       tooltip: {

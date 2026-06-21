@@ -232,18 +232,24 @@ export default function Dashboard() {
       <div className={styles.chartsRow}>
         <Card className={styles.chartCard}>
           <div className={styles.cardHeader}><span className={styles.cardTitle}>Gastos por Categoria</span></div>
-          <PieChart data={cats} onSliceClick={cat=>{ setFilterCat(cat); dispatch({type:'set',key:'categoria',val:cat}); }} />
+          <div className={styles.chartWrapPie}>
+            <PieChart data={cats} onSliceClick={cat=>{ setFilterCat(cat); dispatch({type:'set',key:'categoria',val:cat}); }} />
+          </div>
         </Card>
         <Card className={styles.chartCard}>
           <div className={styles.cardHeader}><span className={styles.cardTitle}>Gastos Mensais (6 meses)</span></div>
-          <BarChart data={mensal} />
+          <div className={styles.chartWrap}>
+            <BarChart data={mensal} />
+          </div>
         </Card>
       </div>
 
       {/* ── Evolution chart ── */}
       <Card style={{marginBottom:'var(--space-8)'}}>
         <div className={styles.cardHeader}><span className={styles.cardTitle}>Evolução Financeira</span></div>
-        <LineChart data={evolucao} />
+        <div className={styles.chartWrap}>
+          <LineChart data={evolucao} />
+        </div>
       </Card>
 
       {/* ── Projeção ── */}

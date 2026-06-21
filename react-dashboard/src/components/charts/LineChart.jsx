@@ -40,6 +40,7 @@ export default function LineChart({ data }) {
   const cfg  = { labels, datasets };
   const opts = {
     responsive: true,
+    maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },

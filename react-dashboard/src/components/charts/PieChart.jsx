@@ -28,6 +28,7 @@ export default function PieChart({ data, onSliceClick }) {
   };
   const opts = {
     responsive: true,
+    maintainAspectRatio: false,
     cutout: '62%',
     plugins: {
       legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11 }, padding: 12 } },
