@@ -285,8 +285,10 @@ export default function Dashboard() {
         </Card>
         <Card className={styles.chartCard}>
           <div className={styles.cardHeader}><span className={styles.cardTitle}>Gastos Mensais (6 meses)</span></div>
-          <div className={styles.chartWrap}>
-            <BarChart data={mensal} />
+          <div className={styles.chartWrapScroll}>
+            <div className={styles.chartWrap}>
+              <BarChart data={mensal} />
+            </div>
           </div>
         </Card>
       </div>
