@@ -24,7 +24,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env", encoding="utf-8-sig")
 
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
