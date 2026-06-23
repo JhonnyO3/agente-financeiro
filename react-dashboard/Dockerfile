@@ -1,7 +1,7 @@
 FROM node:22-slim AS build
 WORKDIR /app
 COPY react-dashboard/package.json react-dashboard/package-lock.json ./
-RUN npm ci
+RUN npm install
 COPY react-dashboard/ .
 # VITE_API_URL vazio → client usa URLs relativas → nginx faz o proxy
 RUN npm run build
