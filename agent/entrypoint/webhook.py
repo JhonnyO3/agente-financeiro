@@ -23,6 +23,16 @@ def extrair_numero(payload: dict) -> str:
     return payload.get("data", {}).get("key", {}).get("remoteJid", "").split("@")[0]
 
 
+def _normalizar_numero(numero: str) -> str:
+    # Evolution API envia com DDI (ex: 5511999999999).
+    # Se o número tiver mais de 11 dígitos e começar com "55", remove o DDI
+    # para bater com o formato armazenado no banco (sem DDI).
+    digitos = "".join(ch for ch in numero if ch.isdigit())
+    if len(digitos) > 11 and digitos.startswith("55"):
+        return digitos[2:]
+    return digitos
+
+
 def extrair_texto(payload: dict) -> str | None:
     msg = payload.get("data", {}).get("message", {})
     return msg.get("conversation") or msg.get("extendedTextMessage", {}).get("text")
@@ -46,14 +56,15 @@ async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
         logger.debug("webhook ignorado event=%r (esperado messages.upsert)", event)
         return JSONResponse(status_code=200, content={"status": "ok"})
 
-    numero = extrair_numero(payload)
+    numero_raw = extrair_numero(payload)
+    numero = _normalizar_numero(numero_raw)
     from_me = payload.get("data", {}).get("key", {}).get("fromMe", False)
-    logger.info("webhook recebido numero=%r from_me=%s", numero, from_me)
+    logger.info("webhook recebido numero_raw=%r numero=%r from_me=%s", numero_raw, numero, from_me)
 
     texto = extrair_texto(payload)
     if not texto:
         msg_keys = list(payload.get("data", {}).get("message", {}).keys())
-        logger.info("webhook ignorado sem texto numero=%r message_keys=%s", numero, msg_keys)
+        logger.info("webhook ignorado sem texto numero=%r message_keys=%s", numero_raw, msg_keys)
         return JSONResponse(status_code=200, content={"status": "ok"})
 
     # Dedup por message_id
