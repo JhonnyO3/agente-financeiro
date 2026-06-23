@@ -41,33 +41,37 @@ async def resolver_usuario_por_telefone(app_state, numero: str):
 @router.post("/mensagem")
 async def receber_mensagem(payload: dict, request: Request) -> JSONResponse:
 
-    # Filtros silenciosos
-    if payload.get("event") != "messages.upsert":
+    event = payload.get("event")
+    if event != "messages.upsert":
+        logger.debug("webhook ignorado event=%r (esperado messages.upsert)", event)
         return JSONResponse(status_code=200, content={"status": "ok"})
 
     numero = extrair_numero(payload)
+    from_me = payload.get("data", {}).get("key", {}).get("fromMe", False)
+    logger.info("webhook recebido numero=%r from_me=%s", numero, from_me)
 
     texto = extrair_texto(payload)
-
     if not texto:
+        msg_keys = list(payload.get("data", {}).get("message", {}).keys())
+        logger.info("webhook ignorado sem texto numero=%r message_keys=%s", numero, msg_keys)
         return JSONResponse(status_code=200, content={"status": "ok"})
 
     # Dedup por message_id
     message_id = extrair_message_id(payload)
-
     _poda_dedup()
     if message_id and message_id in _seen:
-        logger.debug("mensagem duplicada ignorada id=%s", message_id)
+        logger.info("webhook dedup ignorado id=%s numero=%r", message_id, numero)
         return JSONResponse(status_code=200, content={"status": "ok"})
-        
+
     if message_id:
         _seen[message_id] = time.monotonic()
 
     # Resolução de identidade in-process
     usuario = await resolver_usuario_por_telefone(request.app.state, numero)
     if usuario is None:
+        logger.warning("webhook usuario nao encontrado numero=%r — verifique se o numero esta cadastrado no banco", numero)
         return JSONResponse(status_code=200, content={"status": "ok"})
 
-    logger.debug("webhook enfileirando numero=%s usuario_id=%s", numero, usuario.id)
+    logger.info("webhook enfileirando numero=%r usuario_id=%s texto=%r", numero, usuario.id, texto[:80])
     await request.app.state.fila.put((usuario.id, numero, texto))
     return JSONResponse(status_code=200, content={"status": "ok"})
