@@ -17,7 +17,11 @@ from agent.domain.intencao import (
     ParamsVazio,
     _ACAO_PARA_PARAMS,
 )
+import logging
+
 from agent.services.prompts import montar_prompt
+
+logger = logging.getLogger(__name__)
 
 _ACOES_REQUEREM_PENDENCIA = {"confirmar", "cancelar", "selecionar"}
 _ACOES_SEM_PARAMS = {"conversar", "confirmar", "cancelar", "desconhecida"}
@@ -42,22 +46,29 @@ class Classificador:
         prompt = montar_prompt("classificador", ctx)
         llm = criar_llm()
         chain = llm.with_structured_output(IntencaoClassificacao, method="function_calling")
+        logger.info("classificador llm:classificar iniciando mensagem=%r estado_pendente=%r", mensagem[:80], estado_pendente)
         try:
             clf: IntencaoClassificacao = await chain.ainvoke(prompt)
         except Exception:
+            logger.exception("classificador llm:classificar erro — retornando desconhecida")
             return Intencao(acao="desconhecida", parametros=ParamsVazio(), confianca=0.0)
 
         acao: Acao = clf.acao
         confianca: float = clf.confianca
+        logger.info("classificador llm:classificar acao=%s confianca=%.2f", acao, confianca)
 
         if confianca < settings.CONFIANCA_MINIMA:
+            logger.info("classificador confianca abaixo do minimo (%.2f < %.2f) — desconhecida", confianca, settings.CONFIANCA_MINIMA)
             return Intencao(acao="desconhecida", parametros=ParamsVazio(), confianca=confianca)
 
         if estado_pendente == "nenhuma" and acao in _ACOES_REQUEREM_PENDENCIA:
+            logger.info("classificador acao=%s requer pendencia mas nao ha — desconhecida", acao)
             return Intencao(acao="desconhecida", parametros=ParamsVazio(), confianca=confianca)
 
         # Passo 2 — extrair parâmetros específicos da ação (schema focado por ação)
+        logger.info("classificador llm:extrair_params acao=%s", acao)
         parametros = await self._extrair_params(acao, mensagem, ctx)
+        logger.info("classificador llm:extrair_params concluido acao=%s params_type=%s", acao, type(parametros).__name__)
 
         return Intencao(acao=acao, parametros=parametros, confianca=confianca)
 

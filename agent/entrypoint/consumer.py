@@ -54,8 +54,10 @@ class Consumer:
 
     async def _receber(self, usuario_id: int, numero: str, texto: str) -> None:
         await self._redis.rpush(_BUFFER_KEY.format(numero=numero), texto)
+        logger.info("consumer buffer+debounce numero=%s usuario_id=%s texto=%r", numero, usuario_id, texto[:80])
 
         if numero in self._timers:
+            logger.info("consumer debounce reiniciado numero=%s", numero)
             self._timers[numero].cancel()
 
         self._timers[numero] = asyncio.create_task(
@@ -65,6 +67,7 @@ class Consumer:
     async def _disparar(self, usuario_id: int, numero: str) -> None:
         try:
             if self._debounce > 0:
+                logger.info("consumer aguardando debounce=%.1fs numero=%s", self._debounce, numero)
                 await asyncio.sleep(self._debounce)
 
             key = _BUFFER_KEY.format(numero=numero)
@@ -73,11 +76,13 @@ class Consumer:
             self._timers.pop(numero, None)
 
             if not fragmentos:
+                logger.info("consumer buffer vazio apos debounce numero=%s", numero)
                 return
 
             texto = "\n".join(
                 f.decode("utf-8") if isinstance(f, bytes) else f for f in fragmentos
             )
+            logger.info("consumer disparando grafo numero=%s fragmentos=%d texto=%r", numero, len(fragmentos), texto[:120])
 
             await self._graph.ainvoke(
                 {
@@ -87,7 +92,8 @@ class Consumer:
                 },
                 config={"configurable": {"thread_id": numero}},
             )
+            logger.info("consumer grafo concluido numero=%s", numero)
         except asyncio.CancelledError:
-            pass
+            logger.info("consumer debounce cancelado (nova mensagem chegou) numero=%s", numero)
         except Exception:
             logger.exception("erro ao processar mensagem para numero=%s", numero)

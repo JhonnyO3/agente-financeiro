@@ -2,6 +2,8 @@ import asyncio
 import logging
 import httpx
 
+logger = logging.getLogger(__name__)
+
 _MAX_TENTATIVAS = 3
 _BACKOFF_BASE = 1.0  # segundos
 
@@ -26,12 +28,15 @@ class EvolutionApiClient:
         headers = {"apikey": self._api_key}
         last_exc: Exception | None = None
 
+        logger.info("evolution:enviar numero=%s chars=%d url=%s", numero, len(texto), url)
         for tentativa in range(_MAX_TENTATIVAS):
             try:
                 resp = await self._client.post(url, json=payload, headers=headers)
                 if 400 <= resp.status_code < 500:
+                    logger.error("evolution:enviar 4xx numero=%s status=%d body=%s", numero, resp.status_code, resp.text[:200])
                     resp.raise_for_status()
                 if resp.status_code >= 500:
+                    logger.warning("evolution:enviar 5xx tentativa=%d numero=%s status=%d", tentativa + 1, numero, resp.status_code)
                     exc = httpx.HTTPStatusError(
                         f"Server error {resp.status_code}",
                         request=resp.request,
@@ -41,15 +46,14 @@ class EvolutionApiClient:
                     if tentativa < _MAX_TENTATIVAS - 1:
                         await asyncio.sleep(_BACKOFF_BASE * (2**tentativa))
                     continue
+                logger.info("evolution:enviar ok numero=%s tentativa=%d", numero, tentativa + 1)
                 return
             except (httpx.HTTPStatusError,) as exc:
                 # 4xx — propaga imediatamente sem retry
                 raise
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_exc = exc
-                logging.warning(
-                    "Timeout/transporte na tentativa %d: %s", tentativa + 1, exc
-                )
+                logger.warning("evolution:enviar timeout/transporte tentativa=%d numero=%s erro=%s", tentativa + 1, numero, exc)
                 if tentativa < _MAX_TENTATIVAS - 1:
                     await asyncio.sleep(_BACKOFF_BASE * (2**tentativa))
 
