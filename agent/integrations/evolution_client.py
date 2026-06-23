@@ -13,9 +13,16 @@ class EvolutionApiClient:
         self._api_key = api_key
         self._client = httpx.AsyncClient(timeout=10.0)
 
+    @staticmethod
+    def _numero_com_ddi(numero: str) -> str:
+        digitos = "".join(ch for ch in numero if ch.isdigit())
+        if not digitos.startswith("55"):
+            return "55" + digitos
+        return digitos
+
     async def enviar_mensagem(self, numero: str, texto: str) -> None:
         url = f"{self._base_url}/message/sendText/{self._instance}"
-        payload = {"number": numero, "text": texto}
+        payload = {"number": self._numero_com_ddi(numero), "text": texto}
         headers = {"apikey": self._api_key}
         last_exc: Exception | None = None
 
