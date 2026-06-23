@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Em dev com VITE_API_URL setado: URL absoluta (chamada direta ao backend).
+// Em Docker/prod sem VITE_API_URL: URL relativa — nginx proxy assume /api, /auth, /admin.
+const BASE = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({ baseURL: BASE, headers: { 'Content-Type': 'application/json' } });
 
