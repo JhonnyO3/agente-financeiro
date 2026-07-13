@@ -1,202 +1,96 @@
-# Design System — Baseflow Inspired
+# Agente Financeiro
 
-Design system dark, moderno e minimalista extraído visualmente de baseflow.webflow.io. Pronto para uso em produtos SaaS com IA.
-
----
-
-## Direção Visual
-
-**Estilo:** Dark UI · Tech-futurista · AI SaaS premium  
-**Paleta:** Fundo preto absoluto + azul elétrico como único acento  
-**Efeitos:** Glow radial azul no hero e seções de destaque; glassmorphism leve em cards  
-**Tipografia:** Plus Jakarta Sans — moderna, geométrica, com headings extrabold  
-**Sensação:** Confiante, poderoso, clean. Feito para times técnicos e product-led growth
-
----
-
-## Estrutura de arquivos
+Agente financeiro via WhatsApp + dashboard web. Uma mensagem no WhatsApp vira uma
+transação categorizada no banco; o dashboard React mostra os números.
 
 ```
-src/
-  tokens.css              ← Variáveis CSS (fonte da verdade)
-  tokens.json             ← Tokens em JSON (Figma/Tailwind/JS)
-  components/
-    buttons.css           ← primary, secondary, ghost, danger + sm/md/lg
-    navbar.css            ← Sticky nav com blur + mobile hamburger
-    hero.css              ← Hero section + dashboard mockup
-    cards.css             ← KPI, Feature, Step, Testimonial, Pricing, FAQ
-    charts.css            ← Area chart, sparkline, bar chart (SVG nativo)
-    forms.css             ← Input, select, checkbox, toggle, input-group
-    misc.css              ← Badge, chip, avatar, tabs, tooltip, modal, carousel, marquee
-index.html                ← Showcase completo (todos os componentes)
-_research/
-  analysis.md             ← Análise visual detalhada
-  screenshots/            ← Capturas desktop + mobile do site original
+WhatsApp → Evolution API → agent (FastAPI) ─┐
+                                            ├─→ PostgreSQL + pgvector (Railway)
+              React dashboard → backend (FastAPI) ─┘
 ```
 
----
+- **`backend/`** — API REST (FastAPI) + camada de dados (SQLAlchemy 2.0 async, compartilhada com o agente). Porta **8000**.
+- **`react-dashboard/`** — painel web (React + Vite). Porta **5173** em dev, com proxy de `/api`, `/auth` e `/admin` para o backend.
+- **`agent/`** — orquestração do WhatsApp (webhook Evolution API, LangChain/OpenAI). Porta **8001**. Não sobe no fluxo de dev do dashboard (depende de Redis + Evolution API).
 
-## Paleta de cores
+## Pré-requisitos
 
-| Token CSS | Valor | Uso |
-|-----------|-------|-----|
-| `--color-bg` | `#000000` | Fundo da página |
-| `--color-surface-1` | `#111116` | Cards, sidebar |
-| `--color-surface-2` | `#1a1a24` | Cards principais |
-| `--color-surface-3` | `#22222e` | FAQ, hover states |
-| `--color-primary` | `#3B72FF` | Botões, links, ícones |
-| `--color-primary-light` | `#5B9AFF` | Hover, badges |
-| `--color-success` | `#22C55E` | Checkmarks, KPI positivo |
-| `--color-danger` | `#EF4444` | Erros, KPI negativo |
-| `--color-text-primary` | `#FFFFFF` | Headings |
-| `--color-text-secondary` | `#9CA3AF` | Body text |
-| `--color-border` | `rgba(255,255,255,0.08)` | Bordas sutis |
+- [uv](https://docs.astral.sh/uv/) (gerenciador de pacotes Python — nunca use `pip`/`poetry`)
+- Node.js 20+ e npm
+- Um PostgreSQL com a extensão **pgvector** (o projeto usa um banco no Railway — ver `.env`)
 
-### Gradientes chave
-
-```css
-/* Spotlight do hero */
-background: radial-gradient(ellipse 70% 60% at 50% -10%, rgba(59,114,255,0.40) 0%, transparent 70%);
-
-/* Botão primário */
-background: linear-gradient(90deg, #3B72FF 0%, #5B9AFF 100%);
-
-/* Texto grande (rodapé) */
-background: linear-gradient(180deg, #ffffff 0%, #3B72FF 100%);
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
-```
-
----
-
-## Tipografia
-
-**Fonte:** Plus Jakarta Sans
-
-```html
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-```
-
-| Token | Tamanho | Peso | Uso |
-|-------|---------|------|-----|
-| `--text-hero` | 72px (clamp) | 800 | H1 hero |
-| `--text-h1` | 56px (clamp) | 700 | Títulos de seção |
-| `--text-h2` | 40px (clamp) | 700 | Sub-títulos |
-| `--text-h3` | 24px | 600 | Card titles |
-| `--text-base` | 16px | 400 | Body |
-| `--text-sm` | 14px | 400 | Labels, hints |
-| `--text-xs` | 12px | 500 | Badges, captions |
-
----
-
-## Uso dos componentes
-
-### Importação
-
-```html
-<link rel="stylesheet" href="src/tokens.css">
-<link rel="stylesheet" href="src/components/buttons.css">
-<!-- adicione os demais conforme necessário -->
-```
-
-### Botões
-
-```html
-<button class="btn btn--primary btn--lg">Try for free <span class="btn-arrow">→</span></button>
-<button class="btn btn--secondary">Book a Demo</button>
-<button class="btn btn--ghost">Saiba mais</button>
-<button class="btn btn--primary" disabled>Desabilitado</button>
-```
-
-### KPI Card
-
-```html
-<div class="card-kpi">
-  <div class="card-kpi__label">Total Revenue</div>
-  <div class="card-kpi__value">
-    $50.8k
-    <span class="card-kpi__badge card-kpi__badge--up">↑ 12.5%</span>
-  </div>
-</div>
-```
-
-### Pricing Card (destaque)
-
-```html
-<div class="card-pricing card-pricing--featured">
-  <div class="card-pricing__name">Business Plan</div>
-  <div class="card-pricing__price">$29<span>/month</span></div>
-  <button class="btn btn--primary" style="width:100%">Get Started →</button>
-</div>
-```
-
-### FAQ Accordion
-
-```html
-<div class="card-faq" id="faq1">
-  <div class="card-faq__question" onclick="toggleFaq('faq1')">
-    Pergunta?
-    <svg class="card-faq__icon"><!-- + --></svg>
-  </div>
-  <div class="card-faq__answer">
-    <div class="card-faq__answer-inner">Resposta.</div>
-  </div>
-</div>
-<script>
-function toggleFaq(id) { document.getElementById(id).classList.toggle('is-open'); }
-</script>
-```
-
-### Input Group (newsletter)
-
-```html
-<div class="input-group">
-  <input class="input" type="email" placeholder="Enter your email">
-  <button class="btn btn--primary btn--sm">Subscribe</button>
-</div>
-```
-
-### Modal
-
-```html
-<div class="modal-overlay" id="modal"
-     onclick="if(event.target===this)this.classList.remove('is-open')">
-  <div class="modal">
-    <div class="modal__header">
-      <h3 class="modal__title">Título</h3>
-      <button class="modal__close"
-              onclick="document.getElementById('modal').classList.remove('is-open')">×</button>
-    </div>
-    <div class="modal__body">Conteúdo.</div>
-    <div class="modal__footer">
-      <button class="btn btn--ghost">Cancelar</button>
-      <button class="btn btn--primary">Confirmar</button>
-    </div>
-  </div>
-</div>
-```
-
----
-
-## Tokens em JS / Tailwind
-
-```js
-// Ler token em runtime
-const primary = getComputedStyle(document.documentElement)
-  .getPropertyValue('--color-primary').trim();
-
-// tailwind.config.js
-const tokens = require('./src/tokens.json');
-module.exports = {
-  theme: { extend: { colors: { primary: tokens.color.primary.DEFAULT } } }
-};
-```
-
----
-
-## Rodar o showcase
+## Setup (uma vez)
 
 ```bash
-python -m http.server 8787
-# Acesse: http://localhost:8787
+# 1. Configure o ambiente
+cp .env.example .env          # e preencha os valores (DATABASE_URL, OPENAI_API_KEY, JWT_SECRET, ...)
+
+# 2. Dependências Python
+uv sync
+
+# 3. Dependências do frontend
+npm --prefix react-dashboard install
+
+# 4. (banco novo/vazio) aplique as migrations
+uv run alembic upgrade head
 ```
+
+O `.env` já aponta o `DATABASE_URL` para o banco no Railway
+(`postgresql+asyncpg://...@tokaido.proxy.rlwy.net:49412/railway`).
+
+## Subir backend + frontend juntos (dev)
+
+Um único comando sobe o **backend (8000)** e o **frontend React (5173)** ao mesmo tempo,
+com logs prefixados (`[backend]` / `[frontend]`) e encerramento conjunto no `Ctrl+C`:
+
+```bash
+uv run python start.py
+```
+
+- Dashboard: **http://127.0.0.1:5173**
+- Backend/health: **http://127.0.0.1:8000/health**
+
+> Use `127.0.0.1`, não `localhost` — evita o atraso de resolução IPv6 (`::1`).
+
+### Alternativa: dois terminais
+
+```bash
+# terminal 1 — backend
+uv run uvicorn backend.main:app --host 127.0.0.1 --port 8000
+
+# terminal 2 — frontend
+npm --prefix react-dashboard run dev
+```
+
+### Agente do WhatsApp (opcional, separado)
+
+Depende de Redis e da Evolution API; rode à parte quando precisar:
+
+```bash
+uv run uvicorn agent.entrypoint.main:app --host 127.0.0.1 --port 8001
+```
+
+## Migrations
+
+```bash
+uv run alembic upgrade head                              # aplicar
+uv run alembic revision --autogenerate -m "descricao"    # criar nova
+```
+
+## Testes
+
+```bash
+uv run pytest tests/ -v
+```
+
+Todos os testes usam mocks — não tocam banco nem a OpenAI de verdade.
+
+## Deploy
+
+Ver [`DEPLOY.md`](DEPLOY.md) (EasyPanel/Hostinger — mesma imagem para backend e agente,
+`react-dashboard/` com imagem própria + nginx).
+
+## Design system
+
+O design system dark que inspira o dashboard está em [`src/`](src/) e documentado em
+[`src/README.md`](src/README.md).

@@ -1,21 +1,46 @@
+"""Sobe backend (FastAPI) e frontend (React/Vite) simultaneamente para dev local.
+
+Uso:
+    uv run python start.py
+
+- backend  : uvicorn backend.main:app  -> http://127.0.0.1:8000
+- frontend : react-dashboard (Vite)    -> http://127.0.0.1:5173
+
+O Vite faz proxy de /api, /auth e /admin para o backend (ver vite.config.js).
+Encerra ambos os processos com Ctrl+C.
+
+O agente do WhatsApp (agent.entrypoint.main) NAO sobe aqui — depende de Redis e da
+Evolution API. Rode-o separadamente quando precisar:
+    uv run uvicorn agent.entrypoint.main:app --host 127.0.0.1 --port 8001
+"""
+
 import os
+import shutil
 import signal
 import subprocess
 import sys
 import threading
+from pathlib import Path
 
-BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"]
-FRONTEND_CMD = ["uv", "run", "flask", "--app", "frontend.app", "run", "--host", "127.0.0.1", "--port", "5000"]
-AGENTE_CMD = ["uv", "run", "uvicorn", "agent.entrypoint.main:app", "--host", "127.0.0.1", "--port", "8001"]
+RAIZ = Path(__file__).resolve().parent
+REACT_DIR = RAIZ / "react-dashboard"
 
 IS_WINDOWS = os.name == "nt"
 
 
+def _npm() -> str:
+    # No Windows o executavel e npm.cmd; shutil.which resolve o caminho completo.
+    return shutil.which("npm.cmd" if IS_WINDOWS else "npm") or "npm"
+
+
+BACKEND_CMD = ["uv", "run", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"]
+FRONTEND_CMD = [_npm(), "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"]
+
+
 def construir_comandos():
     return [
-        ("backend", BACKEND_CMD),
-        ("frontend", FRONTEND_CMD),
-        ("agente", AGENTE_CMD),
+        ("backend", BACKEND_CMD, RAIZ),
+        ("frontend", FRONTEND_CMD, REACT_DIR),
     ]
 
 
@@ -29,9 +54,10 @@ def _flags_criacao():
     return {"start_new_session": True}
 
 
-def iniciar_processo(comando):
+def iniciar_processo(comando, cwd):
     return subprocess.Popen(
         comando,
+        cwd=str(cwd),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -68,12 +94,12 @@ def encerrar(processos, timeout=10):
 
 
 def main():
-    print("Dashboard: http://127.0.0.1:5000  (use 127.0.0.1, nao 'localhost' — evita o atraso de IPv6)", flush=True)
-    print("Agente (webhook WhatsApp): http://127.0.0.1:8001/webhook/mensagem", flush=True)
+    print("Backend : http://127.0.0.1:8000  (health: /health)", flush=True)
+    print("Frontend: http://127.0.0.1:5173  (use 127.0.0.1, nao 'localhost' — evita atraso de IPv6)", flush=True)
     processos = []
     threads = []
-    for prefixo, comando in construir_comandos():
-        processo = iniciar_processo(comando)
+    for prefixo, comando, cwd in construir_comandos():
+        processo = iniciar_processo(comando, cwd)
         processos.append((prefixo, processo))
         thread = threading.Thread(
             target=encaminhar_saida, args=(prefixo, processo), daemon=True
