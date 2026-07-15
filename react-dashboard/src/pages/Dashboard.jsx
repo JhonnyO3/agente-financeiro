@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
-import Field, { Input, Select } from '../components/ui/Field';
+import Field, { Input, Select, Checkbox } from '../components/ui/Field';
 import DateRangePicker from '../components/ui/DateRangePicker';
 import PieChart from '../components/charts/PieChart';
 import BarChart from '../components/charts/BarChart';
@@ -15,6 +15,7 @@ import {
   getResumo, getGraficoCats, getGraficoMensal, getGraficoEvolucao,
   getProjecao, getParcelasAtivas, getTransacoes, getHeatmap,
   criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
+  atualizarStatusLote,
 } from '../api/transacoes';
 import styles from './Dashboard.module.css';
 
@@ -22,6 +23,24 @@ import styles from './Dashboard.module.css';
 const BRL = v => Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = iso => iso ? iso.split('T')[0].split('-').reverse().join('/') : '';
 const todayISO = () => new Date().toISOString().split('T')[0];
+
+/* ── month helpers (filtro de mês da tabela de transações) ── */
+const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+const monthBounds = ym => {
+  const [y, m] = ym.split('-').map(Number);
+  const ultimo = new Date(y, m, 0).getDate();
+  return { inicio: `${ym}-01`, fim: `${ym}-${String(ultimo).padStart(2,'0')}` };
+};
+const shiftMonth = (ym, delta) => {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+};
+const monthLabel = ym => {
+  const [y, m] = ym.split('-').map(Number);
+  const s = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 const PERIODOS = [
   { value:'mes_atual',       label:'Mês Atual' },
@@ -37,7 +56,7 @@ const STATUS = ['','PAGO','PENDENTE'];
 const FORMAS = ['','PIX','CARTAO_CREDITO','CARTAO_DEBITO','BOLETO'];
 
 /* ── table state reducer ── */
-const INIT_TABLE = { pagina: 1, tipo: '', categoria: '', status: '', forma: '', ordenar: 'data', direcao: 'desc', dataInicio: '', dataFim: '' };
+const INIT_TABLE = { pagina: 1, tipo: '', categoria: '', status: '', forma: '', ordenar: 'data', direcao: 'desc', dataInicio: '', dataFim: '', mesRef: currentMonth() };
 function tableReducer(s, a) {
   if (a.type === 'set')   return { ...s, [a.key]: a.val, pagina: a.key === 'pagina' ? a.val : 1 };
   if (a.type === 'sort')  return { ...s, ordenar: a.col, direcao: s.ordenar === a.col && s.direcao === 'desc' ? 'asc' : 'desc', pagina: 1 };
@@ -45,7 +64,7 @@ function tableReducer(s, a) {
   return s;
 }
 
-const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '' };
+const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false };
 const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
 
 export default function Dashboard() {
@@ -62,6 +81,7 @@ export default function Dashboard() {
   const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
+  const [selecionados, setSelecionados] = useState(() => new Set());
 
   /* modals — transação */
   const [addOpen,  setAddOpen]  = useState(false);
@@ -101,16 +121,20 @@ export default function Dashboard() {
   }, [periodo]);
 
   const loadTransacoes = useCallback(async () => {
+    // A tabela usa um filtro de mês próprio (mesRef), desacoplado do período global
+    // dos KPIs/gráficos. Um range explícito no DateRangePicker tem precedência.
+    const usaRange = tableState.dataInicio && tableState.dataFim;
+    const bounds = monthBounds(tableState.mesRef);
     const params = {
-      periodo, pagina: tableState.pagina,
+      pagina: tableState.pagina,
       tipo: tableState.tipo || undefined,
       categoria: (filterCat || tableState.categoria) || undefined,
       status: tableState.status || undefined,
       forma_pagamento: tableState.forma || undefined,
       ordenar: tableState.ordenar,
       direcao: tableState.direcao,
-      data_inicio: tableState.dataInicio || undefined,
-      data_fim:    tableState.dataFim    || undefined,
+      data_inicio: usaRange ? tableState.dataInicio : bounds.inicio,
+      data_fim:    usaRange ? tableState.dataFim    : bounds.fim,
     };
     const [t, i] = await Promise.allSettled([
       getTransacoes({ ...params }),
@@ -125,7 +149,7 @@ export default function Dashboard() {
         totalValor: (d.itens || []).reduce((s, x) => s + Number(x.valor), 0),
       });
     }
-  }, [periodo, tableState, filterCat]);
+  }, [tableState, filterCat]);
 
   useEffect(() => { loadResumoCharts(); }, [loadResumoCharts]);
   useEffect(() => { loadTransacoes();   }, [loadTransacoes]);
@@ -148,6 +172,7 @@ export default function Dashboard() {
       forma_pagamento: t.forma_pagamento || '',
       responsavel: t.responsavel || '',
       detalhes: t.detalhes || '',
+      recorrente: !!t.recorrente,
     });
     setEditId(t.id);
     setFormErr('');
@@ -211,6 +236,48 @@ export default function Dashboard() {
     await deletarGrupo(grupo); reload();
   }
 
+  /* ── seleção múltipla + status em lote ── */
+  const visiveisIds = (transacoes.itens || []).map(t => t.id);
+  const allVisiveisSelected = visiveisIds.length > 0 && visiveisIds.every(id => selecionados.has(id));
+
+  const toggleSel = id => setSelecionados(prev => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAllVisiveis = () => setSelecionados(prev => {
+    const n = new Set(prev);
+    if (allVisiveisSelected) visiveisIds.forEach(id => n.delete(id));
+    else visiveisIds.forEach(id => n.add(id));
+    return n;
+  });
+
+  async function handleBulkStatus(status) {
+    if (selecionados.size === 0) return;
+    try {
+      await atualizarStatusLote([...selecionados], status);
+      setSelecionados(new Set());
+      reload();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Erro ao atualizar o status das transações.');
+    }
+  }
+
+  /* ── navegação de mês da tabela ── */
+  function navMesTabela(delta) {
+    setSelecionados(new Set());
+    dispatch({ type: 'set', key: 'dataInicio', val: '' });
+    dispatch({ type: 'set', key: 'dataFim', val: '' });
+    dispatch({ type: 'set', key: 'mesRef', val: shiftMonth(tableState.mesRef, delta) });
+  }
+  function setMesTabela(ym) {
+    if (!ym) return;
+    setSelecionados(new Set());
+    dispatch({ type: 'set', key: 'dataInicio', val: '' });
+    dispatch({ type: 'set', key: 'dataFim', val: '' });
+    dispatch({ type: 'set', key: 'mesRef', val: ym });
+  }
+
   /* ── sort indicator ── */
   const sortIcon = col => tableState.ordenar === col ? (tableState.direcao === 'asc' ? ' ▲' : ' ▼') : '';
 
@@ -252,6 +319,9 @@ export default function Dashboard() {
       </div>
       <Field label="Responsável"><Input value={form.responsavel} onChange={e=>setF('responsavel',e.target.value)} /></Field>
       <Field label="Detalhes"><Input value={form.detalhes} onChange={e=>setF('detalhes',e.target.value)} /></Field>
+      <div className={styles.formCheck}>
+        <Checkbox label="Gasto recorrente / fixo mensal" checked={form.recorrente} onChange={e=>setF('recorrente', e.target.checked)} />
+      </div>
     </>
   );
 
@@ -357,7 +427,14 @@ export default function Dashboard() {
       {/* ── Parcelas ativas ── */}
       {parcelas.length > 0 && (
         <div style={{marginBottom:'var(--space-8)'}}>
-          <h2 className={styles.sectionTitle}>Parcelas Ativas</h2>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Parcelas Ativas</h2>
+            <span className={styles.sectionMeta}>
+              {parcelas.length} parcelamento{parcelas.length !== 1 ? 's' : ''}
+              {' · '}{BRL(parcelas.reduce((s,p)=>s+Number(p.valor_parcela),0))}/mês
+              {' · '}{BRL(parcelas.reduce((s,p)=>s+(p.parcela_total - p.pagas)*Number(p.valor_parcela),0))} restante
+            </span>
+          </div>
           <div className={styles.parcelasGrid}>
             {parcelas.map(p=>(
               <Card key={p.grupo_parcela_id} className={styles.parcelaCard} onClick={()=>openParcelaEdit(p)} style={{cursor:'pointer'}}>
@@ -388,6 +465,18 @@ export default function Dashboard() {
           <h2 className={styles.sectionTitle}>Transações</h2>
         </div>
         <div className={styles.filtersBar}>
+          <div className={styles.monthNav}>
+            <button type="button" className={styles.monthNavBtn} onClick={()=>navMesTabela(-1)} aria-label="Mês anterior">‹</button>
+            <input
+              type="month"
+              className={styles.monthInput}
+              value={tableState.mesRef}
+              onChange={e=>setMesTabela(e.target.value)}
+              aria-label="Mês das transações"
+            />
+            <span className={styles.monthNavLabel}>{monthLabel(tableState.mesRef)}</span>
+            <button type="button" className={styles.monthNavBtn} onClick={()=>navMesTabela(1)} aria-label="Próximo mês">›</button>
+          </div>
           <div className={styles.filters}>
             <Select value={tableState.tipo}      onChange={e=>dispatch({type:'set',key:'tipo',val:e.target.value})} style={{width:'auto'}}>
               <option value="">Todos tipos</option>
@@ -420,10 +509,28 @@ export default function Dashboard() {
           />
         </div>
 
+        {selecionados.size > 0 && (
+          <div className={styles.bulkBar}>
+            <span className={styles.bulkCount}>{selecionados.size} selecionada{selecionados.size !== 1 ? 's' : ''}</span>
+            <div className={styles.bulkActions}>
+              <Button size="sm" onClick={()=>handleBulkStatus('PAGO')}>Marcar como PAGO</Button>
+              <Button size="sm" variant="ghost" onClick={()=>handleBulkStatus('PENDENTE')}>Marcar como PENDENTE</Button>
+            </div>
+          </div>
+        )}
+
         <Card>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>
+                <th style={{width:36}}>
+                  <input
+                    type="checkbox"
+                    checked={allVisiveisSelected}
+                    onChange={toggleAllVisiveis}
+                    aria-label="Selecionar todas as visíveis"
+                  />
+                </th>
                 <th onClick={()=>dispatch({type:'sort',col:'data'})}     className={styles.sortable}>Data{sortIcon('data')}</th>
                 <th onClick={()=>dispatch({type:'sort',col:'descricao'})} className={styles.sortable}>Descrição{sortIcon('descricao')}</th>
                 <th>Categoria</th>
@@ -435,7 +542,15 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>
                 {(transacoes.itens || []).map(t=>(
-                  <tr key={t.id}>
+                  <tr key={t.id} className={selecionados.has(t.id) ? styles.rowSelected : ''}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(t.id)}
+                        onChange={()=>toggleSel(t.id)}
+                        aria-label={`Selecionar transação ${t.descricao || t.id}`}
+                      />
+                    </td>
                     <td>{fmtDate(t.data)}</td>
                     <td>{t.descricao}</td>
                     <td>{t.categoria}</td>
@@ -452,7 +567,7 @@ export default function Dashboard() {
                   </tr>
                 ))}
                 {!(transacoes.itens?.length) && (
-                  <tr><td colSpan={8} className={styles.empty}>Nenhuma transação encontrada</td></tr>
+                  <tr><td colSpan={9} className={styles.empty}>Nenhuma transação encontrada</td></tr>
                 )}
               </tbody>
             </table>

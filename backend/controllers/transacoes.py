@@ -66,6 +66,21 @@ async def criar_transacao(
     return JSONResponse(resultado, status_code=201)
 
 
+@router.patch("/transacoes/status")
+async def atualizar_status_lote(
+    request: Request,
+    session: AsyncSession = Depends(get_session_begin),
+    usuario: UsuarioToken = Depends(get_usuario_atual),
+):
+    body = await _corpo(request)
+    try:
+        return await service.atualizar_status_em_lote(
+            session, usuario.usuario_id, body.get("ids"), body.get("status")
+        )
+    except service.ValidacaoError as erro:
+        return JSONResponse({"erro": erro.mensagem}, status_code=400)
+
+
 @router.put("/transacoes/{id}")
 async def atualizar_transacao(
     id: int,

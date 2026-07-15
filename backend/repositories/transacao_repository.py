@@ -201,6 +201,16 @@ class TransacaoRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def listar_recorrentes(self, usuario_id: int) -> list[Transacao]:
+        stmt = (
+            select(Transacao)
+            .where(Transacao.recorrente.is_(True))
+            .where(Transacao.usuario_id == usuario_id)
+            .order_by(Transacao.data)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def listar_por_periodo_com_embedding(
         self, inicio: date, fim: date, usuario_id: int | None = None
     ) -> list[Transacao]:

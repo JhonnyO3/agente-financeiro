@@ -13,6 +13,8 @@ class _FakeTransacao:
     data: date
     parcela_total: int = 1
     status: str = "PAGO"
+    descricao: str = ""
+    recorrente: bool = False
 
 
 class _FakeRepo:
@@ -21,6 +23,9 @@ class _FakeRepo:
 
     async def listar_por_periodo(self, inicio, fim, usuario_id=None):
         return [t for t in self._transacoes if inicio <= t.data <= fim]
+
+    async def listar_recorrentes(self, usuario_id=None):
+        return [t for t in self._transacoes if getattr(t, "recorrente", False)]
 
 
 def _build_client(monkeypatch, transacoes):
@@ -119,3 +124,129 @@ def test_projecao_mantem_qtd_parcelas(monkeypatch):
     dados = resposta.json()
     assert len(dados) == 1
     assert dados[0]["qtd_parcelas"] == 1
+
+
+def _linha(dados, mes_str):
+    return next(linha for linha in dados if linha["mes"] == mes_str)
+
+
+def test_projecao_mes_so_com_parcela_materializada(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao(
+            "GASTO", "COMPRAS", Decimal("500.00"), futuro,
+            parcela_total=3, descricao="Notebook",
+        ),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    dados = resposta.json()
+    assert len(dados) == 1
+    assert dados[0]["mes"] == fmt_mes(futuro)
+    assert dados[0]["gastos"] == "500.00"
+    assert dados[0]["qtd_parcelas"] == 1
+
+
+def test_projecao_mes_so_com_recorrente_projetado(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    passado = _mes_futuro(hoje, -3)
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao(
+            "GASTO", "GASTOS_FIXOS", Decimal("1200.00"), passado,
+            descricao="Aluguel", recorrente=True,
+        ),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    dados = resposta.json()
+    linha = _linha(dados, fmt_mes(futuro))
+    assert linha["gastos"] == "1200.00"
+    assert linha["saldo"] == "-1200.00"
+    assert linha["qtd_parcelas"] == 0
+
+
+def test_projecao_mes_com_parcela_e_recorrente(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    passado = _mes_futuro(hoje, -3)
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao(
+            "GASTO", "COMPRAS", Decimal("500.00"), futuro,
+            parcela_total=3, descricao="Notebook",
+        ),
+        _FakeTransacao(
+            "GASTO", "GASTOS_FIXOS", Decimal("1200.00"), passado,
+            descricao="Aluguel", recorrente=True,
+        ),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    dados = resposta.json()
+    linha = _linha(dados, fmt_mes(futuro))
+    assert linha["gastos"] == "1700.00"
+    assert linha["qtd_parcelas"] == 1
+
+
+def test_projecao_recorrente_ja_materializado_nao_conta_em_dobro(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao(
+            "GASTO", "GASTOS_FIXOS", Decimal("1000.00"), futuro,
+            descricao="Aluguel", recorrente=True,
+        ),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    dados = resposta.json()
+    linha = _linha(dados, fmt_mes(futuro))
+    assert linha["gastos"] == "1000.00"
+
+
+def test_projecao_dedup_templates_pega_ocorrencia_mais_recente(monkeypatch):
+    from backend.services.graficos import fmt_mes
+
+    hoje = date.today()
+    antigo = _mes_futuro(hoje, -4)
+    recente = _mes_futuro(hoje, -1)
+    futuro = _mes_futuro(hoje, 2)
+    transacoes = [
+        _FakeTransacao(
+            "GASTO", "GASTOS_FIXOS", Decimal("30.00"), antigo,
+            descricao="Streaming", recorrente=True,
+        ),
+        _FakeTransacao(
+            "GASTO", "GASTOS_FIXOS", Decimal("50.00"), recente,
+            descricao="Streaming", recorrente=True,
+        ),
+    ]
+    app, client = _build_client(monkeypatch, transacoes)
+    with client:
+        resposta = client.get("/api/projecao")
+    app.dependency_overrides.clear()
+
+    dados = resposta.json()
+    linha = _linha(dados, fmt_mes(futuro))
+    assert linha["gastos"] == "50.00"

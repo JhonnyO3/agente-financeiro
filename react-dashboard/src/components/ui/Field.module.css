@@ -17,3 +17,17 @@
 .input:focus, .select:focus { border-color: var(--color-primary); }
 .input::placeholder { color: var(--color-text-muted); }
 .select option { background: var(--color-surface-3); }
+
+.checkbox {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+.checkbox input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
