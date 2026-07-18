@@ -39,6 +39,7 @@ def fake_repo(**overrides):
     repo = SimpleNamespace(
         listar_por_periodo=AsyncMock(return_value=[]),
         criar=AsyncMock(return_value=SimpleNamespace(id=43)),
+        criar_lote=AsyncMock(return_value=[]),
         buscar_por_id=AsyncMock(return_value=None),
         atualizar=AsyncMock(return_value=None),
         excluir=AsyncMock(return_value=None),
@@ -726,3 +727,124 @@ def test_bulk_status_ids_vazio_retorna_400():
     assert resposta.status_code == 400
     assert "erro" in resposta.json()
     assert sessao.statements == []
+
+
+def test_post_cartao_credito_cria_parcelas():
+    repo = fake_repo()
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-08-10",
+                "descricao": "Notebook",
+                "categoria": "COMPRAS",
+                "valor": "3000",
+                "tipo": "GASTO",
+                "forma_pagamento": "CARTAO_CREDITO",
+                "parcelas": 3,
+            },
+        )
+
+    assert resposta.status_code == 201
+    corpo = resposta.json()
+    assert corpo["ok"] is True
+    assert corpo["parcelas"] == 3
+    assert "grupo_parcela_id" in corpo
+    repo.criar.assert_not_awaited()
+
+    lote = repo.criar_lote.await_args.args[0]
+    assert [t.parcela_numero for t in lote] == [1, 2, 3]
+    assert all(t.parcela_total == 3 for t in lote)
+    assert [t.valor for t in lote] == [Decimal("1000.00"), Decimal("1000.00"), Decimal("1000.00")]
+    assert [t.data for t in lote] == [date(2026, 9, 10), date(2026, 10, 10), date(2026, 11, 10)]
+    assert len({t.grupo_parcela_id for t in lote}) == 1
+    assert all(t.status == StatusEnum.PENDENTE for t in lote)
+    assert all(t.forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO for t in lote)
+
+
+def test_post_parcelas_divide_com_resto_na_ultima():
+    repo = fake_repo()
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-08-10",
+                "categoria": "COMPRAS",
+                "valor": "100",
+                "tipo": "GASTO",
+                "forma_pagamento": "CARTAO_CREDITO",
+                "parcelas": 3,
+            },
+        )
+
+    assert resposta.status_code == 201
+    lote = repo.criar_lote.await_args.args[0]
+    assert [t.valor for t in lote] == [Decimal("33.33"), Decimal("33.33"), Decimal("33.34")]
+    assert sum(t.valor for t in lote) == Decimal("100.00")
+
+
+def test_post_cartao_uma_parcela_cria_simples():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=51)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-08-10",
+                "categoria": "COMPRAS",
+                "valor": "100",
+                "tipo": "GASTO",
+                "forma_pagamento": "CARTAO_CREDITO",
+                "parcelas": 1,
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert resposta.json() == {"id": 51, "ok": True}
+    repo.criar_lote.assert_not_awaited()
+    assert repo.criar.await_args.args[0].parcela_total == 1
+
+
+def test_post_parcelas_sem_cartao_credito_ignora_parcelamento():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=52)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-08-10",
+                "categoria": "COMPRAS",
+                "valor": "300",
+                "tipo": "GASTO",
+                "forma_pagamento": "PIX",
+                "parcelas": 3,
+            },
+        )
+
+    assert resposta.status_code == 201
+    repo.criar_lote.assert_not_awaited()
+    assert repo.criar.await_args.args[0].parcela_total == 1
+
+
+def test_post_parcelas_invalida_retorna_400():
+    repo = fake_repo()
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-08-10",
+                "categoria": "COMPRAS",
+                "valor": "300",
+                "tipo": "GASTO",
+                "forma_pagamento": "CARTAO_CREDITO",
+                "parcelas": 0,
+            },
+        )
+
+    assert resposta.status_code == 400
+    assert "erro" in resposta.json()
+    repo.criar.assert_not_awaited()
+    repo.criar_lote.assert_not_awaited()

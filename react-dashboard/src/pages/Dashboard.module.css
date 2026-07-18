@@ -208,6 +208,11 @@
   margin-top: var(--space-2);
 }
 
+.parcelasHint {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
 /* ── Mini KPI cards (investimentos header) ── */
 .miniLabel { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .miniValue { font-size: var(--text-base); font-weight: var(--weight-bold); margin-top: 2px; }

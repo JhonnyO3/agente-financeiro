@@ -64,7 +64,7 @@ function tableReducer(s, a) {
   return s;
 }
 
-const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false };
+const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1 };
 const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
 
 export default function Dashboard() {
@@ -317,6 +317,16 @@ export default function Dashboard() {
           </Select>
         </Field>
       </div>
+      {addOpen && form.forma_pagamento === 'CARTAO_CREDITO' && (
+        <Field label="Qtd. de parcelas">
+          <Input type="number" min="1" step="1" value={form.parcelas} onChange={e=>setF('parcelas', e.target.value)} placeholder="1" />
+          {Number(form.parcelas) > 1 && Number(String(form.valor).replace(',','.')) > 0 && (
+            <div className={styles.parcelasHint}>
+              {Number(form.parcelas)}x de aprox. {BRL(Number(String(form.valor).replace(',','.')) / Number(form.parcelas))} · 1ª no mês seguinte
+            </div>
+          )}
+        </Field>
+      )}
       <Field label="Responsável"><Input value={form.responsavel} onChange={e=>setF('responsavel',e.target.value)} /></Field>
       <Field label="Detalhes"><Input value={form.detalhes} onChange={e=>setF('detalhes',e.target.value)} /></Field>
       <div className={styles.formCheck}>

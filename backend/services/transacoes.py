@@ -10,6 +10,7 @@ from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, 
 from backend.models.transacao import Transacao
 from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from backend.repositories.transacao_repository import TransacaoRepository
+from backend.services._parcelas import adicionar_meses, valores_das_parcelas
 from backend.services.resumo import resolver_periodo
 
 POR_PAGINA = 25
@@ -142,6 +143,17 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
             "categoria, status e forma_pagamento"
         )
 
+    parcelas_raw = body.get("parcelas")
+    if parcelas_raw in (None, ""):
+        parcelas = 1
+    else:
+        try:
+            parcelas = int(parcelas_raw)
+        except (ValueError, TypeError):
+            raise ValidacaoError("Quantidade de parcelas invalida")
+    if parcelas < 1:
+        raise ValidacaoError("Quantidade de parcelas invalida")
+
     if status is None:
         if forma_pagamento == FormaPagamentoEnum.PIX:
             status = StatusEnum.PAGO
@@ -150,11 +162,44 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
         else:
             status = StatusEnum.PENDENTE
 
+    responsavel = body.get("responsavel") or "Jhonatas"
+    descricao = body.get("descricao")
+    detalhes = body.get("detalhes")
+    recorrente = bool(body.get("recorrente", False))
+
+    repo = TransacaoRepository(session)
+
+    if forma_pagamento == FormaPagamentoEnum.CARTAO_CREDITO and parcelas > 1:
+        grupo_id = uuid4()
+        valores = valores_das_parcelas(valor, parcelas)
+        transacoes = [
+            TransacaoCreate(
+                usuario_id=usuario_id,
+                tipo=tipo,
+                valor=valores[i],
+                descricao=descricao,
+                categoria=categoria,
+                data=adicionar_meses(data, i + 1),
+                parcela_numero=i + 1,
+                parcela_total=parcelas,
+                grupo_parcela_id=grupo_id,
+                embedding=None,
+                status=StatusEnum.PENDENTE,
+                forma_pagamento=forma_pagamento,
+                recorrente=recorrente,
+                responsavel=responsavel,
+                detalhes=detalhes,
+            )
+            for i in range(parcelas)
+        ]
+        await repo.criar_lote(transacoes)
+        return {"ok": True, "parcelas": parcelas, "grupo_parcela_id": str(grupo_id)}
+
     transacao = TransacaoCreate(
         usuario_id=usuario_id,
         tipo=tipo,
         valor=valor,
-        descricao=body.get("descricao"),
+        descricao=descricao,
         categoria=categoria,
         data=data,
         parcela_numero=1,
@@ -163,12 +208,10 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
         embedding=None,
         status=status,
         forma_pagamento=forma_pagamento,
-        recorrente=bool(body.get("recorrente", False)),
-        responsavel=body.get("responsavel") or "Jhonatas",
-        detalhes=body.get("detalhes"),
+        recorrente=recorrente,
+        responsavel=responsavel,
+        detalhes=detalhes,
     )
-
-    repo = TransacaoRepository(session)
     novo = await repo.criar(transacao)
     return {"id": novo.id, "ok": True}
 
