@@ -89,6 +89,46 @@
 .filters { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 @media (max-width: 600px) { .filters select { font-size: 12px; padding: 6px 8px; } }
 
+/* ── Month navigator (filtro de mês da tabela) ── */
+.monthNav { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.monthNavBtn {
+  background: var(--color-surface-3); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); color: var(--color-text-primary);
+  width: 30px; height: 30px; font-size: 16px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.monthNavBtn:hover { border-color: var(--color-primary); }
+.monthNavLabel {
+  font-size: var(--text-sm); font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary); min-width: 120px; text-align: center;
+}
+.monthInput {
+  background: var(--color-surface-3); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 6px 10px;
+  font-size: var(--text-sm); color: var(--color-text-primary);
+  color-scheme: dark; outline: none;
+  transition: border-color var(--transition-fast);
+}
+.monthInput:focus { border-color: var(--color-primary); }
+
+/* ── Bulk action bar (status em lote) ── */
+.bulkBar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+}
+.bulkCount { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
+.bulkActions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* checkboxes na tabela */
+.table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; vertical-align: middle; }
+.rowSelected td { background: var(--color-surface-2) !important; }
+
 /* DateRangePicker fica em seu próprio módulo CSS */
 
 /* ── Table ── */
@@ -175,6 +215,7 @@
 /* ── Form grid ── */
 .formGrid  { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 @media (max-width: 520px) { .formGrid { grid-template-columns: 1fr; } }
+.formCheck { margin-top: var(--space-2); }
 .formAlert {
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.30);
   border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);

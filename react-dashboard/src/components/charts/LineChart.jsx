@@ -1,9 +1,13 @@
 import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend,
+  Chart as ChartJS, CategoryScale, LinearScale, LogarithmicScale, PointElement, LineElement, Filler, Tooltip, Legend,
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, LogarithmicScale, PointElement, LineElement, Filler, Tooltip, Legend);
+
+/* Piso para a escala logarítmica: valores <= 0 quebram log; plotamos no piso
+   mas o tooltip continua exibindo o valor real (via realData). */
+const LOG_FLOOR = 1;
 
 const SERIES = {
   gastos:        { label: 'Gastos',        color: '#EF4444' },
@@ -15,17 +19,21 @@ function transform(raw) {
   if (!raw || !raw.length) return { labels: [], datasets: [] };
   const labels = raw.map(r => r.mes);
   const isMobile = window.innerWidth < 600;
-  const datasets = Object.entries(SERIES).map(([key, { label, color }]) => ({
-    label,
-    data: raw.map(r => Number(r[key]) || 0),
-    borderColor: color,
-    backgroundColor: color + '22',
-    fill: true,
-    tension: 0.4,
-    pointRadius: isMobile ? 4 : 3,
-    pointHoverRadius: isMobile ? 8 : 6,
-    borderWidth: isMobile ? 2.5 : 2,
-  }));
+  const datasets = Object.entries(SERIES).map(([key, { label, color }]) => {
+    const real = raw.map(r => Number(r[key]) || 0);
+    return {
+      label,
+      data: real.map(v => (v > 0 ? v : LOG_FLOOR)), // piso para não quebrar a escala log
+      realData: real,                                // valores reais para o tooltip
+      borderColor: color,
+      backgroundColor: color + '22',
+      fill: true,
+      tension: 0.4,
+      pointRadius: isMobile ? 4 : 3,
+      pointHoverRadius: isMobile ? 8 : 6,
+      borderWidth: isMobile ? 2.5 : 2,
+    };
+  });
   return { labels, datasets };
 }
 
@@ -52,7 +60,10 @@ export default function LineChart({ data }) {
         titleFont: { size: 12 },
         bodyFont: { size: 12 },
         callbacks: {
-          label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}`,
+          label: ctx => {
+            const real = ctx.dataset.realData?.[ctx.dataIndex] ?? ctx.raw;
+            return ` ${ctx.dataset.label}: ${Number(real).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}`;
+          },
         },
       },
     },
@@ -67,11 +78,18 @@ export default function LineChart({ data }) {
         grid: { color: 'rgba(255,255,255,0.04)' },
       },
       y: {
+        type: 'logarithmic',
+        min: LOG_FLOOR,
         ticks: {
           color: '#6B7280',
           font: { size: isMobile ? 10 : 11 },
-          maxTicksLimit: isMobile ? 4 : 6,
-          callback: v => v >= 1000 ? `R$ ${(v/1000).toFixed(0)}k` : `R$ ${v}`,
+          // Na escala log só rotulamos potências de 10 — mantém os ticks legíveis
+          // em desktop/mobile e evita a poluição dos ticks intermediários (2k, 5k…).
+          callback: v => {
+            const log = Math.log10(v);
+            if (Math.abs(log - Math.round(log)) > 1e-6) return '';
+            return v >= 1000 ? `R$ ${(v/1000).toFixed(0)}k` : `R$ ${v}`;
+          },
         },
         grid: { color: 'rgba(255,255,255,0.06)' },
       },

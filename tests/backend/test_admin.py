@@ -61,6 +61,7 @@ def make_transacao(id, usuario_id=2, dia=1, valor="10.00"):
         grupo_parcela_id=f"grupo-{id}",
         status="PENDENTE",
         forma_pagamento="PIX",
+        recorrente=False,
         responsavel="Jhonatas",
         detalhes=None,
     )

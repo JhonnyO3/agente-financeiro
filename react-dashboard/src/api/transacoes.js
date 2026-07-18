@@ -14,5 +14,6 @@ export const editarTransacao = (id, body) => api.put(`/api/transacoes/${id}`, bo
 export const deletarTransacao = (id)      => api.delete(`/api/transacoes/${id}`);
 export const editarGrupo  = (grupo, body)  => api.put(`/api/grupos/${grupo}`, body);
 export const deletarGrupo = (grupo)       => api.delete(`/api/grupos/${grupo}`);
+export const atualizarStatusLote = (ids, status) => api.patch('/api/transacoes/status', { ids, status });
 
 export const criarUsuario = (body)        => api.post('/admin/usuarios', body);

@@ -3,9 +3,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
+from backend.models.transacao import Transacao
 from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from backend.repositories.transacao_repository import TransacaoRepository
 from backend.services.resumo import resolver_periodo
@@ -55,6 +57,7 @@ def _serializar(t) -> dict:
         "grupo_parcela_id": t.grupo_parcela_id,
         "status": _como_str(t.status),
         "forma_pagamento": _como_str(t.forma_pagamento),
+        "recorrente": t.recorrente,
         "responsavel": t.responsavel,
         "detalhes": t.detalhes or "",
     }
@@ -160,6 +163,7 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
         embedding=None,
         status=status,
         forma_pagamento=forma_pagamento,
+        recorrente=bool(body.get("recorrente", False)),
         responsavel=body.get("responsavel") or "Jhonatas",
         detalhes=body.get("detalhes"),
     )
@@ -184,6 +188,8 @@ async def atualizar(session: AsyncSession, usuario_id: int, id: int, body: dict)
             campos["status"] = StatusEnum(body["status"])
         if "forma_pagamento" in body:
             campos["forma_pagamento"] = FormaPagamentoEnum(body["forma_pagamento"])
+        if "recorrente" in body:
+            campos["recorrente"] = bool(body["recorrente"])
         if "responsavel" in body:
             campos["responsavel"] = body["responsavel"]
         if "detalhes" in body:
@@ -207,3 +213,26 @@ async def excluir(session: AsyncSession, usuario_id: int, id: int) -> dict:
         raise NaoEncontradaError(ERRO_NAO_ENCONTRADA)
     await repo.excluir(id, usuario_id=usuario_id)
     return {"ok": True}
+
+
+async def atualizar_status_em_lote(
+    session: AsyncSession,
+    usuario_id: int,
+    ids: list[int] | None,
+    status: str | None,
+) -> dict:
+    if not ids:
+        raise ValidacaoError("Informe ao menos um id")
+    try:
+        status_enum = StatusEnum(status)
+    except (ValueError, TypeError):
+        raise ValidacaoError("Status invalido")
+
+    stmt = (
+        update(Transacao)
+        .where(Transacao.id.in_(ids))
+        .where(Transacao.usuario_id == usuario_id)
+        .values(status=status_enum)
+    )
+    resultado = await session.execute(stmt)
+    return {"atualizados": resultado.rowcount}

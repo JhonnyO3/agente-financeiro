@@ -71,6 +71,7 @@ def make_transacao(
     forma_pagamento="PIX",
     responsavel="Jhonatas",
     detalhes=None,
+    recorrente=False,
 ):
     return SimpleNamespace(
         id=id,
@@ -84,6 +85,7 @@ def make_transacao(
         grupo_parcela_id=f"grupo-{id}",
         status=status,
         forma_pagamento=forma_pagamento,
+        recorrente=recorrente,
         responsavel=responsavel,
         detalhes=detalhes,
     )
@@ -436,6 +438,7 @@ def test_serializacao_do_item():
         "grupo_parcela_id": "grupo-42",
         "status": "PENDENTE",
         "forma_pagamento": "PIX",
+        "recorrente": False,
         "responsavel": "Jhonatas",
         "detalhes": "",
     }
@@ -582,3 +585,144 @@ def test_put_status_invalido_retorna_400():
 
     assert resposta.status_code == 400
     repo.atualizar.assert_not_awaited()
+
+
+def test_post_recorrente_persiste():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=50)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "GASTOS_FIXOS",
+                "valor": "1200.00",
+                "tipo": "GASTO",
+                "recorrente": True,
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].recorrente is True
+
+
+def test_post_sem_recorrente_default_false():
+    repo = fake_repo(criar=AsyncMock(return_value=SimpleNamespace(id=51)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.post(
+            "/api/transacoes",
+            json={
+                "data": "2026-06-10",
+                "categoria": "COMPRAS",
+                "valor": "50.00",
+                "tipo": "GASTO",
+            },
+        )
+
+    assert resposta.status_code == 201
+    assert repo.criar.await_args.args[0].recorrente is False
+
+
+def test_put_atualiza_recorrente():
+    repo = fake_repo(buscar_por_id=AsyncMock(return_value=make_transacao(1)))
+    client, stack = cliente_com(repo)
+    with stack:
+        resposta = client.put("/api/transacoes/1", json={"recorrente": True})
+
+    assert resposta.status_code == 200
+    _id, dados = repo.atualizar.await_args.args
+    assert isinstance(dados, TransacaoUpdate)
+    assert dados.recorrente is True
+
+
+class _FakeResult:
+    def __init__(self, rowcount):
+        self.rowcount = rowcount
+
+
+class _FakeSession:
+    def __init__(self, rowcount=0):
+        self._rowcount = rowcount
+        self.statements = []
+
+    async def execute(self, stmt):
+        self.statements.append(stmt)
+        return _FakeResult(self._rowcount)
+
+
+def cliente_com_sessao(sessao):
+    async def _fake():
+        yield sessao
+
+    async def _fake_usuario():
+        return USUARIO
+
+    app.dependency_overrides[get_session_begin] = _fake
+    app.dependency_overrides[get_usuario_atual] = _fake_usuario
+    stack = ExitStack()
+    stack.callback(app.dependency_overrides.clear)
+    return TestClient(app), stack
+
+
+def _sql(stmt):
+    return str(stmt.compile(compile_kwargs={"literal_binds": True}))
+
+
+def test_bulk_status_lote_valido_atualiza_n():
+    sessao = _FakeSession(rowcount=3)
+    client, stack = cliente_com_sessao(sessao)
+    with stack:
+        resposta = client.patch(
+            "/api/transacoes/status",
+            json={"ids": [1, 2, 3], "status": "PAGO"},
+        )
+
+    assert resposta.status_code == 200
+    assert resposta.json() == {"atualizados": 3}
+    assert len(sessao.statements) == 1
+    sql = _sql(sessao.statements[0])
+    assert "PAGO" in sql
+
+
+def test_bulk_status_isola_por_usuario():
+    sessao = _FakeSession(rowcount=1)
+    client, stack = cliente_com_sessao(sessao)
+    with stack:
+        resposta = client.patch(
+            "/api/transacoes/status",
+            json={"ids": [1, 2], "status": "PENDENTE"},
+        )
+
+    assert resposta.status_code == 200
+    sql = _sql(sessao.statements[0])
+    assert "usuario_id" in sql
+    assert "usuario_id = 1" in sql.replace('"', "")
+
+
+def test_bulk_status_invalido_retorna_400():
+    sessao = _FakeSession(rowcount=0)
+    client, stack = cliente_com_sessao(sessao)
+    with stack:
+        resposta = client.patch(
+            "/api/transacoes/status",
+            json={"ids": [1, 2], "status": "XYZ"},
+        )
+
+    assert resposta.status_code == 400
+    assert "erro" in resposta.json()
+    assert sessao.statements == []
+
+
+def test_bulk_status_ids_vazio_retorna_400():
+    sessao = _FakeSession(rowcount=0)
+    client, stack = cliente_com_sessao(sessao)
+    with stack:
+        resposta = client.patch(
+            "/api/transacoes/status",
+            json={"ids": [], "status": "PAGO"},
+        )
+
+    assert resposta.status_code == 400
+    assert "erro" in resposta.json()
+    assert sessao.statements == []

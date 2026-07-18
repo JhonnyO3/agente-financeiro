@@ -52,6 +52,7 @@ def fake_repo(**overrides):
         atualizar=AsyncMock(return_value=None),
         excluir=AsyncMock(return_value=None),
         excluir_grupo=AsyncMock(return_value=0),
+        listar_recorrentes=AsyncMock(return_value=[]),
     )
     for nome, valor in overrides.items():
         setattr(repo, nome, valor)
@@ -95,6 +96,7 @@ def make_transacao(
         grupo_parcela_id=grupo_parcela_id or f"grupo-{id}",
         status=status,
         forma_pagamento=forma_pagamento,
+        recorrente=False,
         responsavel="Jhonatas",
         detalhes=None,
     )
@@ -217,6 +219,7 @@ def test_shape_json_transacoes_identico():
         "grupo_parcela_id": "grupo-42",
         "status": "PENDENTE",
         "forma_pagamento": "PIX",
+        "recorrente": False,
         "responsavel": "Jhonatas",
         "detalhes": "",
     }
