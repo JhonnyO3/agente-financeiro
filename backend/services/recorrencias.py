@@ -81,6 +81,13 @@ def _data_vencimento(competencia: date, dia_vencimento: int | None) -> date:
     return competencia.replace(day=dia)
 
 
+def _chave_recorrencia(descricao, categoria, tipo) -> tuple[str, str, str]:
+    def _s(v) -> str:
+        return getattr(v, "value", v)
+
+    return ((descricao or "").strip().lower(), _s(categoria), _s(tipo))
+
+
 async def garantir_janela(
     session: AsyncSession, usuario_id: int, hoje: date
 ) -> int:
@@ -91,9 +98,23 @@ async def garantir_janela(
     recorrencias = await rec_repo.listar_ativas(usuario_id)
 
     gerados = 0
-    for recorrencia in recorrencias:
-        for competencia in competencias:
+    for competencia in competencias:
+        existentes = await trans_repo.listar_por_periodo(
+            competencia, ultimo_dia(competencia), usuario_id=usuario_id
+        )
+        avulsos = {
+            _chave_recorrencia(t.descricao, t.categoria, t.tipo)
+            for t in existentes
+            if getattr(t, "recorrencia_id", None) is None
+        }
+        for recorrencia in recorrencias:
             if await rec_repo.existe_lancamento(recorrencia.id, competencia):
+                continue
+            chave = _chave_recorrencia(
+                recorrencia.descricao, recorrencia.categoria, recorrencia.tipo
+            )
+            if chave in avulsos:
+                await rec_repo.registrar_lancamento(recorrencia.id, competencia, None)
                 continue
             data = _data_vencimento(competencia, recorrencia.dia_vencimento)
             transacao = await trans_repo.criar(

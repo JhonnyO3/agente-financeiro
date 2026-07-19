@@ -98,6 +98,13 @@ class _FakeTransRepo:
         self.s.transacoes[obj.id] = obj
         return obj
 
+    async def listar_por_periodo(self, inicio, fim, usuario_id=None):
+        return [
+            t.dados
+            for t in self.s.transacoes.values()
+            if inicio <= t.dados.data <= fim
+        ]
+
 
 @pytest.fixture(autouse=True)
 def _patch_repos(monkeypatch):
@@ -168,6 +175,35 @@ async def test_garantir_janela_cria_uma_por_mes():
     gerados = await service.garantir_janela(sess, 1, hoje)
     assert gerados == meses
     assert len(sess.store.transacoes) == meses
+    assert len(sess.store.lancamentos) == meses
+
+
+@pytest.mark.asyncio
+async def test_garantir_janela_pula_mes_com_lancamento_avulso_existente():
+    sess = _session()
+    await service.criar(
+        sess,
+        1,
+        RecorrenciaCreate(
+            descricao="Aluguel", valor=Decimal("1200"),
+            tipo="GASTO", categoria="GASTOS_FIXOS",
+        ),
+    )
+    hoje = date(2026, 7, 18)
+    # lançamento avulso (recorrencia_id=None) ja existe no mes atual
+    sess.store.transacoes[999] = SimpleNamespace(
+        id=999,
+        dados=SimpleNamespace(
+            descricao="Aluguel", categoria="GASTOS_FIXOS", tipo="GASTO",
+            data=date(2026, 7, 10), recorrencia_id=None,
+        ),
+    )
+    meses = len(janela_meses(hoje)[6:])
+
+    gerados = await service.garantir_janela(sess, 1, hoje)
+    # mes atual pulado (nao recria), meses futuros criados
+    assert gerados == meses - 1
+    # o log do mes atual foi registrado (para nao retentar), sem nova transacao
     assert len(sess.store.lancamentos) == meses
 
 
