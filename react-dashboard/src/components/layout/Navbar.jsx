@@ -19,6 +19,12 @@ export default function Navbar() {
         Agente Financeiro
       </div>
       <div className={styles.right}>
+        <button className={styles.link} onClick={() => navigate('/')}>
+          Dashboard
+        </button>
+        <button className={styles.link} onClick={() => navigate('/cartoes')}>
+          Cartões
+        </button>
         {role === 'ADMIN' && (
           <button className={styles.link} onClick={() => navigate('/admin/usuarios/novo')}>
             + Usuário

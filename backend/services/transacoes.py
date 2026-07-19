@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.enums import CategoriaEnum, FormaPagamentoEnum, StatusEnum, TipoEnum
 from backend.models.transacao import Transacao
+from backend.repositories.cartao_repository import CartaoRepository
 from backend.repositories.dtos import TransacaoCreate, TransacaoUpdate
 from backend.repositories.transacao_repository import TransacaoRepository
 from backend.services._parcelas import adicionar_meses, valores_das_parcelas
@@ -61,7 +62,23 @@ def _serializar(t) -> dict:
         "recorrente": t.recorrente,
         "responsavel": t.responsavel,
         "detalhes": t.detalhes or "",
+        "cartao_id": getattr(t, "cartao_id", None),
     }
+
+
+async def _validar_cartao(
+    session: AsyncSession, usuario_id: int, cartao_id_raw
+) -> int | None:
+    if cartao_id_raw in (None, ""):
+        return None
+    try:
+        cartao_id = int(cartao_id_raw)
+    except (ValueError, TypeError):
+        raise ValidacaoError("Cartao invalido")
+    cartao = await CartaoRepository(session).buscar_por_id(cartao_id, usuario_id)
+    if cartao is None:
+        raise ValidacaoError("Cartao invalido")
+    return cartao_id
 
 
 async def listar(
@@ -77,6 +94,8 @@ async def listar(
     direcao: str = "desc",
     data_inicio: date | None = None,
     data_fim: date | None = None,
+    cartao_id: int | None = None,
+    sem_cartao: bool = False,
 ) -> dict:
     if data_inicio or data_fim:
         inicio = data_inicio or date(2000, 1, 1)
@@ -93,6 +112,8 @@ async def listar(
         and (categoria is None or _como_str(t.categoria) == categoria)
         and (status is None or _como_str(t.status) == status)
         and (forma_pagamento is None or _como_str(t.forma_pagamento) == forma_pagamento)
+        and (cartao_id is None or getattr(t, "cartao_id", None) == cartao_id)
+        and (not sem_cartao or getattr(t, "cartao_id", None) is None)
     ]
     chave = _CHAVES_ORDENACAO.get(ordenar)
     if chave is not None:
@@ -166,6 +187,7 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
     descricao = body.get("descricao")
     detalhes = body.get("detalhes")
     recorrente = bool(body.get("recorrente", False))
+    cartao_id = await _validar_cartao(session, usuario_id, body.get("cartao_id"))
 
     repo = TransacaoRepository(session)
 
@@ -189,6 +211,7 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
                 recorrente=recorrente,
                 responsavel=responsavel,
                 detalhes=detalhes,
+                cartao_id=cartao_id,
             )
             for i in range(parcelas)
         ]
@@ -211,6 +234,7 @@ async def criar(session: AsyncSession, usuario_id: int, body: dict) -> dict:
         recorrente=recorrente,
         responsavel=responsavel,
         detalhes=detalhes,
+        cartao_id=cartao_id,
     )
     novo = await repo.criar(transacao)
     return {"id": novo.id, "ok": True}
@@ -241,6 +265,11 @@ async def atualizar(session: AsyncSession, usuario_id: int, id: int, body: dict)
         raise ValidacaoError(
             "Campos invalidos: verifique data, valor, categoria, "
             "status e forma_pagamento"
+        )
+
+    if "cartao_id" in body and body["cartao_id"] not in (None, ""):
+        campos["cartao_id"] = await _validar_cartao(
+            session, usuario_id, body["cartao_id"]
         )
 
     repo = TransacaoRepository(session)
@@ -279,3 +308,29 @@ async def atualizar_status_em_lote(
     )
     resultado = await session.execute(stmt)
     return {"atualizados": resultado.rowcount}
+
+
+async def vincular_cartao_em_lote(
+    session: AsyncSession,
+    usuario_id: int,
+    ids: list[int] | None,
+    cartao_id: int | None,
+) -> dict:
+    if not ids:
+        raise ValidacaoError("Informe ao menos um id")
+
+    if cartao_id is not None:
+        cartao = await CartaoRepository(session).buscar_por_id(cartao_id, usuario_id)
+        if cartao is None:
+            raise NaoEncontradaError(ERRO_NAO_ENCONTRADA)
+
+    repo = TransacaoRepository(session)
+    transacoes = await repo.listar_por_ids(ids, usuario_id=usuario_id)
+
+    grupos = sorted({t.grupo_parcela_id for t in transacoes if t.parcela_total > 1})
+    ids_diretos = [t.id for t in transacoes if t.parcela_total <= 1]
+
+    atualizados = await repo.vincular_cartao(
+        ids_diretos, grupos, cartao_id, usuario_id
+    )
+    return {"atualizados": atualizados}

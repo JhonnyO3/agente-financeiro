@@ -29,6 +29,7 @@ class TransacaoCreate:
     recorrente: bool = False
     responsavel: str = "Jhonatas"
     detalhes: str | None = None
+    cartao_id: int | None = None
 
 
 @dataclass
@@ -43,6 +44,7 @@ class TransacaoUpdate:
     recorrente: bool | None = None
     responsavel: str | None = None
     detalhes: str | None = None
+    cartao_id: int | None = None
 
 
 @dataclass

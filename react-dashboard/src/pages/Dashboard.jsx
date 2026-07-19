@@ -17,6 +17,7 @@ import {
   criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
   atualizarStatusLote,
 } from '../api/transacoes';
+import { getCartoes } from '../api/cartoes';
 import styles from './Dashboard.module.css';
 
 /* ── helpers ── */
@@ -64,7 +65,7 @@ function tableReducer(s, a) {
   return s;
 }
 
-const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1 };
+const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1, cartao_id: '' };
 const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
 
 export default function Dashboard() {
@@ -82,6 +83,7 @@ export default function Dashboard() {
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
   const [selecionados, setSelecionados] = useState(() => new Set());
+  const [cartoes, setCartoes] = useState([]);
 
   /* modals — transação */
   const [addOpen,  setAddOpen]  = useState(false);
@@ -153,6 +155,7 @@ export default function Dashboard() {
 
   useEffect(() => { loadResumoCharts(); }, [loadResumoCharts]);
   useEffect(() => { loadTransacoes();   }, [loadTransacoes]);
+  useEffect(() => { getCartoes().then(r => setCartoes(r.data || [])).catch(() => setCartoes([])); }, []);
 
   const reload = () => { loadResumoCharts(); loadTransacoes(); };
 
@@ -173,6 +176,7 @@ export default function Dashboard() {
       responsavel: t.responsavel || '',
       detalhes: t.detalhes || '',
       recorrente: !!t.recorrente,
+      cartao_id: t.cartao_id ?? '',
     });
     setEditId(t.id);
     setFormErr('');
@@ -317,6 +321,12 @@ export default function Dashboard() {
           </Select>
         </Field>
       </div>
+      <Field label="Cartão">
+        <Select value={form.cartao_id} onChange={e=>setF('cartao_id', e.target.value)}>
+          <option value="">— Sem cartão —</option>
+          {cartoes.map(c=><option key={c.id} value={c.id}>{c.apelido}</option>)}
+        </Select>
+      </Field>
       {addOpen && form.forma_pagamento === 'CARTAO_CREDITO' && (
         <Field label="Qtd. de parcelas">
           <Input type="number" min="1" step="1" value={form.parcelas} onChange={e=>setF('parcelas', e.target.value)} placeholder="1" />
