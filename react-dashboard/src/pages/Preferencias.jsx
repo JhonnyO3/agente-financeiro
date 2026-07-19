@@ -4,6 +4,7 @@ import Layout from '../components/layout/Layout';
 import Card from '../components/ui/Card';
 import Field, { Input } from '../components/ui/Field';
 import Button from '../components/ui/Button';
+import PieChart from '../components/charts/PieChart';
 import { getPreferencias, salvarPreferencias } from '../api/preferencias';
 import styles from './Preferencias.module.css';
 
@@ -13,6 +14,9 @@ const CATEGORIAS = [
 ];
 
 const BLANK_METAS = () => Object.fromEntries(CATEGORIAS.map(c => [c, '']));
+
+const num = v => parseFloat(String(v).replace(',', '.')) || 0;
+const BRL = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function Preferencias() {
   const navigate = useNavigate();
@@ -38,9 +42,21 @@ export default function Preferencias() {
 
   const setMeta = (cat, val) => setMetas(m => ({ ...m, [cat]: val }));
 
-  const soma = CATEGORIAS.reduce((s, c) => s + (parseFloat(String(metas[c]).replace(',', '.')) || 0), 0);
+  const rendaNum = num(renda);
+  const soma = CATEGORIAS.reduce((s, c) => s + num(metas[c]), 0);
   const folga = Math.max(0, 100 - soma);
   const excedido = soma > 100;
+
+  const valorDe = pct => rendaNum * num(pct) / 100;
+
+  // Pizza dinâmica: valor (R$) de cada categoria com meta > 0 + a folga.
+  const pieData = [
+    ...CATEGORIAS
+      .filter(c => num(metas[c]) > 0)
+      .map(c => ({ categoria: c, total: valorDe(metas[c]) })),
+    ...(folga > 0 && rendaNum > 0 ? [{ categoria: 'FOLGA', total: rendaNum * folga / 100 }] : []),
+  ];
+  const temPizza = rendaNum > 0 && pieData.some(d => d.total > 0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -48,12 +64,11 @@ export default function Preferencias() {
     setSaving(true); setError(''); setSuccess('');
     const metasBody = {};
     for (const c of CATEGORIAS) {
-      const v = parseFloat(String(metas[c]).replace(',', '.'));
-      if (!Number.isNaN(v) && v > 0) metasBody[c] = v;
+      const v = num(metas[c]);
+      if (v > 0) metasBody[c] = v;
     }
     const body = { metas: metasBody };
-    const rendaNum = parseFloat(String(renda).replace(',', '.'));
-    if (!Number.isNaN(rendaNum)) body.renda_mensal = rendaNum;
+    if (rendaNum > 0) body.renda_mensal = rendaNum;
     try {
       await salvarPreferencias(body);
       setSuccess('Preferências salvas com sucesso!');
@@ -82,7 +97,7 @@ export default function Preferencias() {
             </Field>
 
             <div className={styles.metasHeader}>
-              <span className={styles.metasTitle}>Metas por categoria (% das saídas)</span>
+              <span className={styles.metasTitle}>Metas por categoria (% da renda)</span>
               <span className={excedido ? styles.somaBad : styles.somaOk}>
                 {soma.toFixed(1)}% usados{excedido ? ' — passou de 100%' : ` · ${folga.toFixed(1)}% de folga`}
               </span>
@@ -104,6 +119,9 @@ export default function Preferencias() {
                     onChange={e => setMeta(cat, e.target.value)}
                     placeholder="0"
                   />
+                  <div className={styles.catValor}>
+                    {rendaNum > 0 && num(metas[cat]) > 0 ? BRL(valorDe(metas[cat])) : '—'}
+                  </div>
                 </Field>
               ))}
             </div>
@@ -112,6 +130,24 @@ export default function Preferencias() {
               {saving ? 'Salvando…' : 'Salvar Preferências'}
             </Button>
           </form>
+        </Card>
+
+        <Card className={styles.card}>
+          <div className={styles.pieHeader}>
+            <span className={styles.metasTitle}>Distribuição da renda</span>
+            {rendaNum > 0 && (
+              <span className={styles.somaOk}>{BRL(rendaNum)}/mês</span>
+            )}
+          </div>
+          {temPizza ? (
+            <div className={styles.pieWrap}>
+              <PieChart data={pieData} />
+            </div>
+          ) : (
+            <div className={styles.pieEmpty}>
+              Informe a renda mensal e as metas para visualizar a distribuição.
+            </div>
+          )}
         </Card>
       </div>
     </Layout>

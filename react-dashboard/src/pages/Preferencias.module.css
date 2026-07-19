@@ -2,7 +2,7 @@
 .back { color: var(--color-primary-light); font-size: var(--text-sm); margin-bottom: var(--space-6); display: inline-flex; align-items: center; gap: 4px; }
 .back:hover { color: #fff; }
 .title { font-size: var(--text-h2); font-weight: var(--weight-extrabold); margin-bottom: var(--space-6); }
-.card  { padding: var(--space-6); }
+.card  { padding: var(--space-6); margin-bottom: var(--space-5); }
 .form  { display: flex; flex-direction: column; gap: var(--space-4); }
 
 .alert   { background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.30);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);font-size:var(--text-sm);color:var(--color-danger); }
@@ -22,3 +22,9 @@
 @media (max-width: 560px) {
   .metasGrid { grid-template-columns: 1fr; }
 }
+
+.catValor { margin-top: 4px; font-size: var(--text-xs); color: var(--color-text-muted); font-weight: var(--weight-semibold); }
+
+.pieHeader { display:flex; align-items:baseline; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.pieWrap   { position:relative; width:100%; height:320px; }
+.pieEmpty  { text-align:center; color:var(--color-text-muted); font-size:var(--text-sm); padding:var(--space-8) 0; }
