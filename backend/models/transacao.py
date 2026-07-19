@@ -53,6 +53,9 @@ class Transacao(Base):
     cartao_id: Mapped[int | None] = mapped_column(
         INTEGER, ForeignKey("cartoes.id", ondelete="SET NULL"), nullable=True
     )
+    recorrencia_id: Mapped[int | None] = mapped_column(
+        INTEGER, ForeignKey("recorrencias.id", ondelete="SET NULL"), nullable=True
+    )
     criado_em: Mapped[datetime.datetime] = mapped_column(
         TIMESTAMP(timezone=False), nullable=False, server_default=func.now()
     )

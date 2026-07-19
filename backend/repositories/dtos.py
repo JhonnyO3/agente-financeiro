@@ -30,6 +30,7 @@ class TransacaoCreate:
     responsavel: str = "Jhonatas"
     detalhes: str | None = None
     cartao_id: int | None = None
+    recorrencia_id: int | None = None
 
 
 @dataclass

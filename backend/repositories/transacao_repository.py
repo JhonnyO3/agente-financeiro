@@ -33,6 +33,7 @@ class TransacaoRepository:
             responsavel=transacao.responsavel,
             detalhes=transacao.detalhes,
             cartao_id=transacao.cartao_id,
+            recorrencia_id=transacao.recorrencia_id,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -58,6 +59,7 @@ class TransacaoRepository:
                 responsavel=t.responsavel,
                 detalhes=t.detalhes,
                 cartao_id=t.cartao_id,
+                recorrencia_id=t.recorrencia_id,
             )
             for t in transacoes
         ]

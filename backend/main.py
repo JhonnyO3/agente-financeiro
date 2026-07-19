@@ -19,6 +19,7 @@ CONTROLLERS = [
     "graficos",
     "projecao",
     "cartoes",
+    "recorrencias",
     "auth",
     "admin",
 ]
