@@ -17,6 +17,7 @@ import {
   criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
   atualizarStatusLote,
 } from '../api/transacoes';
+import { getAderencia } from '../api/preferencias';
 import styles from './Dashboard.module.css';
 
 /* ── helpers ── */
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const [parcelas,setParcelas]    = useState([]);
   const [assinaturas,setAssins]   = useState([]);
   const [heatmap,    setHeatmap]  = useState([]);
+  const [aderencia,  setAderencia] = useState([]);
   const [transacoes,setTransacoes]= useState({ itens:[], total:0, paginas:1 });
   const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
@@ -100,7 +102,7 @@ export default function Dashboard() {
 
   /* ── data fetchers ── */
   const loadResumoCharts = useCallback(async () => {
-    const [r, c, m, e, p, pa, ass, hm] = await Promise.allSettled([
+    const [r, c, m, e, p, pa, ass, hm, ad] = await Promise.allSettled([
       getResumo(periodo),
       getGraficoCats(periodo),
       getGraficoMensal(),
@@ -109,6 +111,7 @@ export default function Dashboard() {
       getParcelasAtivas(),
       getTransacoes({ categoria: 'GASTOS_FIXOS', periodo: 'mes_atual', ordenar: 'valor', direcao: 'desc' }),
       getHeatmap(),
+      getAderencia('mes_atual'),
     ]);
     if (r.status   === 'fulfilled') setResumo(r.value.data);
     if (c.status   === 'fulfilled') setCats(c.value.data);
@@ -118,6 +121,7 @@ export default function Dashboard() {
     if (pa.status  === 'fulfilled') setParcelas(pa.value.data || []);
     if (ass.status === 'fulfilled') setAssins(ass.value.data?.itens || []);
     if (hm.status  === 'fulfilled') setHeatmap(hm.value.data || []);
+    if (ad.status  === 'fulfilled') setAderencia(ad.value.data || []);
   }, [periodo]);
 
   const loadTransacoes = useCallback(async () => {
@@ -372,6 +376,41 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* ── Aderência às metas ── */}
+      {aderencia.length > 0 && (
+        <Card className={styles.aderenciaCard}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>Aderência às Metas — Mês Atual</span>
+          </div>
+          <div className={styles.aderenciaList}>
+            {aderencia.map(a => {
+              const meta = Number(a.meta_pct);
+              const real = Number(a.realizado_pct);
+              const estouro = real > meta;
+              return (
+                <div key={a.categoria} className={styles.aderenciaRow}>
+                  <div className={styles.aderenciaTop}>
+                    <span className={styles.aderenciaCat}>{a.categoria}</span>
+                    <span className={estouro ? styles.negative : styles.positive}>
+                      {real.toFixed(1)}% / meta {meta.toFixed(1)}%
+                      {' · '}{estouro ? '+' : ''}{Number(a.desvio_pct).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className={styles.aderenciaTrack}>
+                    <div
+                      className={styles.aderenciaFill}
+                      style={{ width: `${Math.min(100, real)}%`, background: estouro ? 'var(--color-danger)' : 'var(--color-success)' }}
+                    />
+                    <div className={styles.aderenciaMeta} style={{ left: `${Math.min(100, meta)}%` }} />
+                  </div>
+                  <div className={styles.aderenciaValor}>{BRL(a.realizado_valor)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* ── HeatMap ── */}
       <Card className={styles.heatmapCard}>

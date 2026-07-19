@@ -12,6 +12,7 @@ from alembic import context
 
 from backend.models.transacao import Base
 from backend.models.usuario import Usuario  # noqa: F401
+from backend.models.preferencias import Preferencias  # noqa: F401
 
 config = context.config
 

@@ -18,6 +18,7 @@ CONTROLLERS = [
     "parcelas",
     "graficos",
     "projecao",
+    "preferencias",
     "auth",
     "admin",
 ]
