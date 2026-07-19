@@ -1,11 +1,11 @@
 from datetime import date
 from decimal import Decimal
 
-from backend.models.transacao import Transacao
 from backend.repositories.transacao_repository import TransacaoRepository
 from backend.dtos.graficos import ProjecaoMes
 from backend.services.graficos import _como_str, _valor_str, fmt_mes
 from backend.services.janela import janela_meses, ultimo_dia
+from backend.services.recorrencia import chave_recorrencia, consolidar_templates
 
 _BUCKET_POR_TIPO = {
     "GASTO": "gastos",
@@ -14,24 +14,9 @@ _BUCKET_POR_TIPO = {
 }
 
 
-def _chave_recorrencia(t: Transacao) -> tuple[str, str, str]:
-    return (t.descricao or "", _como_str(t.categoria), _como_str(t.tipo))
-
-
 class ProjecaoService:
     def __init__(self, repo: TransacaoRepository) -> None:
         self._repo = repo
-
-    def _consolidar_templates(
-        self, recorrentes: list[Transacao]
-    ) -> dict[tuple[str, str, str], Transacao]:
-        por_chave: dict[tuple[str, str, str], Transacao] = {}
-        for t in recorrentes:
-            chave = _chave_recorrencia(t)
-            atual = por_chave.get(chave)
-            if atual is None or t.data > atual.data:
-                por_chave[chave] = t
-        return por_chave
 
     async def projecao(self, hoje: date, usuario_id: int) -> list[ProjecaoMes]:
         meses = janela_meses(hoje)[6:]
@@ -39,7 +24,7 @@ class ProjecaoService:
             meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
         )
         recorrentes = await self._repo.listar_recorrentes(usuario_id)
-        templates = self._consolidar_templates(recorrentes)
+        templates = consolidar_templates(recorrentes)
 
         somas: dict[tuple[int, int], dict] = {
             (mes.year, mes.month): {
@@ -60,7 +45,7 @@ class ProjecaoService:
             bucket = _BUCKET_POR_TIPO.get(_como_str(t.tipo))
             if bucket is not None:
                 somas[chave][bucket] += t.valor
-            materializadas[chave].add(_chave_recorrencia(t))
+            materializadas[chave].add(chave_recorrencia(t))
             if t.parcela_total > 1:
                 somas[chave]["qtd_parcelas"] += 1
 

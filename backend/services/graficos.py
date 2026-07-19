@@ -5,6 +5,13 @@ from decimal import Decimal
 from backend.repositories.transacao_repository import TransacaoRepository
 from backend.dtos.graficos import CATEGORIAS_GASTO, EvolucaoMes
 from backend.services.janela import janela_meses, ultimo_dia
+from backend.services.recorrencia import chave_recorrencia, consolidar_templates
+
+_BUCKET_POR_TIPO = {
+    "GASTO": "gastos",
+    "INVESTIMENTO": "investimentos",
+    "RECEITA": "receitas",
+}
 
 MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 
@@ -29,17 +36,35 @@ class GraficosService:
 
     async def mensal(self, hoje: date, usuario_id: int) -> list[dict]:
         meses = janela_meses(hoje)
+        mes_atual = meses[6]
         transacoes = await self._repo.listar_por_periodo(
             meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
+        )
+        templates = consolidar_templates(
+            await self._repo.listar_recorrentes(usuario_id)
         )
 
         somas: dict[tuple[int, int], dict[str, Decimal]] = defaultdict(
             lambda: defaultdict(lambda: Decimal("0"))
         )
+        materializadas: dict[tuple[int, int], set] = defaultdict(set)
         for t in transacoes:
             if _como_str(t.tipo) != "GASTO":
                 continue
-            somas[(t.data.year, t.data.month)][_como_str(t.categoria)] += t.valor
+            chave = (t.data.year, t.data.month)
+            somas[chave][_como_str(t.categoria)] += t.valor
+            materializadas[chave].add(chave_recorrencia(t))
+
+        for mes in meses:
+            if mes < mes_atual:
+                continue
+            chave = (mes.year, mes.month)
+            for chave_t, template in templates.items():
+                if _como_str(template.tipo) != "GASTO":
+                    continue
+                if chave_t in materializadas[chave]:
+                    continue
+                somas[chave][_como_str(template.categoria)] += template.valor
 
         resultado = []
         for mes in meses:
@@ -77,8 +102,12 @@ class GraficosService:
 
     async def evolucao(self, hoje: date, usuario_id: int) -> list[EvolucaoMes]:
         meses = janela_meses(hoje)
+        mes_atual = meses[6]
         transacoes = await self._repo.listar_por_periodo(
             meses[0], ultimo_dia(meses[-1]), usuario_id=usuario_id
+        )
+        templates = consolidar_templates(
+            await self._repo.listar_recorrentes(usuario_id)
         )
 
         somas: dict[tuple[int, int], dict[str, Decimal]] = defaultdict(
@@ -88,17 +117,24 @@ class GraficosService:
                 "receitas": Decimal("0"),
             }
         )
+        materializadas: dict[tuple[int, int], set] = defaultdict(set)
         for t in transacoes:
-            tipo = _como_str(t.tipo)
-            if tipo == "GASTO":
-                chave = "gastos"
-            elif tipo == "INVESTIMENTO":
-                chave = "investimentos"
-            elif tipo == "RECEITA":
-                chave = "receitas"
-            else:
+            bucket = _BUCKET_POR_TIPO.get(_como_str(t.tipo))
+            if bucket is None:
                 continue
-            somas[(t.data.year, t.data.month)][chave] += t.valor
+            chave = (t.data.year, t.data.month)
+            somas[chave][bucket] += t.valor
+            materializadas[chave].add(chave_recorrencia(t))
+
+        for mes in meses:
+            if mes < mes_atual:
+                continue
+            chave = (mes.year, mes.month)
+            for chave_t, template in templates.items():
+                bucket = _BUCKET_POR_TIPO.get(_como_str(template.tipo))
+                if bucket is None or chave_t in materializadas[chave]:
+                    continue
+                somas[chave][bucket] += template.valor
 
         return [
             EvolucaoMes(
