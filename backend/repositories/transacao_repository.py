@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -204,8 +204,16 @@ class TransacaoRepository:
     async def listar_recorrentes(self, usuario_id: int) -> list[Transacao]:
         stmt = (
             select(Transacao)
-            .where(Transacao.recorrente.is_(True))
             .where(Transacao.usuario_id == usuario_id)
+            .where(
+                or_(
+                    Transacao.recorrente.is_(True),
+                    and_(
+                        Transacao.categoria == "GASTOS_FIXOS",
+                        Transacao.parcela_total == 1,
+                    ),
+                )
+            )
             .order_by(Transacao.data)
         )
         result = await self._session.execute(stmt)
