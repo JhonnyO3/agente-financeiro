@@ -50,6 +50,9 @@ class Transacao(Base):
     )
     responsavel: Mapped[str] = mapped_column(String, nullable=False, server_default="Jhonatas")
     detalhes: Mapped[str | None] = mapped_column(TEXT, nullable=True)
+    recorrencia_id: Mapped[int | None] = mapped_column(
+        INTEGER, ForeignKey("recorrencias.id", ondelete="SET NULL"), nullable=True
+    )
     criado_em: Mapped[datetime.datetime] = mapped_column(
         TIMESTAMP(timezone=False), nullable=False, server_default=func.now()
     )
