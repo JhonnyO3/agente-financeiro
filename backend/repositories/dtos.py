@@ -29,6 +29,7 @@ class TransacaoCreate:
     recorrente: bool = False
     responsavel: str = "Jhonatas"
     detalhes: str | None = None
+    recorrencia_id: int | None = None
 
 
 @dataclass
