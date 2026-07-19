@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login         from './pages/Login';
 import Dashboard     from './pages/Dashboard';
+import Cartoes       from './pages/Cartoes';
 import AdminUsuarios from './pages/AdminUsuarios';
 import Preferencias  from './pages/Preferencias';
 import { isLogged }  from './api/auth';
@@ -15,6 +16,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Guard><Dashboard /></Guard>} />
+        <Route path="/cartoes" element={<Guard><Cartoes /></Guard>} />
         <Route path="/preferencias" element={<Guard><Preferencias /></Guard>} />
         <Route path="/admin/usuarios/novo" element={<Guard><AdminUsuarios /></Guard>} />
         <Route path="*" element={<Navigate to="/" replace />} />

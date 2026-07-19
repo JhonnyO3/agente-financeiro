@@ -30,6 +30,8 @@ async def listar_transacoes(
     pagina: int = 1,
     data_inicio: str | None = None,
     data_fim: str | None = None,
+    cartao_id: int | None = None,
+    sem_cartao: bool = False,
     session: AsyncSession = Depends(get_session),
     usuario: UsuarioToken = Depends(get_usuario_atual),
 ):
@@ -49,6 +51,8 @@ async def listar_transacoes(
         direcao,
         data_inicio=di,
         data_fim=df,
+        cartao_id=cartao_id,
+        sem_cartao=sem_cartao,
     )
 
 
@@ -79,6 +83,25 @@ async def atualizar_status_lote(
         )
     except service.ValidacaoError as erro:
         return JSONResponse({"erro": erro.mensagem}, status_code=400)
+
+
+@router.patch("/transacoes/cartao")
+async def vincular_cartao_lote(
+    request: Request,
+    session: AsyncSession = Depends(get_session_begin),
+    usuario: UsuarioToken = Depends(get_usuario_atual),
+):
+    body = await _corpo(request)
+    try:
+        return await service.vincular_cartao_em_lote(
+            session, usuario.usuario_id, body.get("ids"), body.get("cartao_id")
+        )
+    except service.ValidacaoError as erro:
+        return JSONResponse({"erro": erro.mensagem}, status_code=400)
+    except service.NaoEncontradaError:
+        return JSONResponse(
+            {"erro": service.ERRO_NAO_ENCONTRADA}, status_code=404
+        )
 
 
 @router.put("/transacoes/{id}")

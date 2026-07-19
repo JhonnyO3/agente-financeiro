@@ -18,6 +18,11 @@ import {
   atualizarStatusLote,
 } from '../api/transacoes';
 import { getAderencia } from '../api/preferencias';
+import { getCartoes } from '../api/cartoes';
+import {
+  getRecorrencias, criarRecorrencia, editarRecorrencia,
+  deletarRecorrencia, materializarRecorrencias,
+} from '../api/recorrencias';
 import styles from './Dashboard.module.css';
 
 /* ── helpers ── */
@@ -65,8 +70,9 @@ function tableReducer(s, a) {
   return s;
 }
 
-const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1 };
+const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1, cartao_id: '' };
 const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
+const BLANK_REC_FORM = { descricao: '', valor: '', categoria: 'GASTOS_FIXOS', tipo: 'GASTO', dia_vencimento: '' };
 
 export default function Dashboard() {
   const [periodo, setPeriodo]     = useState('mes_atual');
@@ -84,6 +90,7 @@ export default function Dashboard() {
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
   const [selecionados, setSelecionados] = useState(() => new Set());
+  const [cartoes, setCartoes] = useState([]);
 
   /* modals — transação */
   const [addOpen,  setAddOpen]  = useState(false);
@@ -100,16 +107,22 @@ export default function Dashboard() {
   const [parcelaErr, setParcelaErr]   = useState('');
   const [parcelaSaving, setParcelaSaving] = useState(false);
 
+  /* modal — recorrência (gasto fixo) */
+  const [recOpen, setRecOpen]     = useState(false);
+  const [recEditId, setRecEditId] = useState(null);
+  const [recForm, setRecForm]     = useState(BLANK_REC_FORM);
+  const [recErr, setRecErr]       = useState('');
+  const [recSaving, setRecSaving] = useState(false);
+
   /* ── data fetchers ── */
   const loadResumoCharts = useCallback(async () => {
-    const [r, c, m, e, p, pa, ass, hm, ad] = await Promise.allSettled([
+    const [r, c, m, e, p, pa, hm, ad] = await Promise.allSettled([
       getResumo(periodo),
       getGraficoCats(periodo),
       getGraficoMensal(),
       getGraficoEvolucao(),
       getProjecao(),
       getParcelasAtivas(),
-      getTransacoes({ categoria: 'GASTOS_FIXOS', periodo: 'mes_atual', ordenar: 'valor', direcao: 'desc' }),
       getHeatmap(),
       getAderencia('mes_atual'),
     ]);
@@ -119,10 +132,17 @@ export default function Dashboard() {
     if (e.status   === 'fulfilled') setEvolucao(e.value.data);
     if (p.status   === 'fulfilled') setProjecao(p.value.data);
     if (pa.status  === 'fulfilled') setParcelas(pa.value.data || []);
-    if (ass.status === 'fulfilled') setAssins(ass.value.data?.itens || []);
     if (hm.status  === 'fulfilled') setHeatmap(hm.value.data || []);
     if (ad.status  === 'fulfilled') setAderencia(ad.value.data || []);
   }, [periodo]);
+
+  /* Assinaturas & gastos fixos: fonte da verdade é a tabela de recorrências. */
+  const loadRecorrencias = useCallback(async () => {
+    try {
+      const { data } = await getRecorrencias({ ativo: true });
+      setAssins(Array.isArray(data) ? data : []);
+    } catch { /* mantém estado anterior */ }
+  }, []);
 
   const loadTransacoes = useCallback(async () => {
     // A tabela usa um filtro de mês próprio (mesRef), desacoplado do período global
@@ -157,8 +177,17 @@ export default function Dashboard() {
 
   useEffect(() => { loadResumoCharts(); }, [loadResumoCharts]);
   useEffect(() => { loadTransacoes();   }, [loadTransacoes]);
+  useEffect(() => { getCartoes().then(r => setCartoes(r.data || [])).catch(() => setCartoes([])); }, []);
 
-  const reload = () => { loadResumoCharts(); loadTransacoes(); };
+  /* Garante a materialização do mês uma única vez ao abrir o dashboard. */
+  useEffect(() => {
+    (async () => {
+      try { await materializarRecorrencias(); } catch { /* idempotente */ }
+      loadRecorrencias();
+    })();
+  }, [loadRecorrencias]);
+
+  const reload = () => { loadResumoCharts(); loadTransacoes(); loadRecorrencias(); };
 
   /* ── form helpers ── */
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -177,6 +206,7 @@ export default function Dashboard() {
       responsavel: t.responsavel || '',
       detalhes: t.detalhes || '',
       recorrente: !!t.recorrente,
+      cartao_id: t.cartao_id ?? '',
     });
     setEditId(t.id);
     setFormErr('');
@@ -238,6 +268,48 @@ export default function Dashboard() {
   async function handleDeleteGrupo(grupo) {
     if (!confirm('Excluir todas as parcelas deste grupo?')) return;
     await deletarGrupo(grupo); reload();
+  }
+
+  /* ── recorrências (gastos fixos) ── */
+  const setRF = (k, v) => setRecForm(f => ({ ...f, [k]: v }));
+
+  function openRecAdd()  { setRecForm(BLANK_REC_FORM); setRecEditId(null); setRecErr(''); setRecOpen(true); }
+  function openRecEdit(r) {
+    setRecForm({
+      descricao: r.descricao || '',
+      valor: String(r.valor || ''),
+      categoria: r.categoria || 'GASTOS_FIXOS',
+      tipo: r.tipo || 'GASTO',
+      dia_vencimento: r.dia_vencimento != null ? String(r.dia_vencimento) : '',
+    });
+    setRecEditId(r.id);
+    setRecErr('');
+    setRecOpen(true);
+  }
+
+  async function handleRecSave(e) {
+    e.preventDefault();
+    if (!recForm.descricao || !recForm.valor) { setRecErr('Preencha descrição e valor.'); return; }
+    setRecSaving(true); setRecErr('');
+    try {
+      const body = {
+        descricao: recForm.descricao,
+        valor: parseFloat(String(recForm.valor).replace(',', '.')),
+        categoria: recForm.categoria,
+        tipo: recForm.tipo,
+        dia_vencimento: recForm.dia_vencimento === '' ? null : parseInt(recForm.dia_vencimento, 10),
+      };
+      if (recEditId) await editarRecorrencia(recEditId, body);
+      else           await criarRecorrencia(body);
+      setRecOpen(false);
+      loadRecorrencias();
+    } catch (err) { setRecErr(err.response?.data?.erro || 'Erro ao salvar.'); }
+    finally { setRecSaving(false); }
+  }
+
+  async function handleRecDelete(id) {
+    if (!confirm('Excluir este gasto fixo?')) return;
+    await deletarRecorrencia(id); loadRecorrencias();
   }
 
   /* ── seleção múltipla + status em lote ── */
@@ -321,6 +393,12 @@ export default function Dashboard() {
           </Select>
         </Field>
       </div>
+      <Field label="Cartão">
+        <Select value={form.cartao_id} onChange={e=>setF('cartao_id', e.target.value)}>
+          <option value="">— Sem cartão —</option>
+          {cartoes.map(c=><option key={c.id} value={c.id}>{c.apelido}</option>)}
+        </Select>
+      </Field>
       {addOpen && form.forma_pagamento === 'CARTAO_CREDITO' && (
         <Field label="Qtd. de parcelas">
           <Input type="number" min="1" step="1" value={form.parcelas} onChange={e=>setF('parcelas', e.target.value)} placeholder="1" />
@@ -450,28 +528,55 @@ export default function Dashboard() {
       )}
 
       {/* ── Assinaturas ── */}
-      {assinaturas.length > 0 && (
-        <div style={{marginBottom:'var(--space-8)'}}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Assinaturas & Gastos Fixos</h2>
+      <div style={{marginBottom:'var(--space-8)'}}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Assinaturas & Gastos Fixos</h2>
+          <div className={styles.toolbarRight}>
             <span className={styles.sectionMeta}>{assinaturas.length} item{assinaturas.length !== 1 ? 's' : ''} · {BRL(assinaturas.reduce((s,a)=>s+Number(a.valor),0))}/mês</span>
+            <Button onClick={openRecAdd}>+ Gasto fixo</Button>
           </div>
+        </div>
+        {assinaturas.length > 0 && (
           <div className={styles.assinsGrid}>
             {assinaturas.map(a => (
-              <Card key={a.id} className={styles.assinCard}>
+              <Card key={a.id} className={styles.assinCard} onClick={()=>openRecEdit(a)} style={{cursor:'pointer'}}>
                 <div className={styles.assinTop}>
                   <span className={styles.assinNome}>{a.descricao}</span>
                   <span className={styles.assinValor}>{BRL(a.valor)}</span>
                 </div>
                 <div className={styles.assinMeta}>
-                  <Badge label={a.status} />
-                  <span className={styles.assinData}>{fmtDate(a.data)}</span>
+                  <Badge label={a.categoria} />
+                  <span className={styles.assinData}>{a.dia_vencimento != null ? `Dia ${a.dia_vencimento}` : 'Mensal'}</span>
+                  <button className={styles.deleteBtn} onClick={ev=>{ev.stopPropagation();handleRecDelete(a.id);}}>🗑</button>
                 </div>
               </Card>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* ── Modal recorrência ── */}
+      <Modal open={recOpen} onClose={()=>setRecOpen(false)} title={recEditId ? 'Editar Gasto Fixo' : 'Novo Gasto Fixo'}
+        footer={<><Button variant="ghost" onClick={()=>setRecOpen(false)}>Cancelar</Button><Button onClick={handleRecSave} disabled={recSaving}>{recSaving?'Salvando…':'Salvar'}</Button></>}>
+        {recErr && <div className={styles.formAlert}>{recErr}</div>}
+        <Field label="Descrição" required><Input value={recForm.descricao} onChange={e=>setRF('descricao',e.target.value)} placeholder="Ex: Spotify…" /></Field>
+        <div className={styles.formGrid}>
+          <Field label="Valor (R$)" required><Input type="number" step="0.01" value={recForm.valor} onChange={e=>setRF('valor',e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Dia de vencimento"><Input type="number" min="1" max="31" step="1" value={recForm.dia_vencimento} onChange={e=>setRF('dia_vencimento',e.target.value)} placeholder="1–31" /></Field>
         </div>
-      )}
+        <div className={styles.formGrid}>
+          <Field label="Tipo">
+            <Select value={recForm.tipo} onChange={e=>setRF('tipo',e.target.value)}>
+              {['GASTO','RECEITA','INVESTIMENTO'].map(t=><option key={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Categoria">
+            <Select value={recForm.categoria} onChange={e=>setRF('categoria',e.target.value)}>
+              {CATS.filter(Boolean).map(c=><option key={c}>{c}</option>)}
+            </Select>
+          </Field>
+        </div>
+      </Modal>
 
       {/* ── Parcelas ativas ── */}
       {parcelas.length > 0 && (

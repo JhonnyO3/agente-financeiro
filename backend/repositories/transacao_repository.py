@@ -32,6 +32,8 @@ class TransacaoRepository:
             recorrente=transacao.recorrente,
             responsavel=transacao.responsavel,
             detalhes=transacao.detalhes,
+            cartao_id=transacao.cartao_id,
+            recorrencia_id=transacao.recorrencia_id,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -56,6 +58,8 @@ class TransacaoRepository:
                 recorrente=t.recorrente,
                 responsavel=t.responsavel,
                 detalhes=t.detalhes,
+                cartao_id=t.cartao_id,
+                recorrencia_id=t.recorrencia_id,
             )
             for t in transacoes
         ]
@@ -232,6 +236,56 @@ class TransacaoRepository:
             stmt = stmt.where(Transacao.usuario_id == usuario_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def listar_por_cartao(
+        self, cartao_id: int, usuario_id: int | None = None
+    ) -> list[Transacao]:
+        stmt = (
+            select(Transacao)
+            .where(Transacao.cartao_id == cartao_id)
+            .order_by(Transacao.data)
+        )
+        if usuario_id is not None:
+            stmt = stmt.where(Transacao.usuario_id == usuario_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def listar_por_ids(
+        self, ids: list[int], usuario_id: int | None = None
+    ) -> list[Transacao]:
+        if not ids:
+            return []
+        stmt = select(Transacao).where(Transacao.id.in_(ids))
+        if usuario_id is not None:
+            stmt = stmt.where(Transacao.usuario_id == usuario_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def vincular_cartao(
+        self,
+        ids: list[int],
+        grupos: list[str],
+        cartao_id: int | None,
+        usuario_id: int,
+    ) -> int:
+        from sqlalchemy import update
+
+        condicoes = []
+        if ids:
+            condicoes.append(Transacao.id.in_(ids))
+        if grupos:
+            condicoes.append(Transacao.grupo_parcela_id.in_(grupos))
+        if not condicoes:
+            return 0
+        stmt = (
+            update(Transacao)
+            .where(Transacao.usuario_id == usuario_id)
+            .where(or_(*condicoes))
+            .values(cartao_id=cartao_id)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.rowcount
 
     async def agregar_por_categoria(
         self, inicio: date, fim: date, usuario_id: int | None = None

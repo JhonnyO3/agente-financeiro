@@ -442,6 +442,7 @@ def test_serializacao_do_item():
         "recorrente": False,
         "responsavel": "Jhonatas",
         "detalhes": "",
+        "cartao_id": None,
     }
 
 

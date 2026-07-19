@@ -1,7 +1,7 @@
 """preferencias
 
-Revision ID: 0007
-Revises: 0006
+Revision ID: 0009
+Revises: 0008
 Create Date: 2026-07-18
 
 Cria a tabela `preferencias`, 1 linha por usuario (UNIQUE em usuario_id, FK CASCADE),
@@ -12,8 +12,8 @@ from typing import Sequence, Union
 from alembic import op
 
 
-revision: str = "0007"
-down_revision: Union[str, Sequence[str], None] = "0006"
+revision: str = "0009"
+down_revision: Union[str, Sequence[str], None] = "0008"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
