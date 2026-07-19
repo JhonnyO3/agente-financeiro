@@ -24,6 +24,7 @@
 }
 
 .catValor { margin-top: 4px; font-size: var(--text-xs); color: var(--color-text-muted); font-weight: var(--weight-semibold); }
+.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: calc(-1 * var(--space-2)); }
 
 .pieHeader { display:flex; align-items:baseline; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
 .pieWrap   { position:relative; width:100%; height:320px; }
