@@ -17,6 +17,8 @@ import {
   criarTransacao, editarTransacao, deletarTransacao, editarGrupo, deletarGrupo,
   atualizarStatusLote,
 } from '../api/transacoes';
+import { getAderencia } from '../api/preferencias';
+import { getCartoes } from '../api/cartoes';
 import {
   getRecorrencias, criarRecorrencia, editarRecorrencia,
   deletarRecorrencia, materializarRecorrencias,
@@ -68,7 +70,7 @@ function tableReducer(s, a) {
   return s;
 }
 
-const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1 };
+const BLANK_FORM = { data: todayISO(), descricao: '', categoria: '', valor: '', tipo: '', status: 'PENDENTE', forma_pagamento: '', responsavel: '', detalhes: '', recorrente: false, parcelas: 1, cartao_id: '' };
 const BLANK_PARCELA_FORM = { descricao: '', valor_parcela: '', pagas: '' };
 const BLANK_REC_FORM = { descricao: '', valor: '', categoria: 'GASTOS_FIXOS', tipo: 'GASTO', dia_vencimento: '' };
 
@@ -82,11 +84,13 @@ export default function Dashboard() {
   const [parcelas,setParcelas]    = useState([]);
   const [assinaturas,setAssins]   = useState([]);
   const [heatmap,    setHeatmap]  = useState([]);
+  const [aderencia,  setAderencia] = useState([]);
   const [transacoes,setTransacoes]= useState({ itens:[], total:0, paginas:1 });
   const [investimentos,setInvest] = useState({ itens:[], total:0, totalValor:0 });
   const [tableState, dispatch]    = useReducer(tableReducer, INIT_TABLE);
   const [filterCat, setFilterCat] = useState('');
   const [selecionados, setSelecionados] = useState(() => new Set());
+  const [cartoes, setCartoes] = useState([]);
 
   /* modals — transação */
   const [addOpen,  setAddOpen]  = useState(false);
@@ -112,7 +116,7 @@ export default function Dashboard() {
 
   /* ── data fetchers ── */
   const loadResumoCharts = useCallback(async () => {
-    const [r, c, m, e, p, pa, hm] = await Promise.allSettled([
+    const [r, c, m, e, p, pa, hm, ad] = await Promise.allSettled([
       getResumo(periodo),
       getGraficoCats(periodo),
       getGraficoMensal(),
@@ -120,6 +124,7 @@ export default function Dashboard() {
       getProjecao(),
       getParcelasAtivas(),
       getHeatmap(),
+      getAderencia('mes_atual'),
     ]);
     if (r.status   === 'fulfilled') setResumo(r.value.data);
     if (c.status   === 'fulfilled') setCats(c.value.data);
@@ -128,6 +133,7 @@ export default function Dashboard() {
     if (p.status   === 'fulfilled') setProjecao(p.value.data);
     if (pa.status  === 'fulfilled') setParcelas(pa.value.data || []);
     if (hm.status  === 'fulfilled') setHeatmap(hm.value.data || []);
+    if (ad.status  === 'fulfilled') setAderencia(ad.value.data || []);
   }, [periodo]);
 
   /* Assinaturas & gastos fixos: fonte da verdade é a tabela de recorrências. */
@@ -171,6 +177,7 @@ export default function Dashboard() {
 
   useEffect(() => { loadResumoCharts(); }, [loadResumoCharts]);
   useEffect(() => { loadTransacoes();   }, [loadTransacoes]);
+  useEffect(() => { getCartoes().then(r => setCartoes(r.data || [])).catch(() => setCartoes([])); }, []);
 
   /* Garante a materialização do mês uma única vez ao abrir o dashboard. */
   useEffect(() => {
@@ -199,6 +206,7 @@ export default function Dashboard() {
       responsavel: t.responsavel || '',
       detalhes: t.detalhes || '',
       recorrente: !!t.recorrente,
+      cartao_id: t.cartao_id ?? '',
     });
     setEditId(t.id);
     setFormErr('');
@@ -385,6 +393,12 @@ export default function Dashboard() {
           </Select>
         </Field>
       </div>
+      <Field label="Cartão">
+        <Select value={form.cartao_id} onChange={e=>setF('cartao_id', e.target.value)}>
+          <option value="">— Sem cartão —</option>
+          {cartoes.map(c=><option key={c.id} value={c.id}>{c.apelido}</option>)}
+        </Select>
+      </Field>
       {addOpen && form.forma_pagamento === 'CARTAO_CREDITO' && (
         <Field label="Qtd. de parcelas">
           <Input type="number" min="1" step="1" value={form.parcelas} onChange={e=>setF('parcelas', e.target.value)} placeholder="1" />
@@ -440,6 +454,41 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* ── Aderência às metas ── */}
+      {aderencia.length > 0 && (
+        <Card className={styles.aderenciaCard}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>Aderência às Metas — Mês Atual</span>
+          </div>
+          <div className={styles.aderenciaList}>
+            {aderencia.map(a => {
+              const meta = Number(a.meta_pct);
+              const real = Number(a.realizado_pct);
+              const estouro = real > meta;
+              return (
+                <div key={a.categoria} className={styles.aderenciaRow}>
+                  <div className={styles.aderenciaTop}>
+                    <span className={styles.aderenciaCat}>{a.categoria}</span>
+                    <span className={estouro ? styles.negative : styles.positive}>
+                      {real.toFixed(1)}% / meta {meta.toFixed(1)}%
+                      {' · '}{estouro ? '+' : ''}{Number(a.desvio_pct).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className={styles.aderenciaTrack}>
+                    <div
+                      className={styles.aderenciaFill}
+                      style={{ width: `${Math.min(100, real)}%`, background: estouro ? 'var(--color-danger)' : 'var(--color-success)' }}
+                    />
+                    <div className={styles.aderenciaMeta} style={{ left: `${Math.min(100, meta)}%` }} />
+                  </div>
+                  <div className={styles.aderenciaValor}>{BRL(a.realizado_valor)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* ── HeatMap ── */}
       <Card className={styles.heatmapCard}>

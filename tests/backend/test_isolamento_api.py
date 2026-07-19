@@ -222,6 +222,7 @@ def test_shape_json_transacoes_identico():
         "recorrente": False,
         "responsavel": "Jhonatas",
         "detalhes": "",
+        "cartao_id": None,
     }
 
 
